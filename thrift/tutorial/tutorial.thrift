@@ -56,7 +56,7 @@
  * Included objects are accessed using the name of the .thrift file as a
  * prefix. i.e. shared.SharedObject
  */
-include "thrift/tutorial/shared.thrift"
+include "shared.thrift"
 
 /**
  * Thrift files can namespace, package, or prefix their output in various

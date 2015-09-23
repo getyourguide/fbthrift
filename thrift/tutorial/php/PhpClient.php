@@ -19,10 +19,12 @@
  * under the License.
  */
 
+
+$GLOBALS['HACKLIB_ROOT'] = '{your hack directory}';
 $GLOBALS['THRIFT_ROOT'] = '../../lib/php/src';
 
 require_once $GLOBALS['THRIFT_ROOT'].'/Thrift.php';
-require_once $GLOBALS['THRIFT_ROOT'].'/protocol/TBinaryProtocol.php';
+require_once $GLOBALS['THRIFT_ROOT'].'/protocol/binary/TBinaryProtocol.php';
 require_once $GLOBALS['THRIFT_ROOT'].'/transport/TSocket.php';
 require_once $GLOBALS['THRIFT_ROOT'].'/transport/THttpClient.php';
 require_once $GLOBALS['THRIFT_ROOT'].'/transport/TBufferedTransport.php';
@@ -35,17 +37,17 @@ require_once $GLOBALS['THRIFT_ROOT'].'/transport/TBufferedTransport.php';
  * include the other files from their packages/ folder locations, but we
  * include everything here due to the bogus path setup.
  */
-error_reporting(E_NONE);
-$GEN_DIR = '../gen-php';
-require_once $GEN_DIR.'/SharedService.php';
-require_once $GEN_DIR.'/shared_types.php';
-require_once $GEN_DIR.'/Calculator.php';
-require_once $GEN_DIR.'/tutorial_types.php';
-error_reporting(E_ALL);
+//error_reporting(E_NONE);
+$GEN_DIR = $GLOBALS['THRIFT_ROOT'].'/packages';
+require_once $GEN_DIR.'/shared/SharedService.php';
+require_once $GEN_DIR.'/shared/shared_types.php';
+require_once $GEN_DIR.'/tutorial/Calculator.php';
+require_once $GEN_DIR.'/tutorial/tutorial_types.php';
+//error_reporting(E_ALL);
 
 try {
   if (array_search('--http', $argv)) {
-    $socket = new THttpClient('localhost', 8080, '/php/PhpServer.php');
+    $socket = new THttpClient('localhost', 8080, '/php/PhpServer.php','http', 'error_log');
   } else {
     $socket = new TSocket('localhost', 9090);
   }

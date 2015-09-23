@@ -18,12 +18,14 @@
  * under the License.
  */
 
-$GLOBALS['THRIFT_ROOT'] = realpath(dirname(__FILE__).'/../..').'/lib/php/src';
+$GLOBALS['HACKLIB_ROOT'] = '{your hack directory}';
+$GLOBALS['THRIFT_ROOT'] = '../lib/php/src';
 
 require_once $GLOBALS['THRIFT_ROOT'].'/Thrift.php';
-require_once $GLOBALS['THRIFT_ROOT'].'/protocol/TBinaryProtocol.php';
-require_once $GLOBALS['THRIFT_ROOT'].'/transport/TPhpStream.php';
+require_once $GLOBALS['THRIFT_ROOT'].'/protocol/binary/TBinaryProtocol.php';
+require_once $GLOBALS['THRIFT_ROOT'].'/transport/THttpClient.php';
 require_once $GLOBALS['THRIFT_ROOT'].'/transport/TBufferedTransport.php';
+
 
 /**
  * Suppress errors in here, which happen because we have not installed into
@@ -33,13 +35,13 @@ require_once $GLOBALS['THRIFT_ROOT'].'/transport/TBufferedTransport.php';
  * include the other files from their packages/ folder locations, but we
  * include everything here due to the bogus path setup.
  */
-error_reporting(E_NONE);
-$GEN_DIR = realpath(dirname(__FILE__).'/..').'/gen-php';
-require_once $GEN_DIR.'/SharedService.php';
-require_once $GEN_DIR.'/shared_types.php';
-require_once $GEN_DIR.'/Calculator.php';
-require_once $GEN_DIR.'/tutorial_types.php';
-error_reporting(E_ALL);
+//error_reporting(E_NONE);
+$GEN_DIR = $GLOBALS['THRIFT_ROOT'].'/packages';
+require_once $GEN_DIR.'/shared/SharedService.php';
+require_once $GEN_DIR.'/shared/shared_types.php';
+require_once $GEN_DIR.'/tutorial/Calculator.php';
+require_once $GEN_DIR.'/tutorial/tutorial_types.php';
+//error_reporting(E_ALL);
 
 class CalculatorHandler implements CalculatorIf {
   protected $log = array();
@@ -81,7 +83,7 @@ class CalculatorHandler implements CalculatorIf {
         throw $io;
     }
 
-    $log = new shared_SharedStruct();
+    $log = new SharedStruct();
     $log->key = $logid;
     $log->value = (string)$val;
     $this->log[$logid] = $log;
@@ -94,7 +96,7 @@ class CalculatorHandler implements CalculatorIf {
     // This actually doesn't work because the PHP interpreter is
     // restarted for every request.
     //return $this->log[$key];
-    return new shared_SharedStruct(array("key" => $key,
+    return new SharedStruct(array("key" => $key,
                                    "value" => "PHP is stateless!"));
   }
 

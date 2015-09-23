@@ -27,6 +27,17 @@
  * will work if you pass it the argument "--http".
  */
 
+
+$GLOBALS['HACKLIB_ROOT'] = '{your hack directory}';
+$GLOBALS['THRIFT_ROOT'] = '../lib/php/src';
+
+require_once $GLOBALS['THRIFT_ROOT'].'/Thrift.php';
+require_once $GLOBALS['THRIFT_ROOT'].'/protocol/binary/TBinaryProtocol.php';
+require_once $GLOBALS['THRIFT_ROOT'].'/transport/TSocket.php';
+require_once $GLOBALS['THRIFT_ROOT'].'/transport/THttpClient.php';
+require_once $GLOBALS['THRIFT_ROOT'].'/transport/TBufferedTransport.php';
+require_once $GLOBALS['THRIFT_ROOT'].'/transport/TPhpStream.php';
+
 if (php_sapi_name() == 'cli') {
   ini_set("display_errors", "stderr");
 }
