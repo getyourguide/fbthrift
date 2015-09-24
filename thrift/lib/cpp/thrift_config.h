@@ -1,22 +1,6 @@
-/*
- * Copyright 2014 Facebook, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 #ifndef _LIB_CPP_THRIFT_CONFIG_H
 #define _LIB_CPP_THRIFT_CONFIG_H 1
-
+ 
 /* lib/cpp/thrift_config.h. Generated automatically at end of configure. */
 /* config.h.  Generated from config.hin by configure.  */
 /* config.hin.  Generated from configure.ac by autoheader.  */
@@ -79,11 +63,9 @@
 #endif
 
 /* Define to 1 if you have the `clock_gettime' function. */
-#if defined(__linux__) || defined(__FreeBSD__)
 #ifndef THRIFT_HAVE_CLOCK_GETTIME
 #define THRIFT_HAVE_CLOCK_GETTIME 1
 #endif
-#endif // defined(__linux__) || defined(__FreeBSD__)
 
 /* Define to 1 if you have the declaration of `strerror_r', and to 0 if you
    don't. */
@@ -102,6 +84,11 @@
 /* Define to 1 if you have the <fcntl.h> header file. */
 #ifndef THRIFT_HAVE_FCNTL_H
 #define THRIFT_HAVE_FCNTL_H 1
+#endif
+
+/* define if the folly library is available */
+#ifndef THRIFT_HAVE_FOLLY
+#define THRIFT_HAVE_FOLLY /**/
 #endif
 
 /* Define to 1 if you have the `fork' function. */
@@ -132,11 +119,6 @@
 /* define if libevent is available */
 #ifndef THRIFT_HAVE_LIBEVENT
 #define THRIFT_HAVE_LIBEVENT /**/
-#endif
-
-/* Define to 1 if you have the `folly' library (-lfolly). */
-#ifndef THRIFT_HAVE_LIBFOLLY
-#define THRIFT_HAVE_LIBFOLLY 1
 #endif
 
 /* Define to 1 if you have the `gflags' library (-lgflags). */
@@ -181,6 +163,11 @@
 
 /* Define to 1 if you have the `socket' library (-lsocket). */
 /* #undef HAVE_LIBSOCKET */
+
+/* Define to 1 if you have the `wangle' library (-lwangle). */
+#ifndef THRIFT_HAVE_LIBWANGLE
+#define THRIFT_HAVE_LIBWANGLE 1
+#endif
 
 /* Define to 1 if you have the <limits.h> header file. */
 #ifndef THRIFT_HAVE_LIMITS_H
@@ -481,9 +468,6 @@
 #define THRIFT_LT_OBJDIR ".libs/"
 #endif
 
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-/* #undef NO_MINUS_C_MINUS_O */
-
 /* Name of package */
 #ifndef THRIFT_PACKAGE
 #define THRIFT_PACKAGE "thrift"
@@ -501,7 +485,7 @@
 
 /* Define to the full name and version of this package. */
 #ifndef THRIFT_PACKAGE_STRING
-#define THRIFT_PACKAGE_STRING "thrift 1.0"
+#define THRIFT_PACKAGE_STRING "thrift 31.0"
 #endif
 
 /* Define to the one symbol short name of this package. */
@@ -516,7 +500,7 @@
 
 /* Define to the version of this package. */
 #ifndef THRIFT_PACKAGE_VERSION
-#define THRIFT_PACKAGE_VERSION "1.0"
+#define THRIFT_PACKAGE_VERSION "31.0"
 #endif
 
 /* Define as the return type of signal handlers (`int' or `void'). */
@@ -548,9 +532,9 @@
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at runtime.
-   STACK_DIRECTION > 0 => grows toward higher addresses
-   STACK_DIRECTION < 0 => grows toward lower addresses
-   STACK_DIRECTION = 0 => direction of growth unknown */
+	STACK_DIRECTION > 0 => grows toward higher addresses
+	STACK_DIRECTION < 0 => grows toward lower addresses
+	STACK_DIRECTION = 0 => direction of growth unknown */
 /* #undef STACK_DIRECTION */
 
 /* Define to 1 if you have the ANSI C header files. */
@@ -558,14 +542,10 @@
 #define THRIFT_STDC_HEADERS 1
 #endif
 
-// https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man3/strerror_r.3.html
-// http://www.kernel.org/doc/man-pages/online/pages/man3/strerror.3.html
-#if defined(__linux__) && !defined(__ANDROID__)
 /* Define to 1 if strerror_r returns char *. */
 #ifndef THRIFT_STRERROR_R_CHAR_P
 #define THRIFT_STRERROR_R_CHAR_P 1
 #endif
-#endif // defined(__linux__) && !defined(__ANDROID__)
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #ifndef THRIFT_TIME_WITH_SYS_TIME
@@ -586,7 +566,7 @@
 
 /* Version number of package */
 #ifndef THRIFT_VERSION
-#define THRIFT_VERSION "1.0"
+#define THRIFT_VERSION "31.0"
 #endif
 
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
@@ -678,6 +658,6 @@
 /* Define to empty if the keyword `volatile' does not work. Warning: valid
    code using `volatile' can become incorrect without. Disable with care. */
 /* #undef volatile */
-
+ 
 /* once: _LIB_CPP_THRIFT_CONFIG_H */
 #endif
