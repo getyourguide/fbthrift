@@ -49,7 +49,7 @@ try {
   if (array_search('--http', $argv)) {
     $socket = new THttpClient('localhost', 8080, '/php/PhpServer.php','http', 'error_log');
   } else {
-    $socket = new TSocket('localhost', 9090);
+    $socket = new TSocket('localhost', 9090, false, 'error_log');
   }
   $transport = new TBufferedTransport($socket, 1024, 1024);
   $protocol = new TBinaryProtocol($transport);
