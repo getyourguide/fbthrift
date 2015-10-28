@@ -23,7 +23,7 @@ $GLOBALS['THRIFT_ROOT'] = '../lib/php/src';
 
 require_once $GLOBALS['THRIFT_ROOT'].'/Thrift.php';
 require_once $GLOBALS['THRIFT_ROOT'].'/protocol/binary/TBinaryProtocol.php';
-require_once $GLOBALS['THRIFT_ROOT'].'/transport/THttpClient.php';
+require_once $GLOBALS['THRIFT_ROOT'].'/transport/TPhpStream.php';
 require_once $GLOBALS['THRIFT_ROOT'].'/transport/TBufferedTransport.php';
 
 
