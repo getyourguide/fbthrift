@@ -57,35 +57,14 @@ class t_php_generator : public t_oop_generator {
     declare_namespace_ = option_is_specified(parsed_options, "declarens");
     service_adapters_ = option_is_specified(parsed_options, "adapters");
 
-    iter = parsed_options.find("adapters");
-    if (iter != parsed_options.end() && iter->second != "") {
-      service_handler_namespace_ = iter->second;
-    } else {
-      service_handler_namespace_ = "";
-    }
-
     if (service_adapters_ && !norequires_) {
         throw "the adapters option can only be used in conjunction with norequires";
     }
 
-
-//    if (save_constants_in_global_ && declare_namespace_) {
-//        throw "save_constants_in_global_ and declare_namespace_ are mutually exclusive.";
-//    }
-
-//    if (declare_namespace_) {
-//        save_constants_in_global_ = false;
-//    } else {
-        // default behaviour for the moment is to save constant values in $GLOBALS
-        // TODO: deprecate
-        save_constants_in_global_ = !option_is_specified(parsed_options,
-                "no-global-constants");
-//    }
-
-    //this guard may not be needed
-//    if (mangled_services_ && declare_namespace_) {
-//        throw "mangled_services_ and declare_namespace_ are mutually exclusive.";
-//    }
+    // default behaviour for the moment is to save constant values in $GLOBALS
+    // TODO: deprecate
+    save_constants_in_global_ = !option_is_specified(parsed_options,
+            "no-global-constants");
 
     if (oop_ && binary_inline_) {
       throw "oop and inlined are mutually exclusive.";
@@ -148,15 +127,13 @@ class t_php_generator : public t_oop_generator {
   void generate_client_event_handler_functions(std::ofstream& out);
   void generate_event_handler_functions (std::ofstream& out, string cl);
 
-  //void generate_adapters (t_service* tservice, bool mangle);
-
   /**
    * Adapter generation functions
    */
-  void generate_client_adapter (t_service* tservice, bool mangle);
+  void generate_processor_adapter_http (t_service* tservice, bool mangle);
   void generate_client_adapter_http (t_service* tservice, bool mangle);
   void generate_client_adapter_lib (t_service* tservice, bool mangle);
-  void generate_handler_adapter (t_service* tservice, bool mangle);
+  void generate_adapter_factory (t_service* tservice, bool mangle);
 
   /**
    * Serialization constructs
@@ -420,11 +397,6 @@ class t_php_generator : public t_oop_generator {
    * Whether to enable the service adapter classes
    */
   bool service_adapters_;
-
-  /**
-   * Namespace of the handler class
-   */
-  std::string service_handler_namespace_;
 };
 
 
@@ -705,19 +677,13 @@ void t_php_generator::init_generator() {
         endl;
     }
     constants_values_.clear();
-
-    if (declare_namespace_) {
+    string const_namespace = php_namespace(program_);
+    if (const_namespace != "" && !declare_namespace_) {
       f_consts_ <<
-        "class CONSTANTS {" << endl;
+        "class " << const_namespace << "CONSTANTS {" << endl;
     } else {
-      string const_namespace = php_namespace(program_);
-      if (const_namespace != "") {
-        f_consts_ <<
-          "class " << const_namespace << "CONSTANTS {" << endl;
-      } else {
-        f_consts_ <<
-          "class " << program_name_ << "_CONSTANTS {" << endl;
-      }
+      f_consts_ <<
+        "class " << program_name_ << "_CONSTANTS {" << endl;
     }
   }
 }
@@ -745,9 +711,9 @@ string t_php_generator::php_includes() {
 string t_php_generator::namespace_declaration() {
   if (declare_namespace_) {
       std::string ns = program_->get_namespace("php");
-      //if(ns.empty()) {
-      //  throw "a php namespace is required withthe declare namspace option";
-      //}
+      if(ns.empty()) {
+        throw "a php namespace is required for the declare namespace option";
+      }
       std::ostringstream ns_declaration;
       ns_declaration << "\n";
       ns_declaration << "namespace " << ns << ";\n";
@@ -793,15 +759,9 @@ void t_php_generator::close_generator() {
     // if save_constants_in_global_, write all the global definitions of the
     // constants as well
     if (save_constants_in_global_) {
-      if (declare_namespace_) {
-        f_consts_ << "$GLOBALS['" << program_name_ << "_CONSTANTS'] = " <<
-          "CONSTANTS::$__values;"<< endl <<
-          endl;
-      } else {
-        f_consts_ << "$GLOBALS['" << program_name_ << "_CONSTANTS'] = " <<
-          program_name_ << "_CONSTANTS::$__values;"<< endl <<
-          endl;
-      }
+      f_consts_ << "$GLOBALS['" << program_name_ << "_CONSTANTS'] = " <<
+        program_name_ << "_CONSTANTS::$__values;"<< endl <<
+        endl;
     }
     f_consts_ << "?>" << endl;
     f_consts_.close();
@@ -1202,9 +1162,8 @@ void t_php_generator::_generate_php_struct_definition(ofstream& out,
   vector<t_field*>::const_iterator m_iter;
 
   generate_php_docstring(out, tstruct);
-
-  out << "class " << php_namespace(tstruct->get_program()) << tstruct->get_name();
-
+  out <<
+    "class " << php_namespace(tstruct->get_program()) << tstruct->get_name();
   if (is_exception) {
     out << " extends \\TException";
   } else if (oop_) {
@@ -1550,7 +1509,8 @@ void t_php_generator::generate_php_struct_writer(ofstream& out,
         ") {" << endl;
       indent_up();
       out <<
-        indent() << "throw new \\TProtocolException('Bad type in structure.', \\TProtocolException::INVALID_DATA);" << endl;
+        indent() << "throw new \\TProtocolException('Bad type in structure.', \\TProtocolException::INVALID_DATA);" <<
+        endl;
       scope_down(out);
     }
 
@@ -1662,10 +1622,10 @@ void t_php_generator::generate_service(t_service* tservice, bool mangle) {
 
   // Generate adapters
   if (service_adapters_) {
-    generate_client_adapter(tservice, mangle);
+    generate_processor_adapter_http(tservice, mangle);
     generate_client_adapter_http(tservice, mangle);
     generate_client_adapter_lib(tservice, mangle);
-    generate_handler_adapter(tservice, mangle);
+    generate_adapter_factory(tservice, mangle);
   }
 
   // Generate the structures passed around and helper functions
@@ -2786,17 +2746,12 @@ void t_php_generator::_generate_service_client(
     "}" << endl << endl;
 }
 
-
-
-
-
-
 /**
- * Generate ClientAdapter adapter
+ * Generate ProcessorAdapterHttp adapter
  */
-void t_php_generator::generate_client_adapter(t_service* tservice, bool mangle) {
+void t_php_generator::generate_processor_adapter_http(t_service* tservice, bool mangle) {
   string f_base_name = php_servicename_mangle(mangle, tservice);
-  string f_service_adapter_name = get_out_dir()+f_base_name+"ClientAdapter.php";
+  string f_service_adapter_name = get_out_dir()+f_base_name+"ServerAdapterHttp.php";
   std::ofstream f_service_adapter;
   f_service_adapter.open(f_service_adapter_name.c_str());
   record_genfile(f_service_adapter_name);
@@ -2812,88 +2767,77 @@ void t_php_generator::generate_client_adapter(t_service* tservice, bool mangle) 
 
   // use statements
   f_service_adapter <<
+    "use Gyg\\Zipper\\ThriftEventHandler\\TraceProcessorEventHandler;" << endl <<
+    "use Gyg\\Zipper\\TraceHelper;" << endl <<
     "use Gyg\\Zipper\\TraceHelperInterface;" << endl <<
-    "use Exception;" << endl <<
+    "use Gyg\\Zipper\\ZipkinHttpHeaders;" << endl <<
+    "use Gyg\\Zipper\\Receiver\\NullReceiver;" << endl <<
     endl;
 
   // open class
-  f_service_adapter << "class " << long_name << "ClientAdapter implements " <<  long_name << "If" << endl;
+  f_service_adapter << "class " << long_name << "ServerAdapterHttp" << endl;
   scope_up(f_service_adapter);
   f_service_adapter <<
-    indent() << "const MODE_LIBRARY = 'library';" << endl <<
-    indent() << "const MODE_HTTP = 'http';" << endl <<
-    endl <<
-    indent() << "const ADAPTER_LIB = 'TicketOrderServiceClientAdapterLib';" << endl <<
-    indent() << "const ADAPTER_HTTP = 'TicketOrderServiceClientAdapterHttp';" << endl <<
-    indent() << "const ADAPTERS_NAMESPACE = 'Gyg\\\\Thrift\\\\Service\\\\TicketOrder\\\\';" << endl <<
-    endl <<
-    indent() << "/** @var  TicketOrderServiceIf */" << endl <<
-    indent() << "protected $adapter;" << endl <<
+    indent() << "/**  @var " << long_name << "If */" << endl <<
+    indent() << "protected $serviceHandler;" << endl <<
+    indent() << "/** @var  TraceHelperInterface */" << endl <<
+    indent() << "protected $traceHelper;" << endl <<
     endl;
 
   // open function
   indent(f_service_adapter) << "/**" << endl;
-  indent(f_service_adapter) << " * @param array $config" << endl;
+  indent(f_service_adapter) << " * @param " << long_name << "If $handler" << endl;
   indent(f_service_adapter) << " * @param TraceHelperInterface|null $traceHelper" << endl;
-  indent(f_service_adapter) << " * @throws Exception" << endl;
+  indent(f_service_adapter) << " * @param bool|true $setTraceSpanByHeader" << endl;
   indent(f_service_adapter) << " */" << endl;
-  indent(f_service_adapter) << "public function __construct(array $config, TraceHelperInterface $traceHelper = null)" << endl;
+  indent(f_service_adapter) << "public function __construct(" << endl;
+  indent_up();
+  indent(f_service_adapter) << long_name << "If $handler," << endl;
+  indent(f_service_adapter) << "TraceHelperInterface $traceHelper = null," << endl;
+  indent(f_service_adapter) << "$setTraceSpanByHeader  = true)" << endl;
+  indent_down();
   scope_up(f_service_adapter);
-  indent(f_service_adapter) << "if (!isset($config['mode'])) {"  << endl;
+  indent(f_service_adapter) << "$this->serviceHandler = $handler;" << endl;
+  indent(f_service_adapter) << "if ($traceHelper === null) {" << endl;
   indent_up();
-  indent(f_service_adapter) << "throw new Exception('The \\'mode\\' setting is missing in the configuration');"  << endl;
+  indent(f_service_adapter) <<  "//add mock receiver if no traceing is needed"  << endl;
+  indent(f_service_adapter) <<  "$this->traceHelper = new TraceHelper([new NullReceiver()]);"  << endl;
   indent_down();
-  indent(f_service_adapter) << "}" << endl;
-  indent(f_service_adapter) << "switch ($config['mode']) {"  << endl;
+  indent(f_service_adapter) << "} else {" << endl;
   indent_up();
-  indent(f_service_adapter) << "case self::MODE_LIBRARY:"  << endl;
+  indent(f_service_adapter) << "$this->traceHelper = $traceHelper;"  << endl;
+  indent(f_service_adapter) << "if ($setTraceSpanByHeader) {"  << endl;
   indent_up();
-  indent(f_service_adapter) << "$class = self::ADAPTERS_NAMESPACE . self::ADAPTER_LIB;"  << endl;
-  indent(f_service_adapter) << "$this->adapter = new $class($traceHelper);"  << endl;
-  indent(f_service_adapter) << "break;"  << endl;
-  indent_down();
-  indent(f_service_adapter) << "case self::MODE_HTTP:"  << endl;
+  indent(f_service_adapter) << "$zipkinHeaders = new ZipkinHttpHeaders();"  << endl;
+  indent(f_service_adapter) << "$zipkinHeaders->populateByHeaders(getallheaders());"  << endl;
+  indent(f_service_adapter) << "if ($zipkinHeaders->isValid()) {"  << endl;
   indent_up();
-  indent(f_service_adapter) << "$class = self::ADAPTERS_NAMESPACE . self::ADAPTER_HTTP;"  << endl;
-  indent(f_service_adapter) << "$this->adapter = new $class($config, $traceHelper);"  << endl;
-  indent(f_service_adapter) << "break;"  << endl;
-  indent_down();
-  indent(f_service_adapter) << "default:"  << endl;
-  indent_up();
-  indent(f_service_adapter) << "throw new Exception('The chosen mode is not supported: ' . $config['mode']);"  << endl;
-  indent_down();
+  indent(f_service_adapter) << "$this->traceHelper->setCurrentSpan($zipkinHeaders->getSpan());"  << endl;
   indent_down();
   indent(f_service_adapter) << "}"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "}"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "}"  << endl;
+
   // close function
   scope_down(f_service_adapter);
   f_service_adapter << endl;
 
-  // Generate client method wrappers
-  vector<t_function*> functions = tservice->get_functions();
-  vector<t_function*>::const_iterator f_iter;
-  for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter) {
-    t_struct* arg_struct = (*f_iter)->get_arglist();
-    const vector<t_field*>& fields = arg_struct->get_members();
-    vector<t_field*>::const_iterator fld_iter;
+  // open function
+  indent(f_service_adapter) << "public function handle()" << endl;
+  scope_up(f_service_adapter);
+  indent(f_service_adapter) << "$processor = new " << long_name << "Processor($this->serviceHandler);" << endl;
+  indent(f_service_adapter) << "$eventHandler = new TraceProcessorEventHandler('" << long_name << "', $this->traceHelper);" << endl;
+  indent(f_service_adapter) << "$processor->setEventHandler($eventHandler);" << endl;
+  indent(f_service_adapter) << "$transport = new \\TBufferedTransport(new \\TPhpStream(\\TPhpStream::MODE_R | \\TPhpStream::MODE_W));" << endl;
+  indent(f_service_adapter) << "$protocol = new \\TBinaryProtocol($transport, true, true);" << endl;
+  indent(f_service_adapter) << "$transport->open();" << endl;
+  indent(f_service_adapter) << "$processor->process($protocol, $protocol);" << endl;
+  indent(f_service_adapter) << "$transport->close();" << endl;
 
-    // Open function
-    generate_php_docstring(f_service_adapter, *f_iter);
-    indent(f_service_adapter) << "public function " << function_signature(*f_iter) << endl;
-    scope_up(f_service_adapter);
-    string return_var = "";
-    if (!(*f_iter)->is_oneway() && !(*f_iter)->get_returntype()->is_void()) {
-      return_var = "$result = ";
-    }
-    indent(f_service_adapter) << return_var << "$this->adapter->" << (*f_iter)->get_name() << "(" <<
-                              argument_list((*f_iter)->get_arglist()) << ");" << endl;
-    if (!(*f_iter)->is_oneway() && !(*f_iter)->get_returntype()->is_void()) {
-      indent(f_service_adapter) << endl;
-      indent(f_service_adapter) << "return $result;" << endl;
-    }
-    // close function
-    scope_down(f_service_adapter);
-    f_service_adapter << endl;
-  }
+  // close function
+  scope_down(f_service_adapter);
 
   // close class
   scope_down(f_service_adapter);
@@ -2922,10 +2866,6 @@ void t_php_generator::generate_client_adapter_http(t_service* tservice, bool man
     php_includes() <<
     include_types();
 
-//    require_once $GLOBALS['THRIFT_ROOT'] . '/transport/TBufferedTransport.php';
-//    require_once $GLOBALS['THRIFT_ROOT'] . '/protocol/binary/TBinaryProtocol.php';
-//    require_once $GLOBALS['THRIFT_ROOT'] . '/transport/THttpClient.php';
-
   // use statements
   f_service_adapter <<
     "use Gyg\\Zipper\\TraceHelper;" << endl <<
@@ -2950,22 +2890,29 @@ void t_php_generator::generate_client_adapter_http(t_service* tservice, bool man
 
   // open function
   indent(f_service_adapter) << "/**" << endl;
-  indent(f_service_adapter) << "* @param array $config" << endl;
+  indent(f_service_adapter) << "* @param array $adapterConfig" << endl;
   indent(f_service_adapter) << "* @param TraceHelperInterface|null $traceHelper" << endl;
   indent(f_service_adapter) << "* @throws Exception" << endl;
   indent(f_service_adapter) << "*/" << endl;
-  indent(f_service_adapter) << "public function __construct(array $config = [], TraceHelperInterface $traceHelper = null)" << endl;
+  indent(f_service_adapter) << "public function __construct(array $adapterConfig = [], " <<
+                               "TraceHelperInterface $traceHelper = null)" << endl;
   scope_up(f_service_adapter);
-  indent(f_service_adapter) << "if (!isset($config['host']) ||"  << endl;
+  indent(f_service_adapter) << "if (!isset($adapterConfig['host']) ||"  << endl;
   indent_up();
-  indent(f_service_adapter) << "!isset($config['port']) ||"  << endl;
-  indent(f_service_adapter) << "!isset($config['url'])) {"  << endl;
+  indent(f_service_adapter) << "!isset($adapterConfig['port']) ||"  << endl;
+  indent(f_service_adapter) << "!isset($adapterConfig['url'])) {"  << endl;
   indent_up();
   indent(f_service_adapter) << "throw new Exception('Invalid configuration for thrift http adapter');"  << endl;
   indent_down();
   indent_down();
   indent(f_service_adapter) << "}"  << endl;
-
+  indent(f_service_adapter) << "$httpClient = new \\THttpClient($adapterConfig['host'], $adapterConfig['port'], " <<
+                               "$adapterConfig['url'], "
+                            << "'http', 'error_log');"  << endl;
+  indent(f_service_adapter) << "$this->transport = new \\TBufferedTransport($httpClient, 1024, 1024);"  << endl;
+  indent(f_service_adapter) << "$protocol = new \\TBinaryProtocol($this->transport);"  << endl;
+  indent(f_service_adapter) << "$this->serviceClient = new " << long_name << "Client($protocol);"  << endl;
+  indent(f_service_adapter) << "//tracing"  << endl;
   indent(f_service_adapter) << "if ($traceHelper === null) {"  << endl;
   indent_up();
   indent(f_service_adapter) << "//add mock receiver if no traceing is needed"  << endl;
@@ -2974,20 +2921,12 @@ void t_php_generator::generate_client_adapter_http(t_service* tservice, bool man
   indent(f_service_adapter) << "} else {"  << endl;
   indent_up();
   indent(f_service_adapter) << "$this->traceHelper = $traceHelper;"  << endl;
-  indent_down();
-  indent(f_service_adapter) << "}"  << endl;
-
-  indent(f_service_adapter) << "$httpClient = new \\THttpClient($config['host'], $config['port'], $config['url'], "
-                            << "'http', 'error_log');"  << endl;
-  indent(f_service_adapter) << "$this->transport = new \\TBufferedTransport($httpClient, 1024, 1024);"  << endl;
-  indent(f_service_adapter) << "$protocol = new \\TBinaryProtocol($this->transport);"  << endl;
-  indent(f_service_adapter) << "$this->serviceClient = new " << long_name << "Client($protocol);"  << endl;
-  indent(f_service_adapter) << "//tracing"  << endl;
-  indent(f_service_adapter) << "$this->traceHelper = $traceHelper;"  << endl;
-  indent(f_service_adapter) << "$span = $traceHelper->getCurrentSpan();"  << endl;
+  indent(f_service_adapter) << "$span = $this->traceHelper->getCurrentSpan();"  << endl;
   indent(f_service_adapter) << "$zipkinHeaders = new ZipkinHttpHeaders($span->trace_id, $span->id, $span->parent_id);"
                             << endl;
   indent(f_service_adapter) << "$httpClient->setCustomHeaders($zipkinHeaders->getHeadersArray());"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "}"  << endl;
   // close function
   scope_down(f_service_adapter);
   f_service_adapter << endl;
@@ -3033,7 +2972,6 @@ void t_php_generator::generate_client_adapter_http(t_service* tservice, bool man
     }
     // close function
     scope_down(f_service_adapter);
-    f_service_adapter << endl;
   }
 
   // close class
@@ -3065,7 +3003,6 @@ void t_php_generator::generate_client_adapter_lib(t_service* tservice, bool mang
 
   // use statements
   f_service_adapter <<
-    "use " << service_handler_namespace_ << "\\" << long_name << "Handler;" << endl <<
     "use Gyg\\Zipper\\TraceHelper;" << endl <<
     "use Gyg\\Zipper\\TraceHelperInterface;" << endl <<
     "use Gyg\\Zipper\\Receiver\\NullReceiver;" << endl <<
@@ -3077,7 +3014,7 @@ void t_php_generator::generate_client_adapter_lib(t_service* tservice, bool mang
   f_service_adapter << "class " << long_name << "ClientAdapterLib implements " <<  long_name << "If" << endl;
   scope_up(f_service_adapter);
   f_service_adapter <<
-  indent() << "/**  @var " << long_name << "Handler */" << endl <<
+  indent() << "/**  @var " << long_name << "If */" << endl <<
   indent() << "protected $serviceHandler;" << endl <<
   indent() << "/** @var  TraceHelperInterface */" << endl <<
   indent() << "protected $traceHelper;" << endl <<
@@ -3085,11 +3022,13 @@ void t_php_generator::generate_client_adapter_lib(t_service* tservice, bool mang
 
   // open function
   indent(f_service_adapter) << "/**" << endl;
+  indent(f_service_adapter) << " * @param " << long_name << "If $handler" << endl;
   indent(f_service_adapter) << " * @param TraceHelperInterface|null $traceHelper" << endl;
-  indent(f_service_adapter) << "*/" << endl;
-  indent(f_service_adapter) << "public function  __construct(TraceHelperInterface $traceHelper = null)" << endl;
+  indent(f_service_adapter) << " */" << endl;
+  indent(f_service_adapter) << "public function  __construct(" << long_name << "If $handler, " <<
+                               "TraceHelperInterface $traceHelper = null)" << endl;
   scope_up(f_service_adapter);
-  indent(f_service_adapter) << "$this->serviceHandler = new " << long_name << "Handler();"  << endl;
+  indent(f_service_adapter) << "$this->serviceHandler = $handler;"  << endl;
   indent(f_service_adapter) << "if ($traceHelper === null) {" << endl;
   indent_up();
   indent(f_service_adapter) <<  "//add mock receiver if no traceing is needed"  << endl;
@@ -3122,12 +3061,28 @@ void t_php_generator::generate_client_adapter_lib(t_service* tservice, bool mang
     indent(f_service_adapter) << "try {" << endl;
     indent_up();
     indent(f_service_adapter) << "$this->traceHelper->annotateClientSend($span, $serviceName);" << endl;
+    indent(f_service_adapter) << "//in an rpc scenario this would happen on the server" << endl;
+    indent(f_service_adapter) << "$serverSpan = $this->traceHelper->createNextSpan('" <<
+                                 (*f_iter)->get_name() << "');" << endl;
+    indent(f_service_adapter) << "try {" << endl;
+    indent_up();
+    indent(f_service_adapter) << "$this->traceHelper->annotateServerReceive($serverSpan, $serviceName);" << endl;
     string return_var = "";
     if (!(*f_iter)->is_oneway() && !(*f_iter)->get_returntype()->is_void()) {
       return_var = "$result = ";
     }
     indent(f_service_adapter) << return_var << "$this->serviceHandler->" << (*f_iter)->get_name() << "(" <<
                               argument_list((*f_iter)->get_arglist()) << ");" << endl;
+    indent(f_service_adapter) << "$this->traceHelper->annotateServerSend($serverSpan, $serviceName);" << endl;
+    indent_down();
+    indent(f_service_adapter) << "} catch (Exception $e) {" << endl;
+    indent_up();
+    indent(f_service_adapter) << "$this->traceHelper->annotateBinary($serverSpan, $serviceName, 'exception', " <<
+                                 "$e->getMessage(), AnnotationType::STRING);" << endl;
+    indent(f_service_adapter) << "throw $e;" << endl;
+    indent_down();
+    indent(f_service_adapter) << "}" << endl;
+    indent(f_service_adapter) << "//end of 'server' section" << endl;
     indent(f_service_adapter) << "$this->traceHelper->annotateClientReceive($span, $serviceName);" << endl;
     indent_down();
     indent(f_service_adapter) << "} catch (Exception $e) {" << endl;
@@ -3143,7 +3098,6 @@ void t_php_generator::generate_client_adapter_lib(t_service* tservice, bool mang
     }
     // close function
     scope_down(f_service_adapter);
-    f_service_adapter << endl;
   }
 
   // close class
@@ -3155,11 +3109,11 @@ void t_php_generator::generate_client_adapter_lib(t_service* tservice, bool mang
 }
 
 /**
- * Generate HandlerAdapter adapter
+ * Generate Adapter factory
  */
-void t_php_generator::generate_handler_adapter(t_service* tservice, bool mangle) {
+void t_php_generator::generate_adapter_factory(t_service* tservice, bool mangle) {
   string f_base_name = php_servicename_mangle(mangle, tservice);
-  string f_service_adapter_name = get_out_dir()+f_base_name+"HandlerAdapter.php";
+  string f_service_adapter_name = get_out_dir()+f_base_name+"AdapterFactory.php";
   std::ofstream f_service_adapter;
   f_service_adapter.open(f_service_adapter_name.c_str());
   record_genfile(f_service_adapter_name);
@@ -3175,85 +3129,90 @@ void t_php_generator::generate_handler_adapter(t_service* tservice, bool mangle)
 
   // use statements
   f_service_adapter <<
-    "use " << service_handler_namespace_ << "\\" << long_name << "Handler;" << endl <<
-    "use Gyg\\Zipper\\TraceHelper;" << endl <<
     "use Gyg\\Zipper\\TraceHelperInterface;" << endl <<
-    "use Gyg\\Zipper\\Receiver\\NullReceiver;" << endl <<
     "use Exception;" << endl <<
     endl;
 
   // open class
-  f_service_adapter << "class " << long_name << "HandlerAdapter implements " <<  long_name << "If" << endl;
+  f_service_adapter << "class " << long_name << "AdapterFactory" << endl;
   scope_up(f_service_adapter);
   f_service_adapter <<
-  indent() << "/**  @var " << long_name << "Handler */" << endl <<
-  indent() << "protected $serviceHandler;" << endl <<
-  indent() << "/** @var  TraceHelperInterface */" << endl <<
-  indent() << "protected $traceHelper;" << endl <<
+  indent() << "const ADAPTER_LIB = 'library';" << endl <<
+  indent() << "const ADAPTER_HTTP = 'http';" << endl <<
   endl;
 
   // open function
   indent(f_service_adapter) << "/**" << endl;
-  indent(f_service_adapter) << "* @param TraceHelperInterface|null $traceHelper" << endl;
-  indent(f_service_adapter) << "*/" << endl;
-  indent(f_service_adapter) << "public function  __construct(TraceHelperInterface $traceHelper = null)" << endl;
+  indent(f_service_adapter) << " * @param array $config" << endl;
+  indent(f_service_adapter) << " * @param TraceHelperInterface|null $traceHelper" << endl;
+  indent(f_service_adapter) << " * @return mixed" << endl;
+  indent(f_service_adapter) << " * @throws Exception" << endl;
+  indent(f_service_adapter) << " */" << endl;
+  indent(f_service_adapter) << "public static function createClientAdapterByConfig(array $config, " <<
+                               "TraceHelperInterface $traceHelper = null)" << endl;
   scope_up(f_service_adapter);
-  indent(f_service_adapter) << "$this->serviceHandler = new " << long_name << "Handler();"  << endl;
-  indent(f_service_adapter) << "if ($traceHelper === null) {" << endl;
+  indent(f_service_adapter) << "if (!isset($config['adapter_type'])) {"  << endl;
   indent_up();
-  indent(f_service_adapter) <<  "//add mock receiver if no traceing is needed"  << endl;
-  indent(f_service_adapter) <<  "$this->traceHelper = new TraceHelper([new NullReceiver()]);"  << endl;
-  indent_down();
-  indent(f_service_adapter) << "} else {" << endl;
-  indent_up();
-  indent(f_service_adapter) << "$this->traceHelper = $traceHelper;"  << endl;
+  indent(f_service_adapter) << "throw new Exception('The \\'type\\' setting is missing in the configuration');" << endl;
   indent_down();
   indent(f_service_adapter) << "}"  << endl;
+  indent(f_service_adapter) <<  "switch ($config['adapter_type']) {"  << endl;
+  indent_up();
+  indent(f_service_adapter) <<  "case self::ADAPTER_LIB:"  << endl;
+  indent_up();
+  indent(f_service_adapter) <<  "$class = '" << program_->get_namespace("php") << "\\" << long_name <<
+                                "ClientAdapterLib';"  << endl;
+  indent(f_service_adapter) <<  "$handler = self::getHandler($config['adapter_config']);"  << endl;
+  indent(f_service_adapter) <<  "$adapter = new $class($handler, $traceHelper);"  << endl;
+  indent(f_service_adapter) <<  "break;"  << endl;
+  indent_down();
+  indent_up();
+  indent(f_service_adapter) <<  "case self::ADAPTER_HTTP:"  << endl;
+  indent_up();
+  indent(f_service_adapter) <<  "$class = '" << program_->get_namespace("php") << "\\" << long_name <<
+                                "ClientAdapterHttp';"  << endl;
+  indent(f_service_adapter) <<  "$adapter = new $class($config['adapter_config'], $traceHelper);"  << endl;
+  indent(f_service_adapter) <<  "break;"  << endl;
+  indent_down();
+  indent(f_service_adapter) <<  "default:"  << endl;
+  indent_up();
+  indent(f_service_adapter) <<  "throw new Exception('The chosen adapter type is not supported: ' . " <<
+                                "$config['adapter_type']);"  << endl;
+  indent_down();
+  indent_down();
+  indent(f_service_adapter) << "}"  << endl;
+  indent(f_service_adapter) << endl;
+  indent(f_service_adapter) << "return $adapter;"  << endl;
   // close function
   scope_down(f_service_adapter);
   f_service_adapter << endl;
 
-  // Generate client method wrappers
-  vector<t_function*> functions = tservice->get_functions();
-  vector<t_function*>::const_iterator f_iter;
-  for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter) {
-    t_struct* arg_struct = (*f_iter)->get_arglist();
-    const vector<t_field*>& fields = arg_struct->get_members();
-    vector<t_field*>::const_iterator fld_iter;
+  // open function
+  indent(f_service_adapter) << "/**" << endl;
+  indent(f_service_adapter) << " * @param array $adapterConfig" << endl;
+  indent(f_service_adapter) << " * @return " << long_name << "If" << endl;
+  indent(f_service_adapter) << " * @throws Exception" << endl;
+  indent(f_service_adapter) << " */" << endl;
+  indent(f_service_adapter) << "protected static function getHandler(array $adapterConfig)" << endl;
+  scope_up(f_service_adapter);
+  indent(f_service_adapter) << "if (isset($adapterConfig['handler_class']) && " <<
+                               "class_exists($adapterConfig['handler_class'])) {"  << endl;
+  indent_up();
+  indent(f_service_adapter) << "$handler = new $adapterConfig['handler_class'];"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "} else {"  << endl;
 
-    // Open function
-    generate_php_docstring(f_service_adapter, *f_iter);
-    indent(f_service_adapter) << "public function " << function_signature(*f_iter) << endl;
-    scope_up(f_service_adapter);
-    indent(f_service_adapter) << "$serviceName = '" << long_name << "';" << endl;
-    indent(f_service_adapter) << "$span = $this->traceHelper->createNextSpan('" <<
-                                 (*f_iter)->get_name() << "');" << endl;
-    indent(f_service_adapter) << "try {" << endl;
-    indent_up();
-    indent(f_service_adapter) << "$this->traceHelper->annotateServerReceive($span, $serviceName);" << endl;
-    string return_var = "";
-    if (!(*f_iter)->is_oneway() && !(*f_iter)->get_returntype()->is_void()) {
-      return_var = "$result = ";
-    }
-    indent(f_service_adapter) << return_var << "$this->serviceHandler->" << (*f_iter)->get_name() << "(" <<
-                              argument_list((*f_iter)->get_arglist()) << ");" << endl;
-    indent(f_service_adapter) << "$this->traceHelper->annotateServerSend($span, $serviceName);" << endl;
-    indent_down();
-    indent(f_service_adapter) << "} catch (Exception $e) {" << endl;
-    indent_up();
-    indent(f_service_adapter) << "$this->traceHelper->annotateBinary($span, $serviceName, 'exception', " <<
-                                 "$e->getMessage(), AnnotationType::STRING);" << endl;
-    indent(f_service_adapter) << "throw $e;" << endl;
-    indent_down();
-    indent(f_service_adapter) << "}" << endl;
-    if (!(*f_iter)->is_oneway() && !(*f_iter)->get_returntype()->is_void()) {
-      indent(f_service_adapter) << endl;
-      indent(f_service_adapter) << "return $result;" << endl;
-    }
-    // close function
-    scope_down(f_service_adapter);
-    f_service_adapter << endl;
-  }
+  indent_up();
+  indent(f_service_adapter) << "throw new Exception('Please provide a handler_class in the config to instantiate " <<
+                               "or override the getHanlder() ' ."  << endl;
+  indent(f_service_adapter) << "    'method if you would like to use the adapter type: ' . " <<
+                               "self::ADAPTER_LIB . '.');"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "}"  << endl;
+  indent(f_service_adapter) << endl;
+  indent(f_service_adapter) << "return $handler;"  << endl;
+  // close function
+  scope_down(f_service_adapter);
 
   // close class
   scope_down(f_service_adapter);
