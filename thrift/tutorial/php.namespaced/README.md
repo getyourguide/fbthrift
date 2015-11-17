@@ -7,7 +7,8 @@
 thrift1 --gen php:server,declarens,norequires -r ../tutorial.thrift
 ``
 - Make sure you have composer installed or get it here https://getcomposer.org/
-- Run composer update from within this directory
+- Run ``composer install`` from within this directory (composer will autolaod the generated files, the php runtime
+library as well it will fetch the needed hacklib runtime for you from the interwebs.
 
 ## Play
 

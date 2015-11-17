@@ -31,7 +31,12 @@ use tutorial\InvalidOperation;
 use tutorial\Operation;
 use tutorial\Work;
 
+//composer autoloading
 $loader = require __DIR__.'/vendor/autoload.php';
+//the following global is only needed as it is required from within the php lib. its only set here for compatibility
+//reasons
+$GLOBALS['HACKLIB_ROOT'] = __DIR__.'/vendor/gyg/hhvm-h2tp-resources/src/hacklib.php';
+
 
 try {
   if (array_search('--http', $argv)) {

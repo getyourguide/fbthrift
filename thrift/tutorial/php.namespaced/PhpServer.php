@@ -27,7 +27,11 @@ use TBufferedTransport;
 use TPhpStream;
 use tutorial\CalculatorProcessor;
 
+//composer autoloading
 $loader = require __DIR__.'/vendor/autoload.php';
+//the following global is only needed as it is required from within the php lib. its only set here for compatibility
+//reasons
+$GLOBALS['HACKLIB_ROOT'] = __DIR__.'/vendor/gyg/hhvm-h2tp-resources/src/hacklib.php';
 
 if (php_sapi_name() == 'cli') {
   ini_set("display_errors", "stderr");

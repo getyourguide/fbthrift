@@ -1,25 +1,14 @@
 {
 	"autoload": {
-		"classmap": [".", "gen-php/"],
-		"files": ["vendor/gyg/thrift-lib/set_hacklib_global.php"]
+		"classmap": [".", "gen-php/", "../../lib/php/src/"]
 	},
 	"repositories": [
-		{
-			"type": "vcs",
-			"url": "https://github.com/getyourguide/zipper"
-		},
-		{
-			"type": "vcs",
-			"url": "https://github.com/getyourguide/thrift-lib"
-		},
 		{
 			"type": "vcs",
 			"url": "https://github.com/getyourguide/hhvm-h2tp-resources"
 		}
 	],
 	"require": {
-		"gyg/zipper": "dev-master",
-		"gyg/thrift-lib": "dev-master",
 		"gyg/hhvm-h2tp-resources": "dev-master"
 	}
 }
