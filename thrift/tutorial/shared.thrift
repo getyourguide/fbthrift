@@ -25,6 +25,7 @@
 namespace cpp2 apache.thrift.tutorial
 namespace java shared
 namespace perl shared
+namespace php tutorial
 
 struct SharedStruct {
   1: i32 key
