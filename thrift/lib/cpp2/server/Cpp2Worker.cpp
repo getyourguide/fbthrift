@@ -21,6 +21,8 @@
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
 #include <thrift/lib/cpp/async/TAsyncSSLSocket.h>
 #include <thrift/lib/cpp/concurrency/Util.h>
+#include <wangle/acceptor/SSLAcceptorHandshakeHelper.h>
+#include <wangle/acceptor/UnencryptedAcceptorHandshakeHelper.h>
 
 
 #include <iostream>
@@ -36,6 +38,7 @@
 #include <glog/logging.h>
 
 #include <folly/String.h>
+#include <folly/io/async/AsyncSSLSocket.h>
 
 DEFINE_int32(pending_interval, 0, "Pending count interval in ms");
 
@@ -122,10 +125,30 @@ int Cpp2Worker::getPendingCount() const {
   return pendingCount_;
 }
 
-folly::Optional<SecureTransportType>
-Cpp2Worker::PeekingCallback::getSecureTransportType(
-    std::array<uint8_t, kPeekCount> bytes) {
+void Cpp2Worker::updateSSLStats(
+  const folly::AsyncTransportWrapper* sock,
+  std::chrono::milliseconds acceptLatency,
+  wangle::SSLErrorEnum error,
+  SecureTransportType type) noexcept {
+  auto socket = sock->getUnderlyingTransport<folly::AsyncSSLSocket>();
+  if (!socket) {
+    return;
+  }
+  auto observer = server_->getObserver();
+  if (!observer) {
+    return;
+  }
+  if (socket->good() && error == wangle::SSLErrorEnum::NO_ERROR) {
+    observer->tlsComplete();
+    if (socket->getSSLSessionReused()) {
+      observer->tlsResumption();
+    }
+  } else {
+    observer->tlsError();
+  }
+}
 
+bool Cpp2Worker::looksLikeTLS(std::array<uint8_t, kPeekCount>& bytes) {
   // TLS starts as
   // 0: 0x16 - handshake protocol magic
   // 1: 0x03 - SSL version major
@@ -146,7 +169,7 @@ Cpp2Worker::PeekingCallback::getSecureTransportType(
 
   // Definitely not TLS
   if (bytes[0] != 0x16 || bytes[1] != 0x03 || bytes[5] != 0x01) {
-    return SecureTransportType::NONE;
+    return false;
   }
 
   // This is most likely TLS, but could be framed binary, which has 80-01
@@ -159,10 +182,30 @@ Cpp2Worker::PeekingCallback::getSecureTransportType(
     // handshake protocol and this value is 4 less than the record-layer
     // length at offset 3-4 (16 bits), so byte 8 equals 0x7c (0x80 - 4),
     // which is not smaller than 0x16
-    return SecureTransportType::NONE;
+    return false;
   }
 
-  return SecureTransportType::TLS;
+  return true;
+}
+
+wangle::AcceptorHandshakeHelper::UniquePtr
+Cpp2Worker::PeekingCallback::getHelper(
+    std::array<uint8_t, kPeekCount> bytes,
+    wangle::Acceptor* acceptor,
+    const folly::SocketAddress& clientAddr,
+    std::chrono::steady_clock::time_point acceptTime,
+    wangle::TransportInfo& tinfo) {
+  if (looksLikeTLS(bytes)) {
+    return wangle::AcceptorHandshakeHelper::UniquePtr(
+        new wangle::SSLAcceptorHandshakeHelper(
+            acceptor,
+            clientAddr,
+            acceptTime,
+            tinfo));
+  } else {
+    return wangle::AcceptorHandshakeHelper::UniquePtr(
+        new wangle::UnencryptedAcceptorHandshakeHelper());
+  }
 }
 
 }} // apache::thrift

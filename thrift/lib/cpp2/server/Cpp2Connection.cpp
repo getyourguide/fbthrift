@@ -22,6 +22,8 @@
 #include <thrift/lib/cpp2/server/Cpp2Worker.h>
 #include <thrift/lib/cpp2/security/SecurityKillSwitch.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
+#include <thrift/lib/cpp2/protocol/CompactProtocol.h>
+#include <thrift/lib/cpp2/GeneratedCodeHelper.h>
 
 #include <assert.h>
 
@@ -190,6 +192,7 @@ bool Cpp2Connection::pending() {
 void Cpp2Connection::killRequest(
     ResponseChannel::Request& req,
     TApplicationException::TApplicationExceptionType reason,
+    const std::string& errorCode,
     const char* comment) {
   VLOG(1) << "ERROR: Task killed: " << comment
           << ": " << context_.getPeerAddress()->getAddressStr();
@@ -218,7 +221,7 @@ void Cpp2Connection::killRequest(
     header_req->sendErrorWrapped(
         folly::make_exception_wrapper<TApplicationException>(reason,
                                                              comment),
-        kOverloadedErrorCode,
+        errorCode,
         nullptr);
   } else {
     // Send an empty response so reqId will be handled properly
@@ -239,6 +242,7 @@ void Cpp2Connection::requestReceived(
   case ThriftServer::InjectedFailure::ERROR:
     killRequest(*req,
         TApplicationException::TApplicationExceptionType::INJECTED_FAILURE,
+        kInjectedFailureErrorCode,
         "injected failure");
     return;
   case ThriftServer::InjectedFailure::DROP:
@@ -297,12 +301,10 @@ void Cpp2Connection::requestReceived(
         hreq->getHeader(), context_.getPeerAddress());
   }
 
-  int activeRequests = worker_->activeRequests_;
-  activeRequests += worker_->pendingCount();
-
-  if (server->isOverloaded(activeRequests, hreq->getHeader())) {
+  if (server->isOverloaded(hreq->getHeader())) {
     killRequest(*req,
         TApplicationException::TApplicationExceptionType::LOADSHEDDING,
+        kOverloadedErrorCode,
         "loadshedding request");
     return;
   }
@@ -315,47 +317,58 @@ void Cpp2Connection::requestReceived(
       apache::thrift::concurrency::Util::currentTimeUsec();
     if (observer) {
       observer->queuedRequests(threadManager_->pendingTaskCount());
-      if (server->getIsUnevenLoad()) {
-        observer->activeRequests(
-          server->getActiveRequests() +
-          server->getPendingCount());
-      }
+      observer->activeRequests(
+        server->getActiveRequests() +
+        server->getPendingCount());
     }
   }
 
-  unique_ptr<folly::IOBuf> buf = req->getBuf()->clone();
-  unique_ptr<Cpp2Request> t2r(
-    new Cpp2Request(std::move(req), this_));
-  activeRequests_.insert(t2r.get());
+  // After this, the request buffer is no longer owned by the request
+  // and will be released after deserializeRequest.
+  unique_ptr<folly::IOBuf> buf = hreq->extractBuf();
+  Cpp2Request* t2r = new Cpp2Request(std::move(req), this_);
+  auto up2r = std::unique_ptr<ResponseChannel::Request>(t2r);
+  activeRequests_.insert(t2r);
   ++worker_->activeRequests_;
 
   if (observer) {
     observer->receivedRequest();
   }
 
-  std::chrono::milliseconds softTimeout;
-  std::chrono::milliseconds hardTimeout;
+  std::chrono::milliseconds queueTimeout;
+  std::chrono::milliseconds taskTimeout;
   auto differentTimeouts = server->getTaskExpireTimeForRequest(
-    *(t2r->req_->getHeader()),
-    softTimeout,
-    hardTimeout
+    *(hreq->getHeader()),
+    queueTimeout,
+    taskTimeout
   );
   if (differentTimeouts) {
-    DCHECK(softTimeout > std::chrono::milliseconds(0));
-    DCHECK(hardTimeout > std::chrono::milliseconds(0));
-    scheduleTimeout(&t2r->softTimeout_, softTimeout);
-    scheduleTimeout(&t2r->hardTimeout_, hardTimeout);
-  } else if (hardTimeout > std::chrono::milliseconds(0)) {
-    scheduleTimeout(&t2r->hardTimeout_, hardTimeout);
+    if (queueTimeout > std::chrono::milliseconds(0)) {
+      scheduleTimeout(&t2r->queueTimeout_, queueTimeout);
+    }
+  }
+  if (taskTimeout > std::chrono::milliseconds(0)) {
+    scheduleTimeout(&t2r->taskTimeout_, taskTimeout);
   }
 
   auto reqContext = t2r->getContext();
-  reqContext->setRequestTimeout(hardTimeout);
+  reqContext->setRequestTimeout(taskTimeout);
 
   try {
     auto protoId = static_cast<apache::thrift::protocol::PROTOCOL_TYPES>
-      (t2r->req_->getHeader()->getProtocolId());
-    processor_->process(std::move(t2r),
+      (hreq->getHeader()->getProtocolId());
+
+    if (!server->getSkipDeserializeMessageBegin() &&
+        !apache::thrift::detail::ap::deserializeMessageBegin(
+          protoId,
+          up2r,
+          buf.get(),
+          reqContext,
+          worker_->getEventBase())) {
+      return;
+    }
+
+    processor_->process(std::move(up2r),
                         std::move(buf),
                         protoId,
                         reqContext,
@@ -393,8 +406,14 @@ Cpp2Connection::Cpp2Request::Cpp2Request(
   , reqContext_(&con->context_, req_->getHeader()) {
   RequestContext::create();
 
-  softTimeout_.request_ = this;
-  hardTimeout_.request_ = this;
+  queueTimeout_.request_ = this;
+  taskTimeout_.request_ = this;
+
+  const auto& headers = req_->getHeader()->getHeaders();
+  auto it = headers.find(Cpp2Connection::loadHeader);
+  if (it != headers.end()) {
+    loadHeader_ = it->second;
+  }
 }
 
 MessageChannel::SendCallback*
@@ -419,20 +438,14 @@ Cpp2Connection::Cpp2Request::prepareSendCallback(
 
 void Cpp2Connection::Cpp2Request::setLoadHeader() {
   // Set load header, based on the received load header
-  auto header = req_->getHeader();
-  if (!header) {
-    return;
-  }
-
-  const auto& headers = header->getHeaders();
-  auto load_header = headers.find(Cpp2Connection::loadHeader);
-  if (load_header == headers.end()) {
+  if (!loadHeader_) {
     return;
   }
 
   auto load =
-      connection_->getWorker()->getServer()->getLoad(load_header->second);
-  header->setHeader(Cpp2Connection::loadHeader, folly::to<std::string>(load));
+      connection_->getWorker()->getServer()->getLoad(*loadHeader_);
+  req_->getHeader()->setHeader(Cpp2Connection::loadHeader,
+                               folly::to<std::string>(load));
 }
 
 void Cpp2Connection::Cpp2Request::sendReply(
@@ -460,24 +473,37 @@ void Cpp2Connection::Cpp2Request::sendErrorWrapped(
     auto observer = connection_->getWorker()->getServer()->getObserver().get();
     req_->sendErrorWrapped(std::move(ew),
                            std::move(exCode),
+                           reqContext_.getMethodName(),
+                           reqContext_.getProtoSeqId(),
                            prepareSendCallback(sendCallback, observer));
     cancelTimeout();
   }
 }
 
-void Cpp2Connection::Cpp2Request::HardTimeout::timeoutExpired() noexcept {
-  request_->sendErrorWrapped(
-      folly::make_exception_wrapper<TApplicationException>(
-        TApplicationException::TApplicationExceptionType::TIMEOUT,
-        "Task expired"),
-      kTaskExpiredErrorCode);
+void Cpp2Connection::Cpp2Request::sendTimeoutResponse() {
+  auto observer = connection_->getWorker()->getServer()->getObserver().get();
+  std::map<std::string, std::string> headers;
+  if (loadHeader_) {
+    auto load =
+      connection_->getWorker()->getServer()->getLoad(*loadHeader_);
+    headers[Cpp2Connection::loadHeader] = folly::to<std::string>(load);
+  }
+  req_->sendTimeoutResponse(reqContext_.getMethodName(),
+                            reqContext_.getProtoSeqId(),
+                            prepareSendCallback(nullptr, observer),
+                            headers);
+  cancelTimeout();
+}
+
+void Cpp2Connection::Cpp2Request::TaskTimeout::timeoutExpired() noexcept {
   request_->req_->cancel();
+  request_->sendTimeoutResponse();
   request_->connection_->requestTimeoutExpired();
 }
 
-void Cpp2Connection::Cpp2Request::SoftTimeout::timeoutExpired() noexcept {
+void Cpp2Connection::Cpp2Request::QueueTimeout::timeoutExpired() noexcept {
   if (!request_->reqContext_.getStartedProcessing()) {
-    request_->hardTimeout_.timeoutExpired();
+    request_->taskTimeout_.timeoutExpired();
   }
 }
 

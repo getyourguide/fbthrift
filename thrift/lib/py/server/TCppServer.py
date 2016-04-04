@@ -10,7 +10,11 @@ from thrift.server.TServer import TServer, TConnectionContext
 from thrift.transport.THeaderTransport import THeaderTransport
 from thrift.transport.TTransport import TMemoryBuffer
 
-from thrift.server.CppServerWrapper import CppServerWrapper, ContextData
+from thrift.server.CppServerWrapper import CppServerWrapper, CppContextData, \
+        SSLPolicy, SSLVerifyPeerEnum, CallbackWrapper
+
+from concurrent.futures import Future
+from functools import partial
 
 class TCppConnectionContext(TConnectionContext):
     def __init__(self, context_data):
@@ -33,7 +37,8 @@ class TCppConnectionContext(TConnectionContext):
         return self.context_data.getLocalAddress()
 
 class _ProcessorAdapter(object):
-    CONTEXT_DATA = ContextData
+    CONTEXT_DATA = CppContextData
+    CALLBACK_WRAPPER = CallbackWrapper
 
     def __init__(self, processor):
         self.processor = processor
@@ -42,7 +47,7 @@ class _ProcessorAdapter(object):
     # the constructed header buffer.  Also add endpoint addrs to the
     # context
     def call_processor(self, input, headers, client_type, protocol_type,
-                       context_data):
+                       context_data, callback):
         try:
             # The input string has already had the header removed, but
             # the python processor will expect it to be there.  In
@@ -63,31 +68,82 @@ class _ProcessorAdapter(object):
 
             ctx = TCppConnectionContext(context_data)
 
-            self.processor.process(prot, prot, ctx)
+            ret = self.processor.process(prot, prot, ctx)
 
-            # Check for empty result. If so, return an empty string
-            # here.  This is probably a oneway request, but we can't
-            # reliably tell.  The C++ code does basically the same
-            # thing.
-
-            response = prot_buf.getvalue()
-            if len(response) == 0:
-                return response
-
-            # And on the way out, we need to strip off the header,
-            # because the C++ code will expect to add it.
-
-            read_buf = TMemoryBuffer(response)
-            trans = THeaderTransport(read_buf, client_types=[client_type])
-            trans.readFrame(len(response))
-
-            return trans.cstringio_buf.read()
+            done_callback = partial(_ProcessorAdapter.done,
+                                    prot_buf=prot_buf,
+                                    client_type=client_type,
+                                    callback=callback)
+            # This future is created by and returned from the processor's
+            # ThreadPoolExecutor, which keeps a reference to it. So it is
+            # fine for this future to end its lifecycle here.
+            if isinstance(ret, Future):
+                ret.add_done_callback(lambda x, d=done_callback: d())
+            else:
+                done_callback()
         except:
             # Don't let exceptions escape back into C++
             traceback.print_exc()
 
+    @staticmethod
+    def done(prot_buf, client_type, callback):
+        try:
+            response = prot_buf.getvalue()
+
+            if len(response) == 0:
+                callback.call(response)
+            else:
+                # And on the way out, we need to strip off the header,
+                # because the C++ code will expect to add it.
+
+                read_buf = TMemoryBuffer(response)
+                trans = THeaderTransport(read_buf, client_types=[client_type])
+                trans.readFrame(len(response))
+                callback.call(trans.cstringio_buf.read())
+        except:
+            traceback.print_exc()
+
     def oneway_methods(self):
         return self.processor.onewayMethods()
+
+class TSSLConfig(object):
+    def __init__(self):
+        self.cert_path = ''
+        self.key_path = ''
+        self.key_pw_path = ''
+        self.client_ca_path = ''
+        self.ecc_curve_name = ''
+        self.verify = SSLVerifyPeerEnum.VERIFY
+        self.ssl_policy = SSLPolicy.PERMITTED
+        self.ticket_file_path = ''
+        self.alpn_protocols = []
+        self.session_context = None
+
+    @property
+    def ssl_policy(self):
+        return self._ssl_policy
+
+    @ssl_policy.setter
+    def ssl_policy(self, val):
+        if not isinstance(val, SSLPolicy):
+            raise ValueError("{} is an invalid policy".format(val))
+        self._ssl_policy = val
+
+    @property
+    def verify(self):
+        return self._verify
+
+    @verify.setter
+    def verify(self, val):
+        if not isinstance(val, SSLVerifyPeerEnum):
+            raise ValueError("{} is an invalid value".format(val))
+        self._verify = val
+
+class TSSLCacheOptions(object):
+    def __init__(self):
+        self.ssl_cache_timeout_seconds = 86400
+        self.max_ssl_cache_size = 20480
+        self.ssl_cache_flush_size = 200
 
 class TCppServer(CppServerWrapper, TServer):
     def __init__(self, processor):
@@ -99,9 +155,27 @@ class TCppServer(CppServerWrapper, TServer):
 
     def setServerEventHandler(self, handler):
         TServer.setServerEventHandler(self, handler)
-        handler.CONTEXT_DATA = ContextData
+        handler.CONTEXT_DATA = CppContextData
         handler.CPP_CONNECTION_CONTEXT = TCppConnectionContext
         self.setCppServerEventHandler(handler)
+
+    def setSSLConfig(self, config):
+        if not isinstance(config, TSSLConfig):
+            raise ValueError("Config must be of type TSSLConfig")
+        self.setCppSSLConfig(config)
+
+    def setSSLCacheOptions(self, cache_options):
+        if not isinstance(cache_options, TSSLCacheOptions):
+            raise ValueError("Options might be of type TSSLCacheOptions")
+        self.setCppSSLCacheOptions(cache_options)
+
+    def getTicketSeeds(self):
+        return self.getCppTicketSeeds()
+
+    def validateSSLConfig(self, config):
+        if not isinstance(config, TSSLConfig):
+            return (False, "Config must be of type TSSLConfig")
+        return self.validateCppSSLConfig(config)
 
     def setup(self):
         if self._setup_done:

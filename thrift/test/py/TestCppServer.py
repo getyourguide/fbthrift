@@ -5,35 +5,42 @@ from __future__ import print_function
 # @lint-avoid-python-3-compatibility-imports
 #from __future__ import unicode_literals
 
+import json
+import math
 import multiprocessing
+import os
 import sys
+import tempfile
 import threading
 import time
 
 from fb303.ContextFacebookBase import FacebookBase
 from libfb.testutil import BaseFacebookTestCase
-from thrift.transport import TSocket, TTransport, THeaderTransport
+from thrift.transport import TSocket, TSSLSocket, TTransport, THeaderTransport
 from thrift.protocol import TBinaryProtocol, THeaderProtocol
 from thrift.Thrift import TProcessorEventHandler, TProcessor, TMessageType, \
-        TServerInterface
-from thrift.server.TCppServer import TCppServer
+    TServerInterface
+from thrift.server.TCppServer import TCppServer, TSSLConfig, TSSLCacheOptions, \
+    SSLPolicy, SSLVerifyPeerEnum
 from thrift.server.TServer import TServerEventHandler
 from tools.test.stubs import fbpyunit
 
+from concurrent.futures import ProcessPoolExecutor
 from test.sleep import SleepService, ttypes
+from futuretest.future import FutureSleepService
 
 TIMEOUT = 60 * 1000  # milliseconds
 
-def getClient(addr):
+def getClient(addr, service_module=SleepService):
     transport = TSocket.TSocket(addr[0], addr[1])
     transport = TTransport.TFramedTransport(transport)
     protocol = TBinaryProtocol.TBinaryProtocol(transport)
-    client = SleepService.Client(protocol)
+    client = service_module.Client(protocol)
     transport.open()
     return client
 
-def getHeaderClient(addr):
-    transport = TSocket.TSocket(addr[0], addr[1])
+def getHeaderClient(addr, sock_cls=TSocket.TSocket):
+    transport = sock_cls(addr[0], addr[1])
     transport = THeaderTransport.THeaderTransport(transport)
     transport.set_header("hello", "world")
     protocol = THeaderProtocol.THeaderProtocol(transport)
@@ -79,6 +86,32 @@ class SleepHandler(FacebookBase, SleepService.Iface, TServerInterface):
             return False
         return headers.get(b"hello") == b"world"
 
+def is_prime(num):
+    if num % 2 == 0:
+        return False
+
+    sqrt_n = int(math.floor(math.sqrt(num)))
+    for i in range(3, sqrt_n + 1, 2):
+        if num % i == 0:
+            return False
+
+    return True
+
+class FutureSleepHandler(FacebookBase, FutureSleepService.Iface,
+        TServerInterface):
+    def __init__(self, executor):
+        FacebookBase.__init__(self, "futuresleep")
+        TServerInterface.__init__(self)
+        self.executor = executor
+
+    def sleep(self, seconds):
+        print("future server sleeping...")
+        time.sleep(seconds)
+        print("future server sleeping... done")
+
+    def future_isPrime(self, num):
+        return self.executor.submit(is_prime, num)
+
 class SpaceProcess(multiprocessing.Process):
     def __init__(self, addr):
         self.queue = multiprocessing.Queue()
@@ -99,6 +132,45 @@ class SpaceProcess(multiprocessing.Process):
 
         queue.put((client._iprot.trans.getTransport().getSocketName(),
                    client._iprot.trans.getTransport().getPeerName()))
+
+class FutureProcess(multiprocessing.Process):
+    # Stolen from PEP-3148
+    PRIMES = [
+            112272535095293,
+            112582705942171,
+            112272535095293,
+            115280095190773,
+            115797848077099,
+    ]
+
+    def __init__(self, addr):
+        multiprocessing.Process.__init__(self)
+        self.addr = addr
+
+    def isPrime(self, num):
+        client = getClient(self.addr, FutureSleepService)
+        assert client.isPrime(num)
+
+    def sleep(self):
+        client = getClient(self.addr, FutureSleepService)
+        client.sleep(2)
+
+    def run(self):
+        threads = []
+        # Send multiple requests from multiple threads. Unfortunately
+        # future client isn't supported yet.
+        for prime in FutureProcess.PRIMES:
+            t = threading.Thread(target=self.isPrime, args=(prime,))
+            t.start()
+            threads.append(t)
+
+        for i in range(5):
+            t = threading.Thread(target=self.sleep)
+            t.start()
+            threads.append(t)
+
+        for t in threads:
+            t.join()
 
 class HeaderProcess(multiprocessing.Process):
     def __init__(self, addr):
@@ -181,6 +253,7 @@ class TestServer(BaseFacebookTestCase):
         self.shutdown_event = threading.Event()
         self.serverEventHandler = TestServerEventHandler()
         self.server = TCppServer(self.getProcessor())
+        self.configureSSL()
         self.server.setServerEventHandler(self.serverEventHandler)
         self.addCleanup(self.stopServer)
         # Let the kernel choose a port.
@@ -198,10 +271,26 @@ class TestServer(BaseFacebookTestCase):
 
         self.server_addr = addr
 
+    def configureSSL(self):
+        pass
+
     def stopServer(self):
         if self.server:
             self.server.stop()
             self.server = None
+
+class FutureTestServer(TestServer):
+    EXECUTOR = ProcessPoolExecutor()
+
+    def getProcessor(self):
+        return FutureSleepService.Processor(
+                FutureSleepHandler(FutureTestServer.EXECUTOR))
+
+    def testIsPrime(self):
+        sleep = FutureProcess(self.server_addr)
+        sleep.start()
+        sleep.join()
+        self.stopServer()
 
 class BaseTestServer(TestServer):
     def testSpace(self):
@@ -258,6 +347,106 @@ class HeaderTestServer(TestServer):
         client = getHeaderClient(self.server_addr)
         self.assertEquals(client.space("hi"), "h i")
         self.stopServer()
+
+class TSSLConfigTest(BaseFacebookTestCase):
+
+    def testDefaults(self):
+        config = TSSLConfig()
+        self.assertEquals(config.cert_path, '')
+        self.assertEquals(config.key_path, '')
+        self.assertEquals(config.key_pw_path, '')
+        self.assertEquals(config.client_ca_path, '')
+        self.assertEquals(config.ecc_curve_name, '')
+        self.assertEquals(config.verify, SSLVerifyPeerEnum.VERIFY)
+        self.assertEquals(config.ssl_policy, SSLPolicy.PERMITTED)
+
+    def testEnumSetters(self):
+        config = TSSLConfig()
+        bogus_values = ['', 'bogus', 5, 0]
+        for v in bogus_values:
+            with self.assertRaises(ValueError):
+                config.verify = v
+
+        for v in bogus_values:
+            with self.assertRaises(ValueError):
+                config.ssl_policy = v
+
+class SSLHeaderTestServer(TestServer):
+    def getProcessor(self):
+        return TestHeaderProcessor()
+
+    def setupTickets(self):
+        self.ticket_file = tempfile.NamedTemporaryFile(delete=False)
+        self.ticket_data = {
+            'old': ['00000000'],
+            'current': ['11111111'],
+            'new': ['22222222']
+        }
+        with open(self.ticket_file.name, 'w') as f:
+            f.write(json.dumps(self.ticket_data))
+
+    def configureSSL(self):
+        config = TSSLConfig()
+        self.setupTickets()
+        self.assertEquals(config.key_path, "")
+        config.ssl_policy = SSLPolicy.REQUIRED
+        config.cert_path = 'thrift/test/py/test_cert.pem'
+        config.client_verify = SSLVerifyPeerEnum.VERIFY
+        config.key_path = None
+        config.ticket_file_path = self.ticket_file.name
+        # expect an error with a cert_path but no key_path
+        with self.assertRaises(ValueError):
+            self.server.setSSLConfig(config)
+        config.key_path = 'thrift/test/py/test_cert.pem'
+        self.server.setSSLConfig(config)
+        cache_options = TSSLCacheOptions()
+        self.server.setSSLCacheOptions(cache_options)
+
+    def testSSLClient(self):
+        ssl_client = getHeaderClient(self.server_addr, TSSLSocket.TSSLSocket)
+        self.assertEquals(ssl_client.space("hi"), "h i")
+        client = getHeaderClient(self.server_addr)
+        with self.assertRaises(Exception):
+            client.space("hi")
+        self.stopServer()
+
+    def testTickets(self):
+        tickets = self.server.getTicketSeeds()
+        self.assertEquals(tickets, self.ticket_data)
+
+    def tearDown(self):
+        os.remove(self.ticket_file.name)
+
+    def testValidateSSL(self):
+        valid, msg = self.server.validateSSLConfig({})
+        self.assertFalse(valid)
+        self.assertIsNotNone(msg)
+
+        cfg = TSSLConfig()
+        valid, msg = self.server.validateSSLConfig(cfg)
+        self.assertTrue(valid)
+        self.assertIsNone(msg)
+
+        cfg.key_path = 'thrift/test/py/test_cert.pem'
+        valid, msg = self.server.validateSSLConfig(cfg)
+        self.assertFalse(valid)
+        self.assertIsNotNone(msg)
+
+        cfg.key_path = ''
+        cfg.cert_path = 'thrift/test/py/test_cert.pem'
+        valid, msg = self.server.validateSSLConfig(cfg)
+        self.assertFalse(valid)
+        self.assertIsNotNone(msg)
+
+        cfg.key_path = cfg.cert_path
+        valid, msg = self.server.validateSSLConfig(cfg)
+        self.assertTrue(valid)
+        self.assertIsNone(msg)
+
+        cfg.client_ca_path = 'thrift/test/should/not/exist.pem'
+        valid, msg = self.server.validateSSLConfig(cfg)
+        self.assertFalse(valid)
+        self.assertIsNotNone(msg)
 
 if __name__ == '__main__':
     rc = fbpyunit.MainProgram(sys.argv).run()

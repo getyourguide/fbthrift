@@ -14,25 +14,32 @@
  * limitations under the License.
  */
 
+#include <map>
+
 #include <glog/logging.h>
 
 #include <boost/python/class.hpp>
 #include <boost/python/def.hpp>
+#include <boost/python/dict.hpp>
+#include <boost/python/enum.hpp>
 #include <boost/python/errors.hpp>
 #include <boost/python/import.hpp>
+#include <boost/python/list.hpp>
 #include <boost/python/module.hpp>
 #include <boost/python/tuple.hpp>
-#include <boost/python/dict.hpp>
 
 #include <thrift/lib/cpp/concurrency/PosixThreadFactory.h>
 #include <thrift/lib/cpp/concurrency/ThreadManager.h>
 #include <thrift/lib/cpp2/async/AsyncProcessor.h>
+#include <thrift/lib/cpp2/security/TLSTicketProcessor.h>
 #include <thrift/lib/cpp2/server/ThriftServer.h>
 #include <thrift/lib/cpp/protocol/TProtocolTypes.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
+#include <thrift/lib/py/server/CppContextData.h>
 #include <folly/Memory.h>
 #include <folly/ScopeGuard.h>
+#include <wangle/ssl/SSLContextConfig.h>
 
 using namespace apache::thrift;
 using apache::thrift::concurrency::PosixThreadFactory;
@@ -40,25 +47,12 @@ using apache::thrift::concurrency::ThreadManager;
 using apache::thrift::transport::THeader;
 using apache::thrift::server::TServerEventHandler;
 using apache::thrift::server::TConnectionContext;
+using folly::SSLContext;
+using wangle::SSLContextConfig;
+using wangle::SSLCacheOptions;
 using namespace boost::python;
 
 namespace {
-
-object makePythonAddress(const folly::SocketAddress& sa) {
-  if (!sa.isInitialized()) {
-    return object();  // None
-  }
-
-  // This constructs a tuple in the same form as socket.getpeername()
-  if (sa.getFamily() == AF_INET) {
-    return boost::python::make_tuple(sa.getAddressStr(), sa.getPort());
-  } else if (sa.getFamily() == AF_INET6) {
-    return boost::python::make_tuple(sa.getAddressStr(), sa.getPort(), 0, 0);
-  } else {
-    LOG(FATAL) << "CppServerWrapper can't create a non-inet thrift endpoint";
-    abort();
-  }
-}
 
 object makePythonHeaders(const std::map<std::string, std::string>& cppheaders) {
   object headers = dict();
@@ -68,56 +62,59 @@ object makePythonHeaders(const std::map<std::string, std::string>& cppheaders) {
   return headers;
 }
 
+object makePythonList(const std::vector<std::string>& vec) {
+  list result;
+  for (auto it = vec.begin(); it != vec.end(); ++it) {
+    result.append(*it);
+  }
+  return result;
 }
 
-class ContextData {
+std::string getStringAttrSafe(object& pyObject, const char* attrName) {
+  object val = pyObject.attr(attrName);
+  if (val.is_none()) {
+    return "";
+  }
+  return extract<std::string>(str(val));
+}
+
+template<class T>
+T getIntAttr(object& pyObject, const char* attrName) {
+  object val = pyObject.attr(attrName);
+  return extract<T>(val);
+}
+
+std::list<std::string> getStringListSafe(object& pyObject, const char* attr) {
+  object val = pyObject.attr(attr);
+  std::list<std::string> result;
+  if (val.is_none()) {
+    return result;
+  }
+  auto exList = extract<list>(val);
+  if (exList.check()) {
+    list pyList = exList;
+    int len = boost::python::len(pyList);
+    for (int i = 0; i < len; ++i) {
+      result.push_back(extract<std::string>(str(pyList[i])));
+    }
+  }
+  return result;
+}
+
+}
+
+class CallbackWrapper {
 public:
-  void copyContextContents(Cpp2ConnContext* ctx) {
-    if (!ctx) {
-      return;
-    }
-    auto ss = ctx->getSaslServer();
-    if (ss) {
-      clientIdentity_ = ss->getClientIdentity();
-    } else {
-      clientIdentity_.clear();
-    }
-
-    auto pa = ctx->getPeerAddress();
-    if (pa) {
-      peerAddress_ = *pa;
-    } else {
-      peerAddress_.reset();
-    }
-
-    auto la = ctx->getLocalAddress();
-    if (la) {
-      localAddress_ = *la;
-    } else {
-      localAddress_.reset();
-    }
+  void call(object obj) {
+    callback_(obj);
   }
 
-  object getClientIdentity() const {
-    if (clientIdentity_.empty()) {
-      return object();
-    } else {
-      return str(clientIdentity_);
-    }
-  }
-
-  object getPeerAddress() const {
-    return makePythonAddress(peerAddress_);
-  }
-
-  object getLocalAddress() const {
-    return makePythonAddress(localAddress_);
+  void setCallback(std::function<void(object)>&& callback) {
+    callback_ = std::move(callback);
   }
 
 private:
-  std::string clientIdentity_;
-  folly::SocketAddress peerAddress_;
-  folly::SocketAddress localAddress_;
+  std::function<void(object)> callback_;
 };
 
 class CppServerEventHandler : public TServerEventHandler {
@@ -142,7 +139,7 @@ private:
     Cpp2ConnContext *cpp2Ctx = dynamic_cast<Cpp2ConnContext*>(ctx);
     auto cd_cls = handler_->attr("CONTEXT_DATA");
     object contextData = cd_cls();
-    extract<ContextData&>(contextData)().copyContextContents(cpp2Ctx);
+    extract<CppContextData&>(contextData)().copyContextContents(cpp2Ctx);
     auto ctx_cls = handler_->attr("CPP_CONNECTION_CONTEXT");
     object cppConnContext = ctx_cls(contextData);
     handler_->attr(method)(cppConnContext);
@@ -182,8 +179,8 @@ public:
                   std::unique_ptr<ResponseChannel::Request>(preq));
 
               SCOPE_EXIT {
-                eb->runInEventBaseThread([=]() mutable {
-                  delete req_mw->release();
+                eb->runInEventBaseThread([req_mw]() mutable {
+                    delete req_mw->release();
                 });
               };
 
@@ -200,8 +197,6 @@ public:
                 clientType = THRIFT_HEADER_CLIENT_TYPE;
               }
 
-              std::unique_ptr<folly::IOBuf> outbuf;
-
               {
                 PyGILState_STATE state = PyGILState_Ensure();
                 SCOPE_EXIT { PyGILState_Release(state); };
@@ -217,54 +212,80 @@ public:
 
                 auto cd_ctor = adapter_->attr("CONTEXT_DATA");
                 object contextData = cd_ctor();
-                extract<ContextData&>(contextData)().copyContextContents(
+                extract<CppContextData&>(contextData)().copyContextContents(
                     context->getConnectionContext());
 
-                object output = adapter_->attr("call_processor")(
+                auto cb_ctor = adapter_->attr("CALLBACK_WRAPPER");
+                object callbackWrapper = cb_ctor();
+                extract<CallbackWrapper&>(callbackWrapper)().setCallback(
+                    [oneway, req_mw, context, eb] (object output) mutable {
+                  // Make sure the request is deleted in evb.
+                  SCOPE_EXIT {
+                    eb->runInEventBaseThread([req_mw]() mutable {
+                      delete req_mw->release();
+                    });
+                  };
+
+                  // Always called from python so no need to grab GIL.
+                  try {
+                    std::unique_ptr<folly::IOBuf> outbuf;
+                    if (output.is_none()) {
+                      throw std::runtime_error(
+                          "Unexpected error in processor method");
+                    }
+                    PyObject* output_ptr = output.ptr();
+#if PY_MAJOR_VERSION == 2
+                    if (PyString_Check(output_ptr)) {
+                      int len = extract<int>(output.attr("__len__")());
+                      if (len == 0) {
+                        return;
+                      }
+                      outbuf = folly::IOBuf::copyBuffer(
+                          extract<const char *>(output), len);
+                    } else
+#endif
+                    if (PyBytes_Check(output_ptr)) {
+                      int len = PyBytes_Size(output_ptr);
+                      if (len == 0) {
+                        return;
+                      }
+                      outbuf = folly::IOBuf::copyBuffer(
+                          PyBytes_AsString(output_ptr), len);
+                    } else {
+                      throw std::runtime_error("Return from processor "
+                          "method is not string or bytes");
+                    }
+
+                    if (!(*req_mw)->isActive()) {
+                      return;
+                    }
+                    auto q_mw = folly::makeMoveWrapper(THeader::transform(
+                          std::move(outbuf),
+                          context->getHeader()->getWriteTransforms(),
+                          context->getHeader()->getMinCompressBytes()));
+                    eb->runInEventBaseThread([req_mw, q_mw]() mutable {
+                        (*req_mw)->sendReply(q_mw.move());
+                    });
+                  } catch (const std::exception& e) {
+                    if (!oneway) {
+                      (*req_mw)->sendErrorWrapped(
+                          folly::make_exception_wrapper<TApplicationException>(
+                            folly::to<std::string>(
+                                "Failed to read response from Python:",
+                                e.what())),
+                          "python");
+                    }
+                  }
+                });
+
+                adapter_->attr("call_processor")(
                     input,
                     makePythonHeaders(context->getHeader()->getHeaders()),
                     int(clientType),
                     int(protType),
-                    contextData);
-                if (output.is_none()) {
-                  throw std::runtime_error(
-                      "Unexpected error in processor method");
-                }
-                PyObject* output_ptr = output.ptr();
-#if PY_MAJOR_VERSION == 2
-                if (PyString_Check(output_ptr)) {
-                  int len = extract<int>(output.attr("__len__")());
-                  if (len == 0) {
-                    return;
-                  }
-                  outbuf = folly::IOBuf::copyBuffer(
-                      extract<const char *>(output), len);
-                } else
-#endif
-                if (PyBytes_Check(output_ptr)) {
-                  int len = PyBytes_Size(output_ptr);
-                  if (len == 0) {
-                    return;
-                  }
-                  outbuf = folly::IOBuf::copyBuffer(
-                      PyBytes_AsString(output_ptr), len);
-                } else {
-                  throw std::runtime_error(
-                      "Return from processor method is not string or bytes");
-                }
+                    contextData,
+                    callbackWrapper);
               }
-
-              if (!(*req_mw)->isActive()) {
-                return;
-              }
-
-              auto q_mw = folly::makeMoveWrapper(THeader::transform(
-                  std::move(outbuf),
-                  context->getHeader()->getWriteTransforms(),
-                  context->getHeader()->getMinCompressBytes()));
-              eb->runInEventBaseThread([req_mw, q_mw]() mutable {
-                (*req_mw)->sendReply(q_mw.move());
-              });
             },
             preq, eb, oneway));
       req.release();
@@ -365,6 +386,112 @@ public:
     getServeEventBase()->loopForever();
   }
 
+  object validateCppSSLConfig(object sslConfig) {
+    auto certPath = getStringAttrSafe(sslConfig, "cert_path");
+    auto keyPath = getStringAttrSafe(sslConfig, "key_path");
+    if (certPath.empty() ^ keyPath.empty()) {
+      std::string err = "cert_path and key_path must both be populated or " \
+        "both be empty.";
+      return boost::python::make_tuple(false, err);
+    }
+    auto dummyContext = std::make_shared<SSLContext>();
+    if (!certPath.empty()) {
+      try {
+        dummyContext->loadPrivateKey(keyPath.c_str());
+        dummyContext->loadCertificate(certPath.c_str());
+      } catch (const std::exception& ex) {
+        std::string err
+          = folly::to<std::string>("failed to load key ", keyPath,
+                                   " or cert ", certPath, " with exception: ",
+                                   ex.what());
+        return boost::python::make_tuple(false, err);
+      }
+    }
+    auto clientCaFile = getStringAttrSafe(sslConfig, "client_ca_path");
+    if (!clientCaFile.empty()) {
+      try {
+        dummyContext->loadTrustedCertificates(clientCaFile.c_str());
+      } catch (std::exception& ex) {
+        std::string err
+          = folly::to<std::string>("failed to load client ca file ",
+                                   clientCaFile, " with exception: ",
+                                   ex.what());
+        return boost::python::make_tuple(false, err);
+      }
+    }
+    return boost::python::make_tuple(true, object());
+  }
+
+  void setCppSSLConfig(object sslConfig) {
+    auto certPath = getStringAttrSafe(sslConfig, "cert_path");
+    auto keyPath = getStringAttrSafe(sslConfig, "key_path");
+    if (certPath.empty() ^ keyPath.empty()) {
+      PyErr_SetString(PyExc_ValueError,
+                      "certPath and keyPath must both be populated");
+      throw_error_already_set();
+      return;
+    }
+    auto cfg = std::make_shared<SSLContextConfig>();
+    cfg->clientCAFile = getStringAttrSafe(sslConfig, "client_ca_path");
+    if (!certPath.empty()) {
+      auto keyPwPath = getStringAttrSafe(sslConfig, "key_pw_path");
+      cfg->setCertificate(certPath, keyPath, keyPwPath);
+    }
+    cfg->clientVerification
+      = extract<SSLContext::SSLVerifyPeerEnum>(sslConfig.attr("verify"));
+    auto eccCurve = getStringAttrSafe(sslConfig, "ecc_curve_name");
+    if (!eccCurve.empty()) {
+      cfg->eccCurveName = eccCurve;
+    }
+    auto alpnProtocols = getStringListSafe(sslConfig, "alpn_protocols");
+    cfg->setNextProtocols(alpnProtocols);
+    object sessionContext = sslConfig.attr("session_context");
+    if (!sessionContext.is_none()) {
+      cfg->sessionContext = extract<std::string>(str(sessionContext));
+    }
+
+    ThriftServer::setSSLConfig(cfg);
+
+    setSSLPolicy(extract<SSLPolicy>(sslConfig.attr("ssl_policy")));
+
+    auto ticketFilePath = getStringAttrSafe(sslConfig, "ticket_file_path");
+    ticketProcessor_.reset(); // stops the existing poller if any
+    if (!ticketFilePath.empty()) {
+      ticketProcessor_.reset(new TLSTicketProcessor(ticketFilePath));
+      ticketProcessor_->addCallback([this](wangle::TLSTicketKeySeeds seeds) {
+        updateTicketSeeds(std::move(seeds));
+      });
+      auto seeds = TLSTicketProcessor::processTLSTickets(ticketFilePath);
+      if (seeds) {
+        setTicketSeeds(std::move(*seeds));
+      }
+    }
+  }
+
+  void setCppSSLCacheOptions(object cacheOptions) {
+    SSLCacheOptions options = {
+        .sslCacheTimeout = std::chrono::seconds(
+            getIntAttr<uint32_t>(cacheOptions, "ssl_cache_timeout_seconds")),
+        .maxSSLCacheSize =
+            getIntAttr<uint64_t>(cacheOptions, "max_ssl_cache_size"),
+        .sslCacheFlushSize =
+            getIntAttr<uint64_t>(cacheOptions, "ssl_cache_flush_size"),
+    };
+    ThriftServer::setSSLCacheOptions(std::move(options));
+  }
+
+  object getCppTicketSeeds() {
+    auto seeds = getTicketSeeds();
+    if (!seeds) {
+      return boost::python::object();
+    }
+    boost::python::dict result;
+    result["old"] = makePythonList(seeds->oldSeeds);
+    result["current"] = makePythonList(seeds->currentSeeds);
+    result["new"] = makePythonList(seeds->newSeeds);
+    return result;
+  }
+
   void cleanUp() {
     // Deadlock avoidance: consider a thrift worker thread is doing
     // something in C++-land having relinquished the GIL.  This thread
@@ -377,7 +504,7 @@ public:
 
     PyThreadState* save_state = PyEval_SaveThread();
     SCOPE_EXIT { PyEval_RestoreThread(save_state); };
-
+    ticketProcessor_.reset();
     ThriftServer::cleanUp();
   }
 
@@ -406,16 +533,24 @@ public:
     tm->threadFactory(std::make_shared<PosixThreadFactory>());
     tm->start();
     setThreadManager(std::move(tm));
-}
+  }
+
+ private:
+  std::unique_ptr<TLSTicketProcessor> ticketProcessor_;
+
 };
 
 BOOST_PYTHON_MODULE(CppServerWrapper) {
   PyEval_InitThreads();
 
-  class_<ContextData>("ContextData")
-    .def("getClientIdentity", &ContextData::getClientIdentity)
-    .def("getPeerAddress", &ContextData::getPeerAddress)
-    .def("getLocalAddress", &ContextData::getLocalAddress)
+  class_<CppContextData>("CppContextData")
+    .def("getClientIdentity", &CppContextData::getClientIdentity)
+    .def("getPeerAddress", &CppContextData::getPeerAddress)
+    .def("getLocalAddress", &CppContextData::getLocalAddress)
+    ;
+
+  class_<CallbackWrapper>("CallbackWrapper")
+    .def("call", &CallbackWrapper::call)
     ;
 
   class_<CppServerWrapper, boost::noncopyable >(
@@ -431,6 +566,10 @@ BOOST_PYTHON_MODULE(CppServerWrapper) {
          &CppServerWrapper::setCppServerEventHandler)
     .def("setNewSimpleThreadManager",
          &CppServerWrapper::setNewSimpleThreadManager)
+    .def("setCppSSLConfig", &CppServerWrapper::setCppSSLConfig)
+    .def("setCppSSLCacheOptions", &CppServerWrapper::setCppSSLCacheOptions)
+    .def("getCppTicketSeeds", &CppServerWrapper::getCppTicketSeeds)
+    .def("validateCppSSLConfig", &CppServerWrapper::validateCppSSLConfig)
 
     // methods directly passed to the C++ impl
     .def("setup", &CppServerWrapper::setup)
@@ -440,5 +579,18 @@ BOOST_PYTHON_MODULE(CppServerWrapper) {
     .def("stop", &CppServerWrapper::stop)
     .def("setMaxConnections", &CppServerWrapper::setMaxConnections)
     .def("getMaxConnections", &CppServerWrapper::getMaxConnections)
+    ;
+
+  enum_<SSLPolicy>("SSLPolicy")
+    .value("DISABLED", SSLPolicy::DISABLED)
+    .value("PERMITTED", SSLPolicy::PERMITTED)
+    .value("REQUIRED", SSLPolicy::REQUIRED)
+    ;
+
+  enum_<folly::SSLContext::SSLVerifyPeerEnum>("SSLVerifyPeerEnum")
+    .value("VERIFY", folly::SSLContext::SSLVerifyPeerEnum::VERIFY)
+    .value("VERIFY_REQ",
+           folly::SSLContext::SSLVerifyPeerEnum::VERIFY_REQ_CLIENT_CERT)
+    .value("NO_VERIFY", folly::SSLContext::SSLVerifyPeerEnum::NO_VERIFY)
     ;
 }

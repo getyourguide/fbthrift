@@ -6,8 +6,8 @@ import time
 
 from thrift.server.TAsyncioServer import ThriftClientProtocolFactory
 
-from tutorial import Calculator
-from tutorial.ttypes import Work, Operation, InvalidOperation
+from thrift_asyncio.tutorial import Calculator
+from thrift_asyncio.tutorial.ttypes import Work, Operation, InvalidOperation
 
 
 @asyncio.coroutine
@@ -48,7 +48,10 @@ def main(loop):
             .format(len(calls), time_spent))
     for fut in done:
         print(fut.result())
+    transport.close()
+    protocol.close()
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main(loop))
+    loop.close()

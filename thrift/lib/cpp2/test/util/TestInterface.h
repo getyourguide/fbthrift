@@ -22,6 +22,7 @@ extern const std::string kEchoSuffix;
 class TestInterface : public apache::thrift::test::cpp2::TestServiceSvIf {
   void sendResponse(std::string& _return, int64_t size) override;
   void noResponse(int64_t size) override;
+  void voidResponse() override;
 
   void echoRequest(std::string& _return,
                    std::unique_ptr<std::string> req) override;
@@ -36,5 +37,7 @@ class TestInterface : public apache::thrift::test::cpp2::TestServiceSvIf {
       std::unique_ptr<apache::thrift::HandlerCallback<void>> cb) override;
 
   void echoIOBuf(std::unique_ptr<folly::IOBuf>& ret,
-                 std::unique_ptr<folly::IOBuf> buf) override;
+      std::unique_ptr<folly::IOBuf> buf) override;
+
+  int32_t processHeader() override;
 };

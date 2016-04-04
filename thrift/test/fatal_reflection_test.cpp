@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2016 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-#include <thrift/lib/cpp2/fatal/reflect_category.h>
+#include <thrift/lib/cpp2/fatal/container_traits.h>
 
 #include <thrift/test/gen-cpp2/reflection_fatal.h>
 #include <thrift/test/gen-cpp2/reflection_fatal_enum.h>
 #include <thrift/test/gen-cpp2/reflection_fatal_struct.h>
 #include <thrift/test/gen-cpp2/reflection_fatal_union.h>
 
-#include <thrift/test/expect_same.h>
+#include <thrift/lib/cpp2/fatal/internal/test_helpers.h>
 
 #include <gtest/gtest.h>
 
@@ -37,7 +37,7 @@ using category = std::integral_constant<
 TEST(reflection, is_reflectable_module) {
   EXPECT_SAME<
     std::true_type,
-    apache::thrift::is_reflectable_module<reflection_tags::metadata>
+    apache::thrift::is_reflectable_module<reflection_tags::module>
   >();
 
   EXPECT_SAME<std::false_type, apache::thrift::is_reflectable_module<enum1>>();
@@ -131,7 +131,7 @@ TEST(reflection, is_reflectable_module) {
 TEST(reflection, is_reflectable_struct) {
   EXPECT_SAME<
     std::false_type,
-    apache::thrift::is_reflectable_struct<reflection_tags::metadata>
+    apache::thrift::is_reflectable_struct<reflection_tags::module>
   >();
 
   EXPECT_SAME<std::false_type, apache::thrift::is_reflectable_struct<enum1>>();
@@ -216,7 +216,7 @@ TEST(reflection, is_reflectable_struct) {
 TEST(reflection, is_reflectable_enum) {
   EXPECT_SAME<
     std::false_type,
-    apache::thrift::is_reflectable_enum<reflection_tags::metadata>
+    apache::thrift::is_reflectable_enum<reflection_tags::module>
   >();
 
   EXPECT_SAME<std::true_type, apache::thrift::is_reflectable_enum<enum1>>();
@@ -301,7 +301,7 @@ TEST(reflection, is_reflectable_enum) {
 TEST(reflection, is_reflectable_union) {
   EXPECT_SAME<
     std::false_type,
-    apache::thrift::is_reflectable_union<reflection_tags::metadata>
+    apache::thrift::is_reflectable_union<reflection_tags::module>
   >();
 
   EXPECT_SAME<std::false_type, apache::thrift::is_reflectable_union<enum1>>();
@@ -386,7 +386,7 @@ TEST(reflection, is_reflectable_union) {
 TEST(reflection, reflect_category) {
   EXPECT_SAME<
     category<apache::thrift::thrift_category::unknown>,
-    apache::thrift::reflect_category<reflection_tags::metadata>
+    apache::thrift::reflect_category<reflection_tags::module>
   >();
 
   EXPECT_SAME<

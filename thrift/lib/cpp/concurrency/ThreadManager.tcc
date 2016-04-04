@@ -109,6 +109,14 @@ class ThreadManager::ImplT<SemType>::Worker : public Runnable {
             continue;
           }
         }
+
+        if (manager_->observer_) {
+          // Hold lock to ensure that observer_ does not get deleted
+          folly::RWSpinLock::ReadHolder g(manager_->observerLock_);
+          if (manager_->observer_) {
+            manager_->observer_->preRun(task->getContext().get());
+          }
+        }
       }
 
       // Check if the task is expired
@@ -130,7 +138,7 @@ class ThreadManager::ImplT<SemType>::Worker : public Runnable {
 
       if (task->statsEnabled()) {
         auto endTime = SystemClock::now();
-        manager_->reportTaskStats(task->getQueueBeginTime(),
+        manager_->reportTaskStats(*task,
                                   startTime,
                                   endTime);
       }
@@ -200,8 +208,8 @@ void ThreadManager::ImplT<SemType>::workerExiting(Worker<SemType>* worker) {
   Guard g(mutex_);
 
   shared_ptr<Thread> thread = worker->thread();
-  __attribute__((__unused__)) size_t numErased = idMap_.erase(thread->getId());
-  assert(numErased == 1);
+  size_t numErased = idMap_.erase(thread->getId());
+  DCHECK_EQ(numErased, 1);
 
   --workerCount_;
   --totalTaskCount_;
@@ -550,9 +558,10 @@ void ThreadManager::ImplT<SemType>::getStats(int64_t& waitTimeUs, int64_t& runTi
 
 template <typename SemType>
 void ThreadManager::ImplT<SemType>::reportTaskStats(
-    const SystemClockTimePoint& queueBegin,
+    const Task& task,
     const SystemClockTimePoint& workBegin,
     const SystemClockTimePoint& workEnd) {
+  auto queueBegin = task.getQueueBeginTime();
   int64_t waitTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(
       workBegin - queueBegin).count();
   int64_t runTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(
@@ -569,6 +578,8 @@ void ThreadManager::ImplT<SemType>::reportTaskStats(
     // Hold lock to ensure that observer_ does not get deleted.
     folly::RWSpinLock::ReadHolder g(ThreadManager::ImplT<SemType>::observerLock_);
     if (ThreadManager::ImplT<SemType>::observer_) {
+      ThreadManager::ImplT<SemType>::observer_->postRun(
+          task.getContext().get());
       // Note: We are assuming the namePrefix_ does not change after the thread is
       // started.
       // TODO: enforce this.

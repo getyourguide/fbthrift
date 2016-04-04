@@ -14,17 +14,21 @@
  * limitations under the License.
  */
 
+#include <memory>
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp2/test/gen-cpp/TestService.h>
 #include <thrift/lib/cpp2/test/gen-cpp2/TestService.h>
+#include <thrift/lib/cpp2/server/Cpp2Connection.h>
 #include <thrift/lib/cpp2/server/ThriftServer.h>
 #include <thrift/lib/cpp2/async/HeaderClientChannel.h>
 #include <thrift/lib/cpp2/async/RequestChannel.h>
+#include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
 
 #include <thrift/lib/cpp/util/ScopedServerThread.h>
 #include <folly/io/async/EventBase.h>
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
 #include <folly/io/async/AsyncServerSocket.h>
+#include <folly/Memory.h>
 #include <thrift/lib/cpp/transport/THeader.h>
 
 #include <thrift/lib/cpp2/async/StubSaslClient.h>
@@ -144,6 +148,75 @@ TEST(ThriftServer, CompressionServerTest) {
   EXPECT_EQ(response.size(), 100);
 }
 
+TEST(ThriftServer, HeaderTest) {
+  TestThriftServerFactory<TestInterface> factory;
+  auto serv = factory.create();
+  ScopedServerThread sst(serv);
+  folly::EventBase base;
+  std::shared_ptr<TAsyncSocket> socket(
+    TAsyncSocket::newSocket(&base, *sst.getAddress()));
+
+  TestServiceAsyncClient client(
+    std::unique_ptr<HeaderClientChannel,
+                    folly::DelayedDestruction::Destructor>(
+                      new HeaderClientChannel(socket)));
+
+  RpcOptions options;
+  // Set it as a header directly so the client channel won't set a
+  // timeout and the test won't throw TTransportException
+  options.setWriteHeader(
+      apache::thrift::transport::THeader::CLIENT_TIMEOUT_HEADER,
+      folly::to<std::string>(10));
+  try {
+    client.sync_processHeader(options);
+    ADD_FAILURE() << "should timeout";
+  } catch (const TApplicationException& e) {
+    EXPECT_EQ(e.getType(),
+              TApplicationException::TApplicationExceptionType::TIMEOUT);
+  }
+}
+
+TEST(ThriftServer, LoadHeaderTest) {
+  class Callback : public RequestCallback {
+   public:
+    explicit Callback(bool isLoadExpected)
+        : isLoadExpected_(isLoadExpected) {}
+
+   private:
+    void requestSent() override {}
+
+    void replyReceived(ClientReceiveState&& state) override {
+      const auto& headers = state.header()->getHeaders();
+      auto loadIter = headers.find(Cpp2Connection::loadHeader);
+      ASSERT_EQ(isLoadExpected_, loadIter != headers.end());
+      if (isLoadExpected_) {
+        auto load = loadIter->second;
+        EXPECT_NE("", load);
+      }
+    }
+    void requestError(ClientReceiveState&&) override {
+      ADD_FAILURE() << "The response should not be an error";
+    }
+    bool isLoadExpected_;
+  };
+
+  ScopedServerInterfaceThread runner(std::make_shared<TestInterface>());
+  folly::EventBase base;
+  auto client = runner.newClient<TestServiceAsyncClient>(&base);
+
+  client->voidResponse(folly::make_unique<Callback>(false));
+
+  RpcOptions emptyLoadOptions;
+  emptyLoadOptions.setWriteHeader(Cpp2Connection::loadHeader, "");
+  client->voidResponse(emptyLoadOptions, folly::make_unique<Callback>(true));
+
+  RpcOptions customLoadOptions;
+  customLoadOptions.setWriteHeader(Cpp2Connection::loadHeader, "foo");
+  client->voidResponse(customLoadOptions, folly::make_unique<Callback>(true));
+
+  base.loop();
+}
+
 TEST(ThriftServer, ClientTimeoutTest) {
   TestThriftServerFactory<TestInterface> factory;
   auto server = factory.create();
@@ -184,16 +257,18 @@ TEST(ThriftServer, ClientTimeoutTest) {
           } catch (const TApplicationException& e) {
             timeout = true;
             EXPECT_EQ(int(TApplicationException::TIMEOUT), int(e.getType()));
+            EXPECT_TRUE(state.header()->getFlags() &
+                HEADER_FLAG_SUPPORT_OUT_OF_ORDER);
             return;
           }
           timeout = false;
         }));
   };
 
-  // Set the timeout to be 9 milliseconds, but the call will take 10 ms.
-  // The server should send a timeout after 9 milliseconds
+  // Set the timeout to be 5 milliseconds, but the call will take 10 ms.
+  // The server should send a timeout after 5 milliseconds
   RpcOptions options;
-  options.setTimeout(std::chrono::milliseconds(9));
+  options.setTimeout(std::chrono::milliseconds(5));
   auto client1 = getClient();
   bool timeout1;
   client1->sendResponse(options, callback(client1, timeout1), 10000);
@@ -201,27 +276,27 @@ TEST(ThriftServer, ClientTimeoutTest) {
   EXPECT_TRUE(timeout1);
   usleep(10000);
 
-  // This time we set the timeout to be 11 millseconds.  The server
+  // This time we set the timeout to be 100 millseconds.  The server
   // should not time out
-  options.setTimeout(std::chrono::milliseconds(11));
+  options.setTimeout(std::chrono::milliseconds(100));
   client1->sendResponse(options, callback(client1, timeout1), 10000);
   base.loop();
   EXPECT_FALSE(timeout1);
   usleep(10000);
 
-  // This time we set server timeout to be 1 millsecond.  However, the
+  // This time we set server timeout to be 5 millseconds.  However, the
   // task should start processing within that millisecond, so we should
   // not see an exception because the client timeout should be used after
   // processing is started
-  server->setTaskExpireTime(std::chrono::milliseconds(1));
+  server->setTaskExpireTime(std::chrono::milliseconds(5));
   client1->sendResponse(options, callback(client1, timeout1), 10000);
   base.loop();
   usleep(10000);
 
-  // The server timeout stays at 1 ms, but we put the client timeout at
-  // 9 ms.  We should timeout even though the server starts processing within
-  // 1ms.
-  options.setTimeout(std::chrono::milliseconds(9));
+  // The server timeout stays at 5 ms, but we put the client timeout at
+  // 5 ms.  We should timeout even though the server starts processing within
+  // 5ms.
+  options.setTimeout(std::chrono::milliseconds(5));
   client1->sendResponse(options, callback(client1, timeout1), 10000);
   base.loop();
   EXPECT_TRUE(timeout1);
@@ -391,6 +466,9 @@ TEST(ThriftServer, FailureInjection) {
         TestServiceAsyncClient::recv_sendResponse(response, state);
         EXPECT_EQ(NONE, *expected_);
       } catch (const apache::thrift::TApplicationException& ex) {
+        const auto& headers = state.header()->getHeaders();
+        EXPECT_TRUE(headers.find("ex") != headers.end() &&
+                    headers.find("ex")->second == kInjectedFailureErrorCode);
         EXPECT_EQ(ERROR, *expected_);
       } catch (...) {
         ADD_FAILURE() << "Unexpected exception thrown";

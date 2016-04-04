@@ -1326,7 +1326,7 @@ class MyServiceProcessor extends MyServiceSyncProcessor {}
 
 // HELPER FUNCTIONS AND STRUCTURES
 
-class MyService_ping_args implements IThriftShapishStruct {
+class MyService_ping_args implements IThriftStruct, IThriftShapishStruct {
   public static array $_TSPEC = array(
     );
   public static Map<string, int> $_TFIELDMAP = Map {
@@ -1340,6 +1340,14 @@ class MyService_ping_args implements IThriftShapishStruct {
 
   public function getName(): string {
     return 'MyService_ping_args';
+  }
+
+  public static function __jsonArrayToShape(
+    array<arraykey, mixed> $json_data,
+  ): ?self::TShape {
+    $shape_data = $json_data;
+
+    return /* HH_IGNORE_ERROR[4110] */ $shape_data;
   }
 
   public static function __fromShape(self::TShape $shape): this {
@@ -1391,7 +1399,7 @@ class MyService_ping_args implements IThriftShapishStruct {
 
 }
 
-class MyService_ping_result implements IThriftShapishStruct {
+class MyService_ping_result implements IThriftStruct, IThriftShapishStruct {
   public static array $_TSPEC = array(
     );
   public static Map<string, int> $_TFIELDMAP = Map {
@@ -1445,7 +1453,7 @@ class MyService_ping_result implements IThriftShapishStruct {
 
 }
 
-class MyService_getRandomData_args implements IThriftShapishStruct {
+class MyService_getRandomData_args implements IThriftStruct, IThriftShapishStruct {
   public static array $_TSPEC = array(
     );
   public static Map<string, int> $_TFIELDMAP = Map {
@@ -1459,6 +1467,14 @@ class MyService_getRandomData_args implements IThriftShapishStruct {
 
   public function getName(): string {
     return 'MyService_getRandomData_args';
+  }
+
+  public static function __jsonArrayToShape(
+    array<arraykey, mixed> $json_data,
+  ): ?self::TShape {
+    $shape_data = $json_data;
+
+    return /* HH_IGNORE_ERROR[4110] */ $shape_data;
   }
 
   public static function __fromShape(self::TShape $shape): this {
@@ -1510,7 +1526,7 @@ class MyService_getRandomData_args implements IThriftShapishStruct {
 
 }
 
-class MyService_getRandomData_result implements IThriftShapishStruct {
+class MyService_getRandomData_result implements IThriftStruct, IThriftShapishStruct {
   public static array $_TSPEC = array(
     0 => array(
       'var' => 'success',
@@ -1583,7 +1599,7 @@ class MyService_getRandomData_result implements IThriftShapishStruct {
 
 }
 
-class MyService_hasDataById_args implements IThriftShapishStruct {
+class MyService_hasDataById_args implements IThriftStruct, IThriftShapishStruct {
   public static array $_TSPEC = array(
     1 => array(
       'var' => 'id',
@@ -1609,6 +1625,21 @@ class MyService_hasDataById_args implements IThriftShapishStruct {
 
   public function getName(): string {
     return 'MyService_hasDataById_args';
+  }
+
+  public static function __jsonArrayToShape(
+    array<arraykey, mixed> $json_data,
+  ): ?self::TShape {
+    $shape_data = $json_data;
+
+    if (!array_key_exists('id', $shape_data)) {
+      $shape_data['id'] = 0;
+    }
+    if (!is_int($shape_data['id'])) {
+      return null;
+    }
+
+    return /* HH_IGNORE_ERROR[4110] */ $shape_data;
   }
 
   public static function __fromShape(self::TShape $shape): this {
@@ -1675,7 +1706,7 @@ class MyService_hasDataById_args implements IThriftShapishStruct {
 
 }
 
-class MyService_hasDataById_result implements IThriftShapishStruct {
+class MyService_hasDataById_result implements IThriftStruct, IThriftShapishStruct {
   public static array $_TSPEC = array(
     0 => array(
       'var' => 'success',
@@ -1748,7 +1779,7 @@ class MyService_hasDataById_result implements IThriftShapishStruct {
 
 }
 
-class MyService_getDataById_args implements IThriftShapishStruct {
+class MyService_getDataById_args implements IThriftStruct, IThriftShapishStruct {
   public static array $_TSPEC = array(
     1 => array(
       'var' => 'id',
@@ -1774,6 +1805,21 @@ class MyService_getDataById_args implements IThriftShapishStruct {
 
   public function getName(): string {
     return 'MyService_getDataById_args';
+  }
+
+  public static function __jsonArrayToShape(
+    array<arraykey, mixed> $json_data,
+  ): ?self::TShape {
+    $shape_data = $json_data;
+
+    if (!array_key_exists('id', $shape_data)) {
+      $shape_data['id'] = 0;
+    }
+    if (!is_int($shape_data['id'])) {
+      return null;
+    }
+
+    return /* HH_IGNORE_ERROR[4110] */ $shape_data;
   }
 
   public static function __fromShape(self::TShape $shape): this {
@@ -1840,7 +1886,7 @@ class MyService_getDataById_args implements IThriftShapishStruct {
 
 }
 
-class MyService_getDataById_result implements IThriftShapishStruct {
+class MyService_getDataById_result implements IThriftStruct, IThriftShapishStruct {
   public static array $_TSPEC = array(
     0 => array(
       'var' => 'success',
@@ -1913,7 +1959,7 @@ class MyService_getDataById_result implements IThriftShapishStruct {
 
 }
 
-class MyService_putDataById_args implements IThriftShapishStruct {
+class MyService_putDataById_args implements IThriftStruct, IThriftShapishStruct {
   public static array $_TSPEC = array(
     1 => array(
       'var' => 'id',
@@ -1951,6 +1997,28 @@ class MyService_putDataById_args implements IThriftShapishStruct {
 
   public function getName(): string {
     return 'MyService_putDataById_args';
+  }
+
+  public static function __jsonArrayToShape(
+    array<arraykey, mixed> $json_data,
+  ): ?self::TShape {
+    $shape_data = $json_data;
+
+    if (!array_key_exists('id', $shape_data)) {
+      $shape_data['id'] = 0;
+    }
+    if (!is_int($shape_data['id'])) {
+      return null;
+    }
+
+    if (!array_key_exists('data', $shape_data)) {
+      $shape_data['data'] = '';
+    }
+    if (!is_string($shape_data['data'])) {
+      return null;
+    }
+
+    return /* HH_IGNORE_ERROR[4110] */ $shape_data;
   }
 
   public static function __fromShape(self::TShape $shape): this {
@@ -2032,7 +2100,7 @@ class MyService_putDataById_args implements IThriftShapishStruct {
 
 }
 
-class MyService_putDataById_result implements IThriftShapishStruct {
+class MyService_putDataById_result implements IThriftStruct, IThriftShapishStruct {
   public static array $_TSPEC = array(
     );
   public static Map<string, int> $_TFIELDMAP = Map {
@@ -2086,7 +2154,7 @@ class MyService_putDataById_result implements IThriftShapishStruct {
 
 }
 
-class MyService_lobDataById_args implements IThriftShapishStruct {
+class MyService_lobDataById_args implements IThriftStruct, IThriftShapishStruct {
   public static array $_TSPEC = array(
     1 => array(
       'var' => 'id',
@@ -2124,6 +2192,28 @@ class MyService_lobDataById_args implements IThriftShapishStruct {
 
   public function getName(): string {
     return 'MyService_lobDataById_args';
+  }
+
+  public static function __jsonArrayToShape(
+    array<arraykey, mixed> $json_data,
+  ): ?self::TShape {
+    $shape_data = $json_data;
+
+    if (!array_key_exists('id', $shape_data)) {
+      $shape_data['id'] = 0;
+    }
+    if (!is_int($shape_data['id'])) {
+      return null;
+    }
+
+    if (!array_key_exists('data', $shape_data)) {
+      $shape_data['data'] = '';
+    }
+    if (!is_string($shape_data['data'])) {
+      return null;
+    }
+
+    return /* HH_IGNORE_ERROR[4110] */ $shape_data;
   }
 
   public static function __fromShape(self::TShape $shape): this {

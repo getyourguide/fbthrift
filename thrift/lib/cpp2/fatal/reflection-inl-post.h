@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2016 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,31 @@
 # error "This file must be included from reflection.h"
 #endif
 
-namespace apache { namespace thrift { namespace detail {
+namespace apache { namespace thrift {
+namespace detail { namespace reflection_impl {
+
+template <typename Owner, typename Getter, typename>
+struct is_set {
+  static bool check(Owner const &owner) { return Getter::ref(owner.__isset); }
+};
+
+template <typename Owner, typename Getter>
+struct is_set<
+  Owner,
+  Getter,
+  std::integral_constant<optionality, optionality::required>
+> {
+  constexpr static bool check(Owner const &) { return true; }
+};
+
+} // reflection_impl
+
+template <typename Module, typename Annotations, legacy_type_id_t LegacyTypeId>
+struct type_common_metadata_impl {
+  using module = Module;
+  using annotations = Annotations;
+  using legacy_id = std::integral_constant<legacy_type_id_t, LegacyTypeId>;
+};
 
 template <thrift_category Category>
 using as_thrift_category = std::integral_constant<thrift_category, Category>;
@@ -45,7 +69,23 @@ struct reflect_category_impl {
             typename std::conditional<
               std::is_same<void, T>::value,
               as_thrift_category<thrift_category::nothing>,
-              typename get_thrift_category<T>::type
+              typename std::conditional<
+                fatal::is_complete<thrift_string_traits<T>>::value,
+                as_thrift_category<thrift_category::string>,
+                typename std::conditional<
+                  fatal::is_complete<thrift_list_traits<T>>::value,
+                  as_thrift_category<thrift_category::list>,
+                  typename std::conditional<
+                    fatal::is_complete<thrift_set_traits<T>>::value,
+                    as_thrift_category<thrift_category::set>,
+                    typename std::conditional<
+                      fatal::is_complete<thrift_map_traits<T>>::value,
+                      as_thrift_category<thrift_category::map>,
+                      as_thrift_category<thrift_category::unknown>
+                    >::type
+                  >::type
+                >::type
+              >::type
             >::type
           >::type
         >::type
@@ -90,12 +130,12 @@ struct reflect_module_tag_impl {
 
 template <typename T>
 struct reflect_module_tag_selector<thrift_category::enumeration, T> {
-  using type = typename fatal::enum_traits<T>::metadata;
+  using type = typename fatal::enum_traits<T>::metadata::module;
 };
 
 template <typename T>
 struct reflect_module_tag_selector<thrift_category::variant, T> {
-  using type = typename fatal::variant_traits<T>::metadata;
+  using type = typename fatal::variant_traits<T>::metadata::module;
 };
 
 template <typename T>
@@ -103,10 +143,15 @@ struct reflect_module_tag_selector<thrift_category::structure, T> {
   using type = typename reflect_struct<T>::module;
 };
 
-////////////////////////////
-// IMPLEMENTATION DETAILS //
-////////////////////////////
+} // detail
 
-}}} // apache::thrift::detail
+template <>
+struct reflected_annotations<void> {
+  struct keys {};
+  struct values {};
+  using map = fatal::type_map<>;
+};
+
+}} // apache::thrift
 
 #endif // THRIFT_FATAL_REFLECTION_INL_POST_H_

@@ -28,6 +28,7 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
     stringValue = 2,
     intListValue = 3,
     stringListValue = 4,
+    stringRef = 5,
   } ;
 
   ComplexUnion() :
@@ -56,6 +57,11 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
       case Type::stringListValue:
       {
         set_stringListValue(std::move(rhs.value_.stringListValue));
+        break;
+      }
+      case Type::stringRef:
+      {
+        set_stringRef(std::move(*rhs.value_.stringRef));
         break;
       }
       default:
@@ -92,6 +98,11 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
         set_stringListValue(rhs.value_.stringListValue);
         break;
       }
+      case Type::stringRef:
+      {
+        set_stringRef(*rhs.value_.stringRef);
+        break;
+      }
       default:
       {
         assert(false);
@@ -123,6 +134,11 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
       case Type::stringListValue:
       {
         set_stringListValue(std::move(rhs.value_.stringListValue));
+        break;
+      }
+      case Type::stringRef:
+      {
+        set_stringRef(std::move(*rhs.value_.stringRef));
         break;
       }
       default:
@@ -160,6 +176,11 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
         set_stringListValue(rhs.value_.stringListValue);
         break;
       }
+      case Type::stringRef:
+      {
+        set_stringRef(*rhs.value_.stringRef);
+        break;
+      }
       default:
       {
         assert(false);
@@ -167,6 +188,36 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
       }
     }
     return *this;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  ComplexUnion(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_intValue(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  ComplexUnion(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_stringValue(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  ComplexUnion(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_intListValue(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  ComplexUnion(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_stringListValue(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  ComplexUnion(::apache::thrift::detail::argument_wrapper<5, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_stringRef(arg.move());
   }
   void __clear();
 
@@ -179,6 +230,7 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
     std::string stringValue;
     std::vector<int64_t> intListValue;
     std::vector<std::string> stringListValue;
+    std::unique_ptr<std::string> stringRef;
 
     storage_type() {}
     ~storage_type() {}
@@ -208,6 +260,11 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
         return value_.stringListValue < rhs.value_.stringListValue;
         break;
       }
+      case Type::stringRef:
+      {
+        return *value_.stringRef < *rhs.value_.stringRef;
+        break;
+      }
       default:
       {
         return false;
@@ -216,72 +273,145 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
     }
   }
 
-  template<typename... T>
-  void set_intValue(T&&... t) {
+  int64_t& set_intValue(int64_t t = int64_t()) {
     __clear();
     type_ = Type::intValue;
-    new (&value_.intValue) int64_t(std::forward<T>(t)...);
+    ::new (std::addressof(value_.intValue)) int64_t(t);
+    return value_.intValue;
   }
 
-  template<typename... T>
-  void set_stringValue(T&&... t) {
+  std::string& set_stringValue(std::string const &t) {
     __clear();
     type_ = Type::stringValue;
-    new (&value_.stringValue) std::string(std::forward<T>(t)...);
+    ::new (std::addressof(value_.stringValue)) std::string(t);
+    return value_.stringValue;
   }
 
-  template<typename... T>
-  void set_intListValue(T&&... t) {
+  std::string& set_stringValue(std::string&& t) {
+    __clear();
+    type_ = Type::stringValue;
+    ::new (std::addressof(value_.stringValue)) std::string(std::move(t));
+    return value_.stringValue;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::string, T...>> std::string& set_stringValue(T&&... t) {
+    __clear();
+    type_ = Type::stringValue;
+    ::new (std::addressof(value_.stringValue)) std::string(std::forward<T>(t)...);
+    return value_.stringValue;
+  }
+
+  std::vector<int64_t>& set_intListValue(std::vector<int64_t> const &t) {
     __clear();
     type_ = Type::intListValue;
-    new (&value_.intListValue) std::vector<int64_t>(std::forward<T>(t)...);
+    ::new (std::addressof(value_.intListValue)) std::vector<int64_t>(t);
+    return value_.intListValue;
   }
 
-  template<typename... T>
-  void set_stringListValue(T&&... t) {
+  std::vector<int64_t>& set_intListValue(std::vector<int64_t>&& t) {
+    __clear();
+    type_ = Type::intListValue;
+    ::new (std::addressof(value_.intListValue)) std::vector<int64_t>(std::move(t));
+    return value_.intListValue;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::vector<int64_t>, T...>> std::vector<int64_t>& set_intListValue(T&&... t) {
+    __clear();
+    type_ = Type::intListValue;
+    ::new (std::addressof(value_.intListValue)) std::vector<int64_t>(std::forward<T>(t)...);
+    return value_.intListValue;
+  }
+
+  std::vector<std::string>& set_stringListValue(std::vector<std::string> const &t) {
     __clear();
     type_ = Type::stringListValue;
-    new (&value_.stringListValue) std::vector<std::string>(std::forward<T>(t)...);
+    ::new (std::addressof(value_.stringListValue)) std::vector<std::string>(t);
+    return value_.stringListValue;
   }
 
-  const int64_t& get_intValue() const {
+  std::vector<std::string>& set_stringListValue(std::vector<std::string>&& t) {
+    __clear();
+    type_ = Type::stringListValue;
+    ::new (std::addressof(value_.stringListValue)) std::vector<std::string>(std::move(t));
+    return value_.stringListValue;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::vector<std::string>, T...>> std::vector<std::string>& set_stringListValue(T&&... t) {
+    __clear();
+    type_ = Type::stringListValue;
+    ::new (std::addressof(value_.stringListValue)) std::vector<std::string>(std::forward<T>(t)...);
+    return value_.stringListValue;
+  }
+
+  std::unique_ptr<std::string>& set_stringRef(std::string const &t) {
+    __clear();
+    type_ = Type::stringRef;
+    ::new (std::addressof(value_.stringRef)) std::unique_ptr<std::string>(new std::string(t));
+    return value_.stringRef;
+  }
+
+  std::unique_ptr<std::string>& set_stringRef(std::string&& t) {
+    __clear();
+    type_ = Type::stringRef;
+    ::new (std::addressof(value_.stringRef)) std::unique_ptr<std::string>(new std::string(std::move(t)));
+    return value_.stringRef;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::string, T...>> std::unique_ptr<std::string>& set_stringRef(T&&... t) {
+    __clear();
+    type_ = Type::stringRef;
+    ::new (std::addressof(value_.stringRef)) std::unique_ptr<std::string>(new std::string(std::forward<T>(t)...));
+    return value_.stringRef;
+  }
+
+  int64_t const & get_intValue() const {
     assert(type_ == Type::intValue);
     return value_.intValue;
   }
 
-  const std::string& get_stringValue() const {
+  std::string const & get_stringValue() const {
     assert(type_ == Type::stringValue);
     return value_.stringValue;
   }
 
-  const std::vector<int64_t>& get_intListValue() const {
+  std::vector<int64_t> const & get_intListValue() const {
     assert(type_ == Type::intListValue);
     return value_.intListValue;
   }
 
-  const std::vector<std::string>& get_stringListValue() const {
+  std::vector<std::string> const & get_stringListValue() const {
     assert(type_ == Type::stringListValue);
     return value_.stringListValue;
   }
 
-  int64_t& mutable_intValue() {
+  std::unique_ptr<std::string> const & get_stringRef() const {
+    assert(type_ == Type::stringRef);
+    return value_.stringRef;
+  }
+
+  int64_t & mutable_intValue() {
     assert(type_ == Type::intValue);
     return value_.intValue;
   }
 
-  std::string& mutable_stringValue() {
+  std::string & mutable_stringValue() {
     assert(type_ == Type::stringValue);
     return value_.stringValue;
   }
 
-  std::vector<int64_t>& mutable_intListValue() {
+  std::vector<int64_t> & mutable_intListValue() {
     assert(type_ == Type::intListValue);
     return value_.intListValue;
   }
 
-  std::vector<std::string>& mutable_stringListValue() {
+  std::vector<std::string> & mutable_stringListValue() {
     assert(type_ == Type::stringListValue);
     return value_.stringListValue;
+  }
+
+  std::unique_ptr<std::string> & mutable_stringRef() {
+    assert(type_ == Type::stringRef);
+    return value_.stringRef;
   }
 
   int64_t move_intValue() {
@@ -302,6 +432,11 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
   std::vector<std::string> move_stringListValue() {
     assert(type_ == Type::stringListValue);
     return std::move(value_.stringListValue);
+  }
+
+  std::unique_ptr<std::string> move_stringRef() {
+    assert(type_ == Type::stringRef);
+    return std::move(value_.stringRef);
   }
 
   Type getType() const { return type_; }

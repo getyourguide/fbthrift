@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2016 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ namespace detail { namespace reflection_impl {
 struct reflection_metadata_tag {};
 struct struct_traits_metadata_tag {};
 
+template <typename, typename, typename> struct is_set;
+
 }} // detail::reflection_impl
 
 #define THRIFT_REGISTER_REFLECTION_METADATA(Tag, ...) \
@@ -46,6 +48,8 @@ struct struct_traits_metadata_tag {};
       __VA_ARGS__ \
     > \
   )
+
+template <typename = void> struct reflected_annotations;
 
 }} // apache::thrift
 

@@ -23,8 +23,12 @@
 
 SUBDIRS = . test
 
-lib_LTLIBRARIES = libthriftcpp2.la
+lib_LTLIBRARIES = libthriftprotocol.la
+
+if WITH_CPP
+lib_LTLIBRARIES += libthriftcpp2.la
 noinst_LIBRARIES = libsaslstubs.a
+endif
 
 gen-cpp2/Sasl_constants.cpp: gen-cpp2/Sasl_types.h
 gen-cpp2/Sasl_types.cpp: gen-cpp2/Sasl_types.h
@@ -47,6 +51,7 @@ thrift2include_async_HEADERS = \
 	async/Cpp2Channel.h \
 	async/ProtectionHandler.h \
 	async/FramingHandler.h \
+	async/SaslNegotiationHandler.h \
 	async/HeaderChannel.h \
 	async/HeaderChannelTrait.h \
 	async/DuplexChannel.h \
@@ -70,15 +75,23 @@ thrift2include_async_HEADERS = \
 thrift2include_fataldir = $(thrift2includedir)/fatal
 
 thrift2include_fatal_HEADERS = \
+  fatal/container_traits.h \
+  fatal/container_traits_folly.h \
+	fatal/debug-inl-post.h \
+	fatal/debug-inl-pre.h \
+	fatal/debug.h \
 	fatal/folly_dynamic-inl.h \
 	fatal/folly_dynamic.h \
 	fatal/indenter.h \
 	fatal/pretty_print-inl.h \
 	fatal/pretty_print.h \
-	fatal/reflect_category.h \
 	fatal/reflection-inl-post.h \
 	fatal/reflection-inl-pre.h \
-	fatal/reflection.h
+	fatal/reflection.h \
+	fatal/traits_test_helpers.h \
+	fatal/traits_test_helpers-inl.h \
+	fatal/internal/test_helpers.h \
+	fatal/variant.h
 
 thrift2include_serverdir = $(thrift2includedir)/server
 
@@ -92,6 +105,7 @@ thrift2include_server_HEADERS = \
 thrift2include_utildir = $(thrift2includedir)/util
 
 thrift2include_util_HEADERS = \
+	util/FilePoller.h \
 	util/ScopedServerInterfaceThread.h \
 	util/ScopedServerInterfaceThread-inl.h
 
@@ -103,7 +117,9 @@ thrift2include_security_HEADERS = \
 	security/KerberosSASLHandshakeUtils.h \
 	security/KerberosSASLThreadManager.h \
 	security/SecurityKillSwitch.h \
-	security/SecurityLogger.h
+	security/SecurityKillSwitchPoller.h \
+	security/SecurityLogger.h \
+	security/TLSTicketProcessor.h
 
 thrift2include_protocoldir = $(thrift2includedir)/protocol
 
@@ -114,12 +130,38 @@ thrift2include_protocol_HEADERS = \
 	protocol/BinaryProtocol.tcc \
 	protocol/CompactProtocol.h \
 	protocol/CompactProtocol.tcc \
+	protocol/JSONProtocol.h \
+	protocol/JSONProtocol.tcc \
+	protocol/JSONProtocolCommon.h \
+	protocol/JSONProtocolCommon.tcc \
 	protocol/SimpleJSONProtocol.h \
 	protocol/SimpleJSONProtocol.tcc \
 	protocol/DebugProtocol.h \
 	protocol/MessageSerializer.h \
 	protocol/Serializer.h \
 	protocol/VirtualProtocol.h
+
+libthriftprotocol_la_SOURCES = Version.cpp \
+                               ../cpp/Thrift.cpp \
+                               ../cpp/concurrency/Util.cpp \
+                               ../cpp/transport/TTransportException.cpp \
+                               ../cpp/util/VarintUtils.cpp \
+                               protocol/BinaryProtocol.cpp \
+                               protocol/CompactProtocol.cpp \
+                               protocol/DebugProtocol.cpp \
+                               protocol/JSONProtocol.cpp \
+                               protocol/JSONProtocolCommon.cpp \
+                               protocol/Serializer.cpp \
+                               protocol/SimpleJSONProtocol.cpp \
+                               protocol/VirtualProtocol.cpp
+
+libthriftprotocol_la_LIBADD = $(FOLLY_LIBS) -lboost_system
+
+libthriftprotocol_la_LDFLAGS = -no-undefined \
+                               -avoid-version \
+                               $(BOOST_LDFLAGS)
+
+libthriftprotocol_la_CPPFLAGS = $(AM_CPPFLAGS) -I../cpp
 
 libthriftcpp2_la_SOURCES = Version.cpp \
 			   GeneratedCodeHelper.cpp \
@@ -136,23 +178,21 @@ libthriftcpp2_la_SOURCES = Version.cpp \
 			   async/ResponseChannel.cpp \
 			   async/ProtectionHandler.cpp \
 			   async/FramingHandler.cpp \
+			   async/SaslNegotiationHandler.cpp \
 			   async/AsyncProcessor.cpp \
 			   async/DuplexChannel.cpp \
-			   protocol/Serializer.cpp \
-			   protocol/SimpleJSONProtocol.cpp \
-			   protocol/DebugProtocol.cpp \
-			   protocol/BinaryProtocol.cpp \
-			   protocol/VirtualProtocol.cpp \
-			   protocol/CompactProtocol.cpp \
 			   security/KerberosSASLHandshakeClient.cpp \
 			   security/KerberosSASLHandshakeServer.cpp \
 			   security/KerberosSASLHandshakeUtils.cpp \
 			   security/KerberosSASLThreadManager.cpp \
 			   security/SecurityKillSwitch.cpp \
+			   security/SecurityKillSwitchPoller.cpp \
+			   security/TLSTicketProcessor.cpp \
 			   server/BaseThriftServer.cpp \
 			   server/Cpp2Connection.cpp \
 			   server/Cpp2Worker.cpp \
 			   server/ThriftServer.cpp \
+			   util/FilePoller.cpp \
 			   util/ScopedServerInterfaceThread.cpp \
 			   ../cpp/EventHandlerBase.cpp \
 			   ../cpp/transport/THeaderTransport.cpp \
@@ -173,6 +213,7 @@ libthriftcpp2_la_SOURCES = Version.cpp \
 
 libthriftcpp2_la_LIBADD = \
 	../cpp/libthrift.la \
+	libthriftprotocol.la \
 	libsaslstubs.a \
 	$(FOLLY_LIBS) \
 	-lkrb5 \

@@ -20,11 +20,33 @@
 #include <thrift/lib/cpp/Thrift.h>
 #include <thrift/lib/cpp/protocol/TType.h>
 
+#include <initializer_list>
+#include <utility>
+
+#include <cstdint>
+
 namespace apache { namespace thrift {
 
 enum FragileConstructor {
   FRAGILE,
 };
+
+namespace detail {
+
+template <typename T>
+struct enum_hash {
+  size_t operator()(T t) const {
+    using underlying_t = typename std::underlying_type<T>::type;
+    return std::hash<underlying_t>()(underlying_t(t));
+  }
+};
+
+template <typename T>
+struct enum_equal_to {
+  bool operator()(T t0, T t1) const { return t0 == t1; }
+};
+
+}
 
 /**
  * Class template (specialized for each type in generated code) that allows
@@ -60,6 +82,72 @@ class Cpp2Ops {
   static constexpr apache::thrift::protocol::TType thriftType();
 };
 
-}} // apache::thrift
+namespace detail {
+
+// Adapted from Fatal (https://github.com/facebook/fatal/)
+// Inlined here to keep the amount of mandatory dependencies at bay
+// For more context, see http://ericniebler.com/2013/08/07/
+// - Universal References and the Copy Constructor
+template <typename, typename...>
+struct is_safe_overload { using type = std::true_type; };
+template <typename Class, typename T>
+struct is_safe_overload<Class, T> {
+  using type = std::integral_constant<
+    bool,
+    !std::is_same<
+      Class,
+      typename std::remove_cv<typename std::remove_reference<T>::type>::type
+    >::value
+  >;
+};
+
+} // detail
+
+template <typename Class, typename... Args>
+using safe_overload_t = typename std::enable_if<
+  detail::is_safe_overload<Class, Args...>::type::value
+>::type;
+
+namespace detail {
+
+template <std::intmax_t Id, typename T>
+struct argument_wrapper {
+  static_assert(
+    std::is_rvalue_reference<T&&>::value,
+    "this wrapper handles only rvalues and initializer_list"
+  );
+
+  template <typename U>
+  explicit argument_wrapper(U&& value):
+    argument_(std::move(value))
+  {
+    static_assert(
+      std::is_rvalue_reference<U&&>::value,
+      "this wrapper handles only rvalues and initializer_list"
+    );
+  }
+
+  T&& move() { return std::move(argument_); }
+
+private:
+  T argument_;
+};
+
+template <std::intmax_t Id, typename T>
+detail::argument_wrapper<Id, std::initializer_list<T>> wrap_argument(
+  std::initializer_list<T> value
+) {
+  return detail::argument_wrapper<Id, std::initializer_list<T>>(
+    std::move(value)
+  );
+}
+
+template <std::intmax_t Id, typename T>
+detail::argument_wrapper<Id, T&&> wrap_argument(T&& value) {
+  static_assert(std::is_rvalue_reference<T&&>::value, "internal thrift error");
+  return detail::argument_wrapper<Id, T&&>(std::forward<T>(value));
+}
+
+}}} // apache::thrift::detail
 
 #endif // #ifndef THRIFT_CPP2_H_

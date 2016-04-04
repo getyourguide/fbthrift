@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2016 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 #include <thrift/test/gen-cpp2/reflection_fatal_struct.h>
 
-#include <thrift/test/expect_same.h>
+#include <thrift/lib/cpp2/fatal/internal/test_helpers.h>
 
 #include <gtest/gtest.h>
 
@@ -35,6 +35,21 @@ FATAL_STR(fieldEs, "fieldE");
 FATAL_STR(fieldFs, "fieldF");
 FATAL_STR(fieldGs, "fieldG");
 
+template <apache::thrift::field_id_t Id>
+using field_id = std::integral_constant<apache::thrift::field_id_t, Id>;
+
+template <apache::thrift::thrift_category Category>
+using category = std::integral_constant<
+  apache::thrift::thrift_category,
+  Category
+>;
+
+template <apache::thrift::optionality Optionality>
+using required = std::integral_constant<
+  apache::thrift::optionality,
+  Optionality
+>;
+
 namespace test_cpp2 {
 namespace cpp_reflection {
 
@@ -43,7 +58,7 @@ TEST(fatal_struct, struct1_sanity_check) {
 
   EXPECT_SAME<struct1, traits::type>();
   EXPECT_SAME<struct1s, traits::name>();
-  EXPECT_SAME<reflection_tags::metadata, traits::module>();
+  EXPECT_SAME<reflection_tags::module, traits::module>();
 
   EXPECT_SAME<traits, apache::thrift::try_reflect_struct<struct1, void>>();
   EXPECT_SAME<void, apache::thrift::try_reflect_struct<int, void>>();
@@ -69,12 +84,12 @@ TEST(fatal_struct, struct1_sanity_check) {
 
   EXPECT_SAME<
     fatal::build_type_map<
-      field0s, std::integral_constant<apache::thrift::field_id_t, 1>,
-      field1s, std::integral_constant<apache::thrift::field_id_t, 2>,
-      field2s, std::integral_constant<apache::thrift::field_id_t, 3>,
-      field3s, std::integral_constant<apache::thrift::field_id_t, 4>,
-      field4s, std::integral_constant<apache::thrift::field_id_t, 5>,
-      field5s, std::integral_constant<apache::thrift::field_id_t, 6>
+      field0s, field_id<1>,
+      field1s, field_id<2>,
+      field2s, field_id<3>,
+      field3s, field_id<4>,
+      field4s, field_id<5>,
+      field5s, field_id<6>
     >,
     traits::ids
   >();
@@ -140,29 +155,36 @@ TEST(fatal_struct, struct1_sanity_check) {
   EXPECT_SAME<union1, traits::members::get<field4s>::type>();
   EXPECT_SAME<union2, traits::members::get<field5s>::type>();
 
+  EXPECT_SAME<field_id<1>, traits::members::get<field0s>::id>();
+  EXPECT_SAME<field_id<2>, traits::members::get<field1s>::id>();
+  EXPECT_SAME<field_id<3>, traits::members::get<field2s>::id>();
+  EXPECT_SAME<field_id<4>, traits::members::get<field3s>::id>();
+  EXPECT_SAME<field_id<5>, traits::members::get<field4s>::id>();
+  EXPECT_SAME<field_id<6>, traits::members::get<field5s>::id>();
+
   EXPECT_SAME<
-    std::integral_constant<apache::thrift::field_id_t, 1>,
-    traits::members::get<field0s>::id
+    required<apache::thrift::optionality::required>,
+    traits::members::get<field0s>::optional
   >();
   EXPECT_SAME<
-    std::integral_constant<apache::thrift::field_id_t, 2>,
-    traits::members::get<field1s>::id
+    required<apache::thrift::optionality::optional>,
+    traits::members::get<field1s>::optional
   >();
   EXPECT_SAME<
-    std::integral_constant<apache::thrift::field_id_t, 3>,
-    traits::members::get<field2s>::id
+    required<apache::thrift::optionality::required_of_writer>,
+    traits::members::get<field2s>::optional
   >();
   EXPECT_SAME<
-    std::integral_constant<apache::thrift::field_id_t, 4>,
-    traits::members::get<field3s>::id
+    required<apache::thrift::optionality::required>,
+    traits::members::get<field3s>::optional
   >();
   EXPECT_SAME<
-    std::integral_constant<apache::thrift::field_id_t, 5>,
-    traits::members::get<field4s>::id
+    required<apache::thrift::optionality::optional>,
+    traits::members::get<field4s>::optional
   >();
   EXPECT_SAME<
-    std::integral_constant<apache::thrift::field_id_t, 6>,
-    traits::members::get<field5s>::id
+    required<apache::thrift::optionality::required_of_writer>,
+    traits::members::get<field5s>::optional
   >();
 
   EXPECT_EQ(
@@ -198,30 +220,30 @@ TEST(fatal_struct, struct1_sanity_check) {
     traits::members::get<traits::names::field5>::getter::ref(pod).get_ue_2()
   );
 
-  EXPECT_EQ(
-    apache::thrift::thrift_category::integral,
-    traits::members::get<field0s>::category::value
-  );
-  EXPECT_EQ(
-    apache::thrift::thrift_category::string,
-    traits::members::get<field1s>::category::value
-  );
-  EXPECT_EQ(
-    apache::thrift::thrift_category::enumeration,
-    traits::members::get<field2s>::category::value
-  );
-  EXPECT_EQ(
-    apache::thrift::thrift_category::enumeration,
-    traits::members::get<field3s>::category::value
-  );
-  EXPECT_EQ(
-    apache::thrift::thrift_category::variant,
-    traits::members::get<field4s>::category::value
-  );
-  EXPECT_EQ(
-    apache::thrift::thrift_category::variant,
-    traits::members::get<field5s>::category::value
-  );
+  EXPECT_SAME<
+    category<apache::thrift::thrift_category::integral>,
+    traits::members::get<field0s>::category
+  >();
+  EXPECT_SAME<
+    category<apache::thrift::thrift_category::string>,
+    traits::members::get<field1s>::category
+  >();
+  EXPECT_SAME<
+    category<apache::thrift::thrift_category::enumeration>,
+    traits::members::get<field2s>::category
+  >();
+  EXPECT_SAME<
+    category<apache::thrift::thrift_category::enumeration>,
+    traits::members::get<field3s>::category
+  >();
+  EXPECT_SAME<
+    category<apache::thrift::thrift_category::variant>,
+    traits::members::get<field4s>::category
+  >();
+  EXPECT_SAME<
+    category<apache::thrift::thrift_category::variant>,
+    traits::members::get<field5s>::category
+  >();
 
   EXPECT_SAME<
     std::int32_t,
@@ -271,6 +293,148 @@ TEST(fatal_struct, struct1_sanity_check) {
   EXPECT_SAME<
     bool,
     decltype(std::declval<traits::members::get<field5s>::pod<bool>>().field5)
+  >();
+
+  EXPECT_SAME<
+    traits::member<>::field0,
+    traits::members::get<traits::names::field0>
+  >();
+  EXPECT_SAME<
+    traits::member<>::field1,
+    traits::members::get<traits::names::field1>
+  >();
+  EXPECT_SAME<
+    traits::member<>::field2,
+    traits::members::get<traits::names::field2>
+  >();
+  EXPECT_SAME<
+    traits::member<>::field3,
+    traits::members::get<traits::names::field3>
+  >();
+  EXPECT_SAME<
+    traits::member<>::field4,
+    traits::members::get<traits::names::field4>
+  >();
+  EXPECT_SAME<
+    traits::member<>::field5,
+    traits::members::get<traits::names::field5>
+  >();
+}
+
+FATAL_STR(structB_annotation1k, "some.annotation");
+FATAL_STR(structB_annotation1v, "this is its value");
+FATAL_STR(structB_annotation2k, "some.other.annotation");
+FATAL_STR(structB_annotation2v, "this is its other value");
+
+TEST(fatal_struct, annotations) {
+  EXPECT_SAME<
+    fatal::type_map<>,
+    apache::thrift::reflect_struct<struct1>::annotations::map
+  >();
+
+  EXPECT_SAME<
+    fatal::type_map<>,
+    apache::thrift::reflect_struct<struct2>::annotations::map
+  >();
+
+  EXPECT_SAME<
+    fatal::type_map<>,
+    apache::thrift::reflect_struct<struct3>::annotations::map
+  >();
+
+  EXPECT_SAME<
+    fatal::type_map<>,
+    apache::thrift::reflect_struct<structA>::annotations::map
+  >();
+
+  using structB_annotations = apache::thrift::reflect_struct<structB>
+    ::annotations;
+
+  EXPECT_SAME<
+    structB_annotation1k,
+    structB_annotations::keys::some_annotation
+  >();
+  EXPECT_SAME<
+    structB_annotation1v,
+    structB_annotations::values::some_annotation
+  >();
+  EXPECT_SAME<
+    structB_annotation2k,
+    structB_annotations::keys::some_other_annotation
+  >();
+  EXPECT_SAME<
+    structB_annotation2v,
+    structB_annotations::values::some_other_annotation
+  >();
+  EXPECT_SAME<
+    fatal::build_type_map<
+      structB_annotation1k, structB_annotation1v,
+      structB_annotation2k, structB_annotation2v
+    >,
+    structB_annotations::map
+  >();
+
+  EXPECT_SAME<
+    fatal::type_map<>,
+    apache::thrift::reflect_struct<structC>::annotations::map
+  >();
+}
+
+FATAL_STR(structBd_annotation1k, "another.annotation");
+FATAL_STR(structBd_annotation1v, "another value");
+FATAL_STR(structBd_annotation2k, "some.annotation");
+FATAL_STR(structBd_annotation2v, "some value");
+
+TEST(fatal_struct, member_annotations) {
+  using info = apache::thrift::reflect_struct<structB>;
+
+  EXPECT_SAME<fatal::build_type_map<>, info::members_annotations::c::map>();
+  EXPECT_SAME<
+    fatal::build_type_map<>,
+    info::members::get<info::names::c>::annotations::map
+  >();
+
+  using annotations_d = info::members::get<info::names::d>::annotations;
+  using expected_d_map = fatal::build_type_map<
+    structBd_annotation1k, structBd_annotation1v,
+    structBd_annotation2k, structBd_annotation2v
+  >;
+
+  EXPECT_SAME<expected_d_map, info::members_annotations::d::map>();
+  EXPECT_SAME<expected_d_map, annotations_d::map>();
+
+  EXPECT_SAME<
+    structBd_annotation1k,
+    info::members_annotations::d::keys::another_annotation
+  >();
+  EXPECT_SAME<
+    structBd_annotation1v,
+    info::members_annotations::d::values::another_annotation
+  >();
+  EXPECT_SAME<
+    structBd_annotation2k,
+    info::members_annotations::d::keys::some_annotation
+  >();
+  EXPECT_SAME<
+    structBd_annotation2v,
+    info::members_annotations::d::values::some_annotation
+  >();
+
+  EXPECT_SAME<
+    structBd_annotation1k,
+    annotations_d::keys::another_annotation
+  >();
+  EXPECT_SAME<
+    structBd_annotation1v,
+    annotations_d::values::another_annotation
+  >();
+  EXPECT_SAME<
+    structBd_annotation2k,
+    annotations_d::keys::some_annotation
+  >();
+  EXPECT_SAME<
+    structBd_annotation2v,
+    annotations_d::values::some_annotation
   >();
 }
 

@@ -1,32 +1,28 @@
 # @lint-avoid-pyflakes2
 # @lint-avoid-python-3-compatibility-imports
 
-from thrift.server.TAsyncioServer import ThriftAsyncServerFactory
-from thrift.server.TAsyncioServer import ThriftClientProtocolFactory
-from tutorial import Calculator
 import asyncio
+import functools
 import socket
+import threading
 import unittest
 
+from contextlib import contextmanager
+from thrift_asyncio.tutorial import Calculator
+from thrift_asyncio.sleep import Sleep
+from thrift.util.asyncio import create_client
+from thrift.server.TAsyncioServer import (
+    ThriftAsyncServerFactory,
+    ThriftClientProtocolFactory,
+)
+from thrift.server.test.handler import (
+    AsyncCalculatorHandler,
+    AsyncSleepHandler,
+)
 
-class DummyCalcHandler(Calculator.Iface):
-    @asyncio.coroutine
-    def add(self, n1, n2):
-        return 42
 
-    @asyncio.coroutine
-    def calculate(self, logid, work):
-        return 0
-
-    @asyncio.coroutine
-    def zip(self):
-        print('zip')
-
-
-def server_loop_runner(loop, sock):
-    asyncio.set_event_loop(loop)
-    handler = DummyCalcHandler()
-    loop.run_until_complete(
+def server_loop_runner(loop, sock, handler):
+    return loop.run_until_complete(
         ThriftAsyncServerFactory(handler, port=None, loop=loop, sock=sock),
     )
 
@@ -35,20 +31,129 @@ def server_loop_runner(loop, sock):
 def test_server_with_client(sock, loop):
     port = sock.getsockname()[1]
     (transport, protocol) = yield from loop.create_connection(
-            ThriftClientProtocolFactory(Calculator.Client),
-            host='localhost',
-            port=port)
+        ThriftClientProtocolFactory(Calculator.Client, loop=loop),
+        host='localhost',
+        port=port,
+    )
     client = protocol.client
-    sum = yield from asyncio.wait_for(client.add(1, 2), None)
-    return sum
+    add_result = yield from asyncio.wait_for(
+        client.add(1, 2),
+        timeout=None,
+        loop=loop,
+    )
+    transport.close()
+    protocol.close()
+    return add_result
 
 
 class TAsyncioServerTest(unittest.TestCase):
-    def testServerWithSockPassedIn(self):
+
+    def _test_using_event_loop(self, loop):
         sock = socket.socket()
-        loop = asyncio.get_event_loop()
-        server_loop_runner(loop, sock)
+        server_loop_runner(loop, sock, AsyncCalculatorHandler())
         add_result = loop.run_until_complete(
             test_server_with_client(sock, loop)
         )
         self.assertEqual(42, add_result)
+
+    def test_default_event_loop(self):
+        loop = asyncio.get_event_loop()
+        loop.set_debug(True)
+        self._test_using_event_loop(loop)
+
+    def test_custom_event_loop(self):
+        loop = asyncio.new_event_loop()
+        loop.set_debug(True)
+        self.assertIsNot(loop, asyncio.get_event_loop())
+        self._test_using_event_loop(loop)
+
+    def _start_server_thread(self, server, loop):
+
+        def _run(server, loop):
+            loop.run_until_complete(server.wait_closed())
+        t = threading.Thread(target=functools.partial(_run, server, loop))
+        t.start()
+        return t
+
+    def test_server_in_separate_thread(self):
+        sock = socket.socket()
+        server_loop = asyncio.new_event_loop()
+        server_loop.set_debug(True)
+        server = server_loop_runner(server_loop, sock, AsyncCalculatorHandler())
+        server_thread = self._start_server_thread(server, server_loop)
+
+        client_loop = asyncio.new_event_loop()
+        client_loop.set_debug(True)
+        add_result = client_loop.run_until_complete(
+            test_server_with_client(sock, client_loop),
+        )
+        self.assertEqual(42, add_result)
+
+        server_loop.call_soon_threadsafe(server.close)
+        server_thread.join()
+
+    @asyncio.coroutine
+    def _make_out_of_order_calls(self, sock, loop):
+        port = sock.getsockname()[1]
+        client_manager = yield from create_client(
+            Sleep.Client,
+            host='localhost',
+            port=port,
+            loop=loop,
+        )
+        with client_manager as client:
+            futures = [
+                client.echo(str(delay), delay * .1)
+                for delay in [3, 2, 1]
+            ]
+            results_in_arrival_order = []
+            for f in asyncio.as_completed(futures, loop=loop):
+                result = yield from f
+                results_in_arrival_order.append(result)
+            self.assertEquals(['1', '2', '3'], results_in_arrival_order)
+
+    @contextmanager
+    def server_in_background_thread(self, sock):
+        server_loop = asyncio.new_event_loop()
+        server_loop.set_debug(True)
+        handler = AsyncSleepHandler(server_loop)
+        server = server_loop_runner(server_loop, sock, handler)
+        server_thread = self._start_server_thread(server, server_loop)
+        try:
+            yield server
+        finally:
+            server_loop.call_soon_threadsafe(server.close)
+            server_thread.join()
+
+    def test_out_of_order_calls(self):
+        sock = socket.socket()
+        with self.server_in_background_thread(sock):
+            client_loop = asyncio.new_event_loop()
+            client_loop.set_debug(True)
+            client_loop.run_until_complete(
+                self._make_out_of_order_calls(sock, client_loop),
+            )
+
+    @asyncio.coroutine
+    def _assert_transport_is_closed_on_error(self, sock, loop):
+        port = sock.getsockname()[1]
+        client_manager = yield from create_client(
+            Sleep.Client,
+            host='localhost',
+            port=port,
+            loop=loop,
+        )
+        try:
+            with client_manager as client:
+                raise Exception('expected exception from test')
+        except:
+            self.assertFalse(client._oprot.trans.isOpen())
+
+    def test_close_client_on_error(self):
+        sock = socket.socket()
+        with self.server_in_background_thread(sock):
+            loop = asyncio.new_event_loop()
+            loop.set_debug(True)
+            loop.run_until_complete(
+                self._assert_transport_is_closed_on_error(sock, loop),
+            )

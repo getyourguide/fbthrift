@@ -178,6 +178,7 @@ void t_java_generator::generate_enum(t_enum* tenum) {
 
   // Add java imports
   f_enum << string() +
+    "import java.lang.reflect.*;\n" +
     "import java.util.Set;\n" +
     "import java.util.HashSet;\n" +
     "import java.util.Collections;\n" +
@@ -201,43 +202,32 @@ void t_java_generator::generate_enum(t_enum* tenum) {
       " = " << value << ";" << endl;
   }
 
-  // Create a static Set with all valid values for this enum
   f_enum << endl;
-  indent(f_enum) << "public static final IntRangeSet VALID_VALUES = new IntRangeSet(";
-  indent_up();
-  bool first = true;
-  for (c_iter = constants.begin(); c_iter != constants.end(); ++c_iter) {
-    // populate set
-    f_enum << (first ? "" : ", ") << endl;
-    first = false;
-    indent(f_enum) << (*c_iter)->get_name();
-  }
-  f_enum << " );" << endl << endl;
-  indent_down();
 
-  bool skip_name_map =
-    // Some enums are really, really huge, with enough values that the code to
-    // build VALUES_TO_NAMES (the constructor for the anonymous HashMap
-    // subclass) is too big to fit in a single method, which causes javac
-    // errors. We provide an option to skip the VALUES_TO_NAMES map for such
-    // enums. A better long-term solution would be to split the constructor
-    // into multiple methods; a better still long-term solution would be to
-    // build the map with reflection.
-    tenum->annotations_.find("skip_java_name_map") != tenum->annotations_.end();
-
-  if (!skip_name_map) {
-    indent(f_enum) <<
-      "@SuppressWarnings(\"serial\")" << endl <<
-      "public static final Map<Integer, String> VALUES_TO_NAMES = new HashMap<Integer, String>() {{" << endl;
-
-    indent_up();
-    for (c_iter = constants.begin(); c_iter != constants.end(); ++c_iter) {
-      indent(f_enum) << "put(" << (*c_iter)->get_name() << ", \"" << (*c_iter)->get_name() <<"\");" << endl;
-    }
-    indent_down();
-
-    indent(f_enum) << "}};" << endl;
-  }
+  f_enum
+    << indent() << "public static final IntRangeSet VALID_VALUES;" << endl
+    << indent() << "public static final Map<Integer, String> VALUES_TO_NAMES = new HashMap<Integer, String>();" << endl
+    << endl
+    << indent() << "static {" << endl
+    << indent() << "  try {" << endl
+    << indent() << "    Class<?> klass = " << tenum->get_name() << ".class;" << endl
+    << indent() << "    for (Field f : klass.getDeclaredFields()) {" << endl
+    << indent() << "      if (f.getType() == Integer.TYPE) {" << endl
+    << indent() << "        VALUES_TO_NAMES.put(f.getInt(null), f.getName());" << endl
+    << indent() << "      }" << endl
+    << indent() << "    }" << endl
+    << indent() << "  } catch (ReflectiveOperationException e) {" << endl
+    << indent() << "    throw new AssertionError(e);" << endl
+    << indent() << "  }" << endl
+    << endl
+    << indent() << "  int[] values = new int[VALUES_TO_NAMES.size()];" << endl
+    << indent() << "  int i = 0;" << endl
+    << indent() << "  for (Integer v : VALUES_TO_NAMES.keySet()) {" << endl
+    << indent() << "    values[i++] = v;" << endl
+    << indent() << "  }" << endl
+    << endl
+    << indent() << "  VALID_VALUES = new IntRangeSet(values);" << endl
+    << indent() << "}" << endl;
 
   scope_down(f_enum);
 
@@ -2730,6 +2720,8 @@ void t_java_generator::generate_process_function(t_service* tservice,
   }
 
   if (!tfunction->is_oneway() && xceptions.size() > 0) {
+    string pservice_func_name = "\"" + tservice->get_name() + "." + tfunction->get_name() + "\"";
+    string pservice_func_name_error = tservice->get_name() + "." + tfunction->get_name();
     indent_down();
     f_service_ << indent() << "}";
     for (x_iter = xceptions.begin(); x_iter != xceptions.end(); ++x_iter) {
@@ -2737,7 +2729,10 @@ void t_java_generator::generate_process_function(t_service* tservice,
       if (!tfunction->is_oneway()) {
         indent_up();
         f_service_ <<
-          indent() << "result." << (*x_iter)->get_name() << " = " << (*x_iter)->get_name() << ";" << endl;
+          indent() << "result." << (*x_iter)->get_name() << " = " << (*x_iter)->get_name() << ";" << endl <<
+          indent() << "event_handler_.declaredUserException(handler_ctx, "
+                   << pservice_func_name << ", "
+                   << (*x_iter)->get_name() << ");" << endl;
         indent_down();
         f_service_ << indent() << "}";
       } else {
@@ -2746,16 +2741,14 @@ void t_java_generator::generate_process_function(t_service* tservice,
     }
     f_service_ << " catch (Throwable th) {" << endl;
     indent_up();
-    string pservice_func_name = "\"" + tservice->get_name() + "." + tfunction->get_name() + "\"";
-    string pservice_func_name_error = tservice->get_name() + "." + tfunction->get_name();
     f_service_ <<
       indent() << "LOGGER.error(\"Internal error processing " << pservice_func_name_error << "\", th);" << endl <<
-      indent() << "event_handler_.handlerError(handler_ctx, \""
-               << pservice_func_name_error << "\", th);" << endl <<
+      indent() << "event_handler_.handlerError(handler_ctx, "
+               << pservice_func_name << ", th);" << endl <<
       indent() << "TApplicationException x = new TApplicationException(TApplicationException.INTERNAL_ERROR, \"Internal error processing " << pservice_func_name_error << "\");" << endl <<
       indent() << "event_handler_.preWrite(handler_ctx, \""
                << pservice_func_name_error << "\", null);" << endl <<
-      indent() << "oprot.writeMessageBegin(new TMessage(\"" << pservice_func_name_error << "\", TMessageType.EXCEPTION, seqid));" << endl <<
+      indent() << "oprot.writeMessageBegin(new TMessage(" << pservice_func_name << ", TMessageType.EXCEPTION, seqid));" << endl <<
       indent() << "x.write(oprot);" << endl <<
       indent() << "oprot.writeMessageEnd();" << endl <<
       indent() << "oprot.getTransport().flush();" << endl <<

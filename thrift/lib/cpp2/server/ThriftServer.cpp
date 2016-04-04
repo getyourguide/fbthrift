@@ -27,6 +27,8 @@
 #include <thrift/lib/cpp/concurrency/PosixThreadFactory.h>
 #include <thrift/lib/cpp/concurrency/ThreadManager.h>
 
+#include <wangle/ssl/SSLContextManager.h>
+
 #include <iostream>
 #include <random>
 #include <sys/socket.h>
@@ -69,6 +71,17 @@ using apache::thrift::concurrency::PriorityThreadManager;
 using wangle::IOThreadPoolExecutor;
 using wangle::NamedThreadFactory;
 
+namespace {
+struct DisableKerberosReplayCacheSingleton {
+  DisableKerberosReplayCacheSingleton() {
+    // Disable replay caching since we're doing mutual auth. Enabling
+    // this will significantly degrade perf. Force this to overwrite
+    // existing env variables to avoid performance regressions.
+    setenv("KRB5RCACHETYPE", "none", 1);
+  }
+} kDisableKerberosReplayCacheSingleton;
+}
+
 class ThriftAcceptorFactory : public wangle::AcceptorFactory {
  public:
   explicit ThriftAcceptorFactory(ThriftServer* server)
@@ -105,10 +118,6 @@ ThriftServer::ThriftServer(const std::string& saslPolicy,
   } else if (FLAGS_thrift_ssl_policy == "permitted") {
     sslPolicy_ = SSLPolicy::PERMITTED;
   }
-  // Disable replay caching since we're doing mutual auth. Enabling
-  // this will significantly degrade perf. Force this to overwrite
-  // existing env variables to avoid performance regressions.
-  setenv("KRB5RCACHETYPE", "none", 1);
 }
 
 ThriftServer::ThriftServer(
@@ -221,7 +230,7 @@ void ThriftServer::setup() {
             0, /* pendingTaskCountMax -- no limit */
             false, /* enableTaskStats */
             0 /* maxQueueLen -- large default */);
-        saslThreadManager_->setNamePrefix("thrift-sasl");
+        saslThreadManager_->setNamePrefix(saslThreadsNamePrefix_);
         saslThreadManager_->threadFactory(threadFactory_);
         saslThreadManager_->start();
       }
@@ -439,52 +448,35 @@ int32_t ThriftServer::getPendingCount() const {
   return count;
 }
 
-bool ThriftServer::isOverloaded(uint32_t workerActiveRequests,
-                                const THeader* header) {
+void ThriftServer::updateTicketSeeds(wangle::TLSTicketKeySeeds seeds) {
+  forEachWorker([&](wangle::Acceptor* acceptor) {
+    auto ctxMgr = acceptor->getSSLContextManager();
+    if (ctxMgr) {
+      ctxMgr->reloadTLSTicketKeys(
+          seeds.oldSeeds,
+          seeds.currentSeeds,
+          seeds.newSeeds);
+    }
+  });
+}
+
+bool ThriftServer::isOverloaded(const THeader* header) {
   if (UNLIKELY(isOverloaded_(header))) {
     return true;
   }
 
   if (maxRequests_ > 0) {
-    if (isUnevenLoad_) {
-      return activeRequests_ + getPendingCount() >= maxRequests_;
-    } else {
-      return workerActiveRequests >= maxRequests_ / nWorkers_;
-    }
+    return activeRequests_ + getPendingCount() >= maxRequests_;
   }
 
   return false;
 }
 
 int64_t ThriftServer::getRequestLoad() {
-  if (maxRequests_ > 0) {
-    return (100*(activeRequests_ + getPendingCount()))
-      / ((float)maxRequests_);
-  }
-
-  return 0;
+  return activeRequests_ + getPendingCount();
 }
 
-int64_t ThriftServer::getConnectionLoad() {
-  auto ioGroup = getIOGroupSafe();
-  auto workerFactory = ioGroup != nullptr ?
-    std::dynamic_pointer_cast<wangle::NamedThreadFactory>(
-      ioGroup->getThreadFactory()) : nullptr;
-
-  if (maxConnections_ > 0) {
-    int32_t connections = 0;
-    forEachWorker([&](wangle::Acceptor* acceptor) mutable {
-      auto worker = dynamic_cast<Cpp2Worker*>(acceptor);
-      connections += worker->getPendingCount();
-    });
-
-    return (100*connections) / (float)maxConnections_;
-  }
-
-  return 0;
-}
-
-std::string ThriftServer::getLoadInfo(int64_t reqload, int64_t connload, int64_t queueload) {
+std::string ThriftServer::getLoadInfo(int64_t load) {
   auto ioGroup = getIOGroupSafe();
   auto workerFactory = ioGroup != nullptr ?
     std::dynamic_pointer_cast<wangle::NamedThreadFactory>(
@@ -498,9 +490,7 @@ std::string ThriftServer::getLoadInfo(int64_t reqload, int64_t connload, int64_t
 
   stream
     << workerFactory->getNamePrefix() << " load is: "
-    << reqload << "% requests, "
-    << connload << "% connections, "
-    << queueload << "% queue time, "
+    << load << "% requests, "
     << activeRequests_ << " active reqs, "
     << getPendingCount() << " pending reqs";
 

@@ -95,6 +95,12 @@ class Fiery : private boost::totally_ordered<Fiery>, public apache::thrift::TExc
 
   Fiery(apache::thrift::FragileConstructor, std::string message__arg) :
       message(std::move(message__arg)) {}
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Fiery(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Fiery(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    message = arg.move();
+  }
 
   Fiery(Fiery&&) = default;
 
@@ -115,6 +121,20 @@ class Fiery : private boost::totally_ordered<Fiery>, public apache::thrift::TExc
       return message < rhs.message;
     }
     return false;
+  }
+
+  const std::string& get_message() const& {
+    return message;
+  }
+
+  std::string get_message() && {
+    return std::move(message);
+  }
+
+  template <typename T_Fiery_message_struct_setter>
+  std::string& set_message(T_Fiery_message_struct_setter&& message_) {
+    message = std::forward<T_Fiery_message_struct_setter>(message_);
+    return message;
   }
 
   template <class Protocol_>

@@ -28,6 +28,8 @@ void TestInterface::sendResponse(std::string& _return, int64_t size) {
 
 void TestInterface::noResponse(int64_t size) { usleep(size); }
 
+void TestInterface::voidResponse() { }
+
 void TestInterface::echoRequest(std::string& _return,
                                 std::unique_ptr<std::string> req) {
   _return = *req + kEchoSuffix;
@@ -54,4 +56,15 @@ void TestInterface::echoIOBuf(std::unique_ptr<folly::IOBuf>& ret,
   ret = std::move(buf);
   folly::io::Appender cursor(ret.get(), kEchoSuffix.size());
   cursor.push(folly::StringPiece(kEchoSuffix.data(), kEchoSuffix.size()));
+}
+
+int32_t TestInterface::processHeader() {
+  // Handler method can touch header at any time. Use this to test race
+  // condition on per-request THeader.
+  auto header = getConnectionContext()->getHeader();
+  for (int i = 0; i < 1000000; i++) {
+    header->setHeader("foo", "bar");
+    header->clearHeaders();
+  }
+  return 1;
 }

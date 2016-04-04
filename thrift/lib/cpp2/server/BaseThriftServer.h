@@ -75,6 +75,8 @@ class BaseThriftServer : public apache::thrift::server::TServer {
 
   static const std::chrono::milliseconds DEFAULT_TASK_EXPIRE_TIME;
 
+  static const std::chrono::milliseconds DEFAULT_QUEUE_TIMEOUT;
+
   /// Listen backlog
   static const int DEFAULT_LISTEN_BACKLOG = 1024;
 
@@ -115,6 +117,12 @@ class BaseThriftServer : public apache::thrift::server::TServer {
   std::chrono::milliseconds taskExpireTime_ = DEFAULT_TASK_EXPIRE_TIME;
 
   /**
+   * The time we'll allow a task to wait on the queue and still perform it
+   * (0 == infinite)
+   */
+  std::chrono::milliseconds queueTimeout_ = DEFAULT_QUEUE_TIMEOUT;
+
+  /**
    * The number of incoming connections the TCP stack will buffer up while
    * waiting for the Thrift server to call accept() on them.
    *
@@ -141,9 +149,6 @@ class BaseThriftServer : public apache::thrift::server::TServer {
 
   // Max active requests
   uint32_t maxRequests_ = concurrency::ThreadManager::DEFAULT_MAX_QUEUE_SIZE;
-
-  // If it is set true, # of global active requests is tracked
-  bool isUnevenLoad_ = true;
 
   // Track # of active requests for this server
   std::atomic<int32_t> activeRequests_{0};
@@ -280,29 +285,17 @@ class BaseThriftServer : public apache::thrift::server::TServer {
   void setMaxRequests(uint32_t maxRequests) { maxRequests_ = maxRequests; }
 
   /**
-   * Get if the server expects uneven load among workers.
-   *
-   * @return current setting.
+   * NOTE: low hanging perf fruit. In a test this was roughly a 10%
+   * regression at 2 million QPS (noops). High performance servers can override
+   * this with a noop at the expense of poor load metrics. To my knowledge
+   * no current thrift server does even close to this QPS.
    */
-  bool getIsUnevenLoad() const { return isUnevenLoad_; }
-
-  /**
-   * Set if the server expects uneven load among workers.
-   *
-   * @param isUnevenLoad new setting for the expected load.
-   */
-  void setIsUnevenLoad(bool isUnevenLoad) { isUnevenLoad_ = isUnevenLoad; }
-
   void incActiveRequests(int32_t numRequests = 1) {
-    if (isUnevenLoad_) {
-      activeRequests_ += numRequests;
-    }
+     activeRequests_ += numRequests;
   }
 
   void decActiveRequests(int32_t numRequests = 1) {
-    if (isUnevenLoad_) {
-      activeRequests_ -= numRequests;
-    }
+    activeRequests_ -= numRequests;
   }
 
   int32_t getActiveRequests() const { return activeRequests_; }
@@ -314,18 +307,12 @@ class BaseThriftServer : public apache::thrift::server::TServer {
   }
 
   virtual bool isOverloaded(
-      uint32_t workerActiveRequests = 0,
-      const apache::thrift::transport::THeader* header = nullptr) = 0;
+    const apache::thrift::transport::THeader* header = nullptr) = 0;
 
-  // Get load percent of the server.  Must be a number between 0 and 100:
-  // 0 - no load, 100-fully loaded.
+  // Get load of the server.
   int64_t getLoad(const std::string& counter = "", bool check_custom = true);
-  virtual int64_t getRequestLoad() = 0;
-  virtual int64_t getConnectionLoad() = 0;
-  int64_t getQueueLoad();
-  virtual std::string getLoadInfo(int64_t reqload,
-                                   int64_t connload,
-                                   int64_t queueload);
+  virtual int64_t getRequestLoad();
+  virtual std::string getLoadInfo(int64_t load);
 
   void setObserver(const std::shared_ptr<
       apache::thrift::server::TServerObserver>& observer) {
@@ -510,6 +497,28 @@ class BaseThriftServer : public apache::thrift::server::TServer {
     return taskExpireTime_;
   }
 
+
+  /**
+   * Set the time requests are allowed to stay on the queue.
+   * Note, queuing is an indication that your server cannot keep
+   * up with load, and realtime systems should not queue. Only
+   * override this if you do heavily batched requests.
+   *
+   * @return queue timeout
+   */
+  void setQueueTimeout(std::chrono::milliseconds timeout) {
+    queueTimeout_ = timeout;
+  }
+
+  /**
+   * Get the time requests are allowed to stay on the queue
+   *
+   * @return queue timeout
+   */
+  std::chrono::milliseconds getQueueTimeout() const {
+    return queueTimeout_;
+  }
+
   /**
    * A task has two timeouts:
    *
@@ -528,8 +537,8 @@ class BaseThriftServer : public apache::thrift::server::TServer {
    */
   bool getTaskExpireTimeForRequest(
       const apache::thrift::transport::THeader& header,
-      std::chrono::milliseconds& softTimeout,
-      std::chrono::milliseconds& hardTimeout) const;
+      std::chrono::milliseconds& queueTimeout,
+      std::chrono::milliseconds& taskTimeout) const;
 
   /**
    * Set the listen backlog. Refer to the comment on listenBacklog_ member for

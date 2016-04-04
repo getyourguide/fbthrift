@@ -32,6 +32,12 @@ extern const std::map<City, const char*> _City_VALUES_TO_NAMES;
 extern const std::map<const char*, City, apache::thrift::ltstr> _City_NAMES_TO_VALUES;
 
 } // cpp2
+namespace std {
+
+template<> struct hash<typename  ::cpp2::City> : public apache::thrift::detail::enum_hash<typename  ::cpp2::City> {};
+template<> struct equal_to<typename  ::cpp2::City> : public apache::thrift::detail::enum_equal_to<typename  ::cpp2::City> {};
+
+} // std
 namespace apache { namespace thrift {
 
 template <> const char* TEnumTraitsBase< ::cpp2::City>::findName( ::cpp2::City value);
@@ -59,6 +65,12 @@ extern const std::map<Company, const char*> _Company_VALUES_TO_NAMES;
 extern const std::map<const char*, Company, apache::thrift::ltstr> _Company_NAMES_TO_VALUES;
 
 } // cpp2
+namespace std {
+
+template<> struct hash<typename  ::cpp2::Company> : public apache::thrift::detail::enum_hash<typename  ::cpp2::Company> {};
+template<> struct equal_to<typename  ::cpp2::Company> : public apache::thrift::detail::enum_equal_to<typename  ::cpp2::Company> {};
+
+} // std
 namespace apache { namespace thrift {
 
 template <> const char* TEnumTraitsBase< ::cpp2::Company>::findName( ::cpp2::Company value);
@@ -86,7 +98,30 @@ class Internship : private boost::totally_ordered<Internship> {
   Internship(apache::thrift::FragileConstructor, int32_t weeks__arg, std::string title__arg,  ::cpp2::Company employer__arg) :
       weeks(std::move(weeks__arg)),
       title(std::move(title__arg)),
-      employer(std::move(employer__arg)) {}
+      employer(std::move(employer__arg)) {
+    __isset.title = true;
+    __isset.employer = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Internship(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Internship(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    weeks = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Internship(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Internship(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    title = arg.move();
+    __isset.title = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Internship(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Internship(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    employer = arg.move();
+    __isset.employer = true;
+  }
 
   Internship(Internship&&) = default;
 
@@ -104,20 +139,55 @@ class Internship : private boost::totally_ordered<Internship> {
    ::cpp2::Company employer;
 
   struct __isset {
-    __isset() {
-      __clear();
-    }
-
     void __clear() {
       title = false;
       employer = false;
     }
 
-    bool title;
-    bool employer;
+    bool title = false;
+    bool employer = false;
   } __isset;
   bool operator==(const Internship& rhs) const;
   bool operator < (const Internship& rhs) const;
+
+  int32_t get_weeks() const {
+    return weeks;
+  }
+
+  int32_t& set_weeks(int32_t weeks_) {
+    weeks = weeks_;
+    return weeks;
+  }
+
+  const std::string& get_title() const& {
+    return title;
+  }
+
+  std::string get_title() && {
+    return std::move(title);
+  }
+
+  template <typename T_Internship_title_struct_setter>
+  std::string& set_title(T_Internship_title_struct_setter&& title_) {
+    title = std::forward<T_Internship_title_struct_setter>(title_);
+    __isset.title = true;
+    return title;
+  }
+
+  const  ::cpp2::Company* get_employer() const& {
+    return __isset.employer ? std::addressof(employer) : nullptr;
+  }
+
+   ::cpp2::Company* get_employer() & {
+    return __isset.employer ? std::addressof(employer) : nullptr;
+  }
+   ::cpp2::Company* get_employer() && = delete;
+
+   ::cpp2::Company& set_employer( ::cpp2::Company employer_) {
+    employer = employer_;
+    __isset.employer = true;
+    return employer;
+  }
 
   template <class Protocol_>
   uint32_t read(Protocol_* iprot);
@@ -172,6 +242,18 @@ class Range : private boost::totally_ordered<Range> {
   Range(apache::thrift::FragileConstructor, int32_t min__arg, int32_t max__arg) :
       min(std::move(min__arg)),
       max(std::move(max__arg)) {}
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Range(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Range(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    min = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Range(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Range(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    max = arg.move();
+  }
 
   Range(Range&&) = default;
 
@@ -196,6 +278,24 @@ class Range : private boost::totally_ordered<Range> {
       return max < rhs.max;
     }
     return false;
+  }
+
+  int32_t get_min() const {
+    return min;
+  }
+
+  int32_t& set_min(int32_t min_) {
+    min = min_;
+    return min;
+  }
+
+  int32_t get_max() const {
+    return max;
+  }
+
+  int32_t& set_max(int32_t max_) {
+    max = max_;
+    return max;
   }
 
   template <class Protocol_>

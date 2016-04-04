@@ -136,9 +136,20 @@ protected:
                           std::string exCode,
                           MessageChannel::SendCallback* cb = nullptr) override;
 
+    void sendErrorWrapped(folly::exception_wrapper ex,
+                          std::string exCode,
+                          const std::string& methodName,
+                          int32_t protoSeqId,
+                          MessageChannel::SendCallback* cb = nullptr);
+
+    void sendTimeoutResponse(const std::string& methodName,
+                             int32_t protoSeqId,
+                             MessageChannel::SendCallback* cb,
+                             const std::map<std::string, std::string>& headers);
    private:
     HeaderServerChannel* channel_;
     std::unique_ptr<apache::thrift::transport::THeader> header_;
+    std::unique_ptr<apache::thrift::transport::THeader> timeoutHeader_;
     uint32_t InOrderRecvSeqId_{0}; // Used internally for in-order requests
     std::atomic<bool> active_;
   };
@@ -193,6 +204,40 @@ protected:
     HeaderServerChannel& channel_;
   };
 
+  class ServerSaslNegotiationHandler : public SaslNegotiationHandler {
+  public:
+    explicit ServerSaslNegotiationHandler(HeaderServerChannel& channel)
+      : channel_(channel) {}
+
+    bool handleSecurityMessage(
+        std::unique_ptr<folly::IOBuf>&& buf,
+        std::unique_ptr<apache::thrift::transport::THeader>&& header);
+  private:
+    HeaderServerChannel& channel_;
+  };
+
+  class SaslServerCallback : public SaslServer::Callback {
+   public:
+    explicit SaslServerCallback(HeaderServerChannel& channel)
+      : channel_(channel), header_(nullptr) {}
+    void saslSendClient(std::unique_ptr<folly::IOBuf>&&) override;
+    void saslError(folly::exception_wrapper&&) override;
+    void saslComplete() override;
+
+    void setHeader(
+        std::unique_ptr<apache::thrift::transport::THeader>&& header) {
+      header_ = std::move(header);
+    }
+   private:
+    HeaderServerChannel& channel_;
+    std::unique_ptr<apache::thrift::transport::THeader> header_;
+  };
+
+  SaslServerCallback* getSaslServerCallback() {
+    return &saslServerCallback_;
+  }
+
+
 protected:
   void setPersistentAuthHeader(bool auth) override {
     setPersistentHeader("thrift_auth", auth ? "1" : "0");
@@ -207,10 +252,6 @@ private:
     cpp2Channel_->getProtectionHandler()->setProtectionState(newState,
                                                              saslServer_.get());
   }
-
-  std::unique_ptr<folly::IOBuf> handleSecurityMessage(
-      std::unique_ptr<folly::IOBuf>&& buf,
-      std::unique_ptr<apache::thrift::transport::THeader>&& header);
 
   static std::string getTHeaderPayloadString(folly::IOBuf* buf);
   static std::string getTransportDebugString(
@@ -238,22 +279,7 @@ private:
 
   uint32_t timeoutSASL_;
 
-  class SaslServerCallback : public SaslServer::Callback {
-   public:
-    explicit SaslServerCallback(HeaderServerChannel& channel)
-      : channel_(channel), header_(nullptr) {}
-    void saslSendClient(std::unique_ptr<folly::IOBuf>&&) override;
-    void saslError(folly::exception_wrapper&&) override;
-    void saslComplete() override;
-
-    void setHeader(
-        std::unique_ptr<apache::thrift::transport::THeader>&& header) {
-      header_ = std::move(header);
-    }
-   private:
-    HeaderServerChannel& channel_;
-    std::unique_ptr<apache::thrift::transport::THeader> header_;
-  } saslServerCallback_;
+  SaslServerCallback saslServerCallback_;
 
   std::shared_ptr<Cpp2Channel> cpp2Channel_;
 

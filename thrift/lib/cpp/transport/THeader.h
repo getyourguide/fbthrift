@@ -44,6 +44,7 @@ enum CLIENT_TYPE {
   THRIFT_HEADER_SASL_CLIENT_TYPE = 6,
   THRIFT_HTTP_GET_CLIENT_TYPE = 7,
   THRIFT_UNKNOWN_CLIENT_TYPE = 8,
+  THRIFT_UNFRAMED_COMPACT_DEPRECATED = 9,
 };
 
 // These appear on the wire.
@@ -148,6 +149,11 @@ class THeader {
     std::vector<uint16_t>& writeTrans,
     size_t minCompressBytes);
 
+  /**
+   * Clone a new THeader. Metadata is copied, but not headers.
+   */
+  std::unique_ptr<THeader> clone();
+
   uint16_t getNumTransforms(std::vector<uint16_t>& transforms) const {
     return transforms.size();
   }
@@ -169,9 +175,13 @@ class THeader {
 
   // these work with write headers
   void setHeader(const std::string& key, const std::string& value);
+  void setHeader(const char* key, size_t keyLength, const char* value,
+                 size_t valueLength);
   void setHeaders(StringToStringMap&&);
   void clearHeaders();
-  StringToStringMap& getWriteHeaders() { return writeHeaders_; }
+  bool isWriteHeadersEmpty() {
+    return writeHeaders_.empty();
+  }
 
   StringToStringMap&& releaseWriteHeaders() {
     return std::move(writeHeaders_);
@@ -253,7 +263,13 @@ class THeader {
 
   apache::thrift::concurrency::PRIORITY getCallPriority();
 
+  std::chrono::milliseconds getTimeoutFromHeader(
+    const std::string header
+  ) const;
+
   std::chrono::milliseconds getClientTimeout() const;
+
+  std::chrono::milliseconds getClientQueueTimeout() const;
 
   void setHttpClientParser(
       std::shared_ptr<apache::thrift::util::THttpClientParser>);
@@ -273,6 +289,7 @@ class THeader {
   static const uint32_t MAX_FRAME_SIZE = 0x3FFFFFFF;
   static const std::string PRIORITY_HEADER;
   static const std::string CLIENT_TIMEOUT_HEADER;
+  static const std::string QUEUE_TIMEOUT_HEADER;
 
  protected:
   bool isFramed(CLIENT_TYPE clientType);
@@ -287,6 +304,9 @@ class THeader {
                                                 size_t& needed,
                                                 CLIENT_TYPE clientType,
                                                 uint32_t sz);
+
+  template<template <class BaseProt> class ProtocolClass,
+           protocol::PROTOCOL_TYPES ProtocolID>
   std::unique_ptr<folly::IOBuf> removeUnframed(folly::IOBufQueue* queue,
                                                size_t& needed);
   std::unique_ptr<folly::IOBuf> removeHttpServer(folly::IOBufQueue* queue);
@@ -323,8 +343,6 @@ class THeader {
   static const std::string IDENTITY_HEADER;
   static const std::string ID_VERSION_HEADER;
   static const std::string ID_VERSION;
-
-  static std::string s_identity;
 
   uint32_t minCompressBytes_;
   bool allowBigFrames_;

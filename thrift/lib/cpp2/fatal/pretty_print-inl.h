@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2016 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 #ifndef THRIFT_FATAL_PRETTY_PRINT_INL_H_
 #define THRIFT_FATAL_PRETTY_PRINT_INL_H_ 1
+
+#include <thrift/lib/cpp2/fatal/container_traits.h>
 
 #include <fatal/type/enum.h>
 #include <fatal/type/variant_traits.h>
@@ -65,7 +67,7 @@ template <> struct pretty_print_impl<thrift_category::list> {
       auto const size = what.size();
       std::size_t index = 0;
       for (auto const &i: what) {
-        auto scope = out.push();
+        auto scope = out.start_scope();
         scope << index << ": ";
         detail::pretty_print(scope, i);
         if (++index < size) {
@@ -92,7 +94,7 @@ template <> struct pretty_print_impl<thrift_category::map> {
       auto const size = what.size();
       std::size_t index = 0;
       for (auto const &i: what) {
-        auto scope = out.push();
+        auto scope = out.start_scope();
         detail::pretty_print(scope, i.first);
         scope << ": ";
         detail::pretty_print(scope, i.second);
@@ -102,7 +104,7 @@ template <> struct pretty_print_impl<thrift_category::map> {
         scope.newline();
       }
     }
-    out << ']';
+    out << '}';
   }
 };
 
@@ -120,7 +122,7 @@ template <> struct pretty_print_impl<thrift_category::set> {
       auto const size = what.size();
       std::size_t index = 0;
       for (auto const &i: what) {
-        auto scope = out.push();
+        auto scope = out.start_scope();
         detail::pretty_print(scope, i);
         if (++index < size) {
           scope << ',';
@@ -167,7 +169,7 @@ template <> struct pretty_print_impl<thrift_category::variant> {
     fatal::variant_traits<T>::by_id::map::template binary_search<>::exact(
       what.getType(),
       pretty_print_variant_visitor(),
-      out.push(),
+      out.start_scope(),
       what
     );
     out << '}';
@@ -190,7 +192,7 @@ struct pretty_print_struct_visitor {
     OutputStream &&out,
     T const &what
   ) const {
-    auto scope = out.push();
+    auto scope = out.start_scope();
     scope << MemberInfo::name::z_data() << ": ";
     detail::pretty_print(scope, MemberInfo::getter::ref(what));
     if (Index + 1 < Size) {

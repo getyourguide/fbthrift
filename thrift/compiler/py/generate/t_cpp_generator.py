@@ -25,6 +25,7 @@ import copy
 import errno
 import os
 import re
+import string
 import sys
 
 from thrift_compiler import frontend
@@ -1180,7 +1181,7 @@ class CppGenerator(t_generator.Generator):
             else:
                 out('ProtocolOut_ prot;')
                 self._generate_app_ex(service, 'ex.what()',
-                                      function.name, "iprot->getSeqId()",
+                                      function.name, "ctx->getProtoSeqId()",
                                       False, out, 'ctx',
                                       'PROTOCOL_ERROR')
         args = []
@@ -1202,7 +1203,7 @@ class CppGenerator(t_generator.Generator):
                'std::move(c), return_{1}<ProtocolIn_,' +
                'ProtocolOut_>, throw_{1}<ProtocolIn_,' +
                ' ProtocolOut_>, throw_wrapped_{1}<ProtocolIn_,' +
-               ' ProtocolOut_>, iprot->getSeqId(),' +
+               ' ProtocolOut_>, ctx->getProtoSeqId(),' +
                ' eb, tm, ctx);').format(cb_class, function.name))
         # Oneway request won't be canceled if expired. see D1006482 for
         # further details. TODO: fix this
@@ -2282,12 +2283,15 @@ class CppGenerator(t_generator.Generator):
             if is_operator:
                 out('return *this;')
 
-    def _gen_union_switch(self, members, stmt,
+    def _gen_union_switch(self, members, stmt, stmt_ref,
                           val='type_', default='assert(false);'):
         with out('switch({0})'.format(val)):
             for member in members:
                 with out().case('Type::' + member.name):
-                    out(stmt.format(field=member.name))
+                    if self._is_reference(member):
+                        out(stmt_ref.format(field=member.name))
+                    else:
+                        out(stmt.format(field=member.name))
             with out().case('default'):
                 out(default)
 
@@ -2300,6 +2304,8 @@ class CppGenerator(t_generator.Generator):
                 print >>self._additional_outputs[-1], data
             else:
                 s.impl(data)
+
+        self._generated_types.append(obj)
 
         if not self.flag_implicit_templates:
             for a,b,c in self.protocols:
@@ -2412,6 +2418,7 @@ class CppGenerator(t_generator.Generator):
             is_copyable = self._is_copyable_struct(obj)
             is_comparable = self._is_comparable_struct(obj)
             if not obj.is_union:
+                # BEGIN FRAGILE CONSTRUCTOR
                 # Generate a initializer_list type constructor
                 init_vars = []
                 init_vars.append('apache::thrift::FragileConstructor')
@@ -2428,10 +2435,32 @@ class CppGenerator(t_generator.Generator):
                         name=member.name)
                 struct('// FragileConstructor for use in'
                        ' initialization lists only')
-                c = struct.defn('{name}(' + ', '.join(init_vars) + ')',
+                with struct.defn('{name}(' + ', '.join(init_vars) + ')',
                                 name=obj.name,
                                 in_header=True,
-                                init_dict=i).scope.empty()
+                                init_dict=i).scope as c:
+                    for member in members:
+                        if self._has_isset(member) and not self.flag_optionals:
+                            c("__isset.{0} = true;".format(member.name))
+                # END FRAGILE CONSTRUCTOR
+
+                # SELECTIVE CONSTRUCTOR
+                for member in members:
+                    struct('template <typename T__ThriftWrappedArgument__Ctor, '
+                        'typename... Args__ThriftWrappedArgument__Ctor>')
+                    struct(('{0}(::apache::thrift::detail::argument_wrapper<'
+                        '{1}, T__ThriftWrappedArgument__Ctor> arg, '
+                        'Args__ThriftWrappedArgument__Ctor&&... args):').format(
+                            obj.name, member.key))
+                    struct(('  {0}(std::forward<'
+                        'Args__ThriftWrappedArgument__Ctor>(args)...)').format(
+                            obj.name))
+                    struct('{')
+                    struct('  {0} = arg.move();'.format(member.name))
+                    if self._has_isset(member) and not self.flag_optionals:
+                        struct('  __isset.{0} = true;'.format(member.name))
+                    struct('}')
+                # SELECTIVE CONSTRUCTOR
 
                 # move constructor, move assignment, defaulted
                 # (not implicitly declared because we have a destructor)
@@ -2501,11 +2530,24 @@ class CppGenerator(t_generator.Generator):
                     if is_copyable:
                         self._gen_union_constructor(struct, obj, op, False)
 
+                # SELECTIVE CONSTRUCTOR
+                for member in members:
+                    struct('template <typename T__ThriftWrappedArgument__Ctor>')
+                    struct(('{0}(::apache::thrift::detail::argument_wrapper<'
+                        '{1}, T__ThriftWrappedArgument__Ctor> arg):').format(
+                            obj.name, member.key))
+                    struct('  type_(Type::__EMPTY__)')
+                    struct('{')
+                    struct('  set_{0}(arg.move());'.format(member.name))
+                    struct('}')
+                # SELECTIVE CONSTRUCTOR
+
             if len(members) > 0:
                 with struct.defn('void {name}()', name="__clear"):
                     if obj.is_union:
                         out('if (type_ == Type::__EMPTY__) { return; }')
                         self._gen_union_switch(members,
+                            'destruct(value_.{field});',
                             'destruct(value_.{field});')
                         out('type_ = Type::__EMPTY__;')
                     else:
@@ -2579,8 +2621,6 @@ class CppGenerator(t_generator.Generator):
         if should_generate_isset:
             struct()
             with struct.cls('struct __isset', epilogue=' __isset;') as ist:
-                with ist.defn('__isset()', in_header=True):
-                    out('__clear();')
                 with ist.defn('void __clear()', in_header=True):
                     for member in members:
                         if self._has_isset(member):
@@ -2589,7 +2629,7 @@ class CppGenerator(t_generator.Generator):
                 ist()
                 for member in members:
                     if self._has_isset(member):
-                        ist('bool {0};'.format(member.name))
+                        ist('bool {0} = false;'.format(member.name))
         if struct_options.has_serialized_fields:
             struct()
             struct('apache::thrift::ProtocolType {0};'.format(
@@ -2608,6 +2648,7 @@ class CppGenerator(t_generator.Generator):
                     out('if (type_ != rhs.type_) { return false; }')
                     self._gen_union_switch(members,
                         'return value_.{field} == rhs.value_.{field};',
+                        'return *value_.{field} == *rhs.value_.{field};',
                         default='return true;')
                 else:
                     for m in members:
@@ -2652,6 +2693,7 @@ class CppGenerator(t_generator.Generator):
                             ' { return type_ < rhs.type_; }')
                         self._gen_union_switch(members,
                             'return value_.{field} < rhs.value_.{field};',
+                            'return *value_.{field} < *rhs.value_.{field};',
                             default='return false;')
                     else:
                         for m in members:
@@ -2663,30 +2705,200 @@ class CppGenerator(t_generator.Generator):
                 struct('bool operator < (const {0}& rhs) const;'
                   .format(obj.name))
 
+        # generate getters/setters for structures not using folly::Optional
+        if not obj.is_union and not self.flag_optionals:
+            for member in members:
+                # Doesn't make sense to generate getters/setters for ref fields.
+                # (There is no __isset bit for refs.)
+                if self._is_reference(member):
+                    continue
+                t = self._type_name(member.type)
+                getter_name = 'get_' + member.name
+                if getter_name in [m.name for m in members]:
+                    raise CompilerError("Cannot have object with fields with "
+                        "names of form 'field' and 'get_field'. (In structure "
+                        "{0}: fields '{1}' and '{2}'.)"
+                        .format(obj.name, member.name, getter_name))
+                ttype = self._get_true_type(member.type)
+                outofline = not ttype.is_base_type and \
+                            not ttype.is_enum and \
+                            not member.type in self._generated_types
+                if member.req == e_req.optional:
+                    # getter overload 1: const T* get_field() const&
+                    with struct.defn('const {0}* {{name}}() const&'
+                                     .format(t),
+                                     name=getter_name,
+                                     in_header=not outofline):
+                        out('return __isset.{0} ? std::addressof({0})'
+                            ' : nullptr;'
+                            .format(member.name))
+                    # getter overload 2: T* get_field() &
+                    with struct.defn('{0}* {{name}}() &'.format(t),
+                                     name=getter_name,
+                                     in_header=not outofline):
+                        out('return __isset.{0} ? std::addressof({0})'
+                            ' : nullptr;'
+                            .format(member.name))
+                    # getter overload 3: T* get_field() && = delete
+                    out('{0}* {1}() && = delete;'.format(t, getter_name))
+                else:
+                    if not self._is_complex_type(member.type):
+                        # getter: T get_field() const
+                        with struct.defn('{0} {{name}}() const'
+                                         .format(t),
+                                         name=getter_name,
+                                         in_header=True):
+                            out('return {0};'.format(member.name))
+                    else:
+                        # getter overload 1: const T& get_field() const&
+                        with struct.defn('const {0}& {{name}}() const&'
+                                         .format(t),
+                                         name=getter_name,
+                                         in_header=not outofline):
+                            out('return {0};'.format(member.name))
+                        # getter overload 2: T get_field() &&
+                        with struct.defn('{0} {{name}}() &&'.format(t),
+                                         name=getter_name,
+                                         in_header=not outofline):
+                            out('return std::move({0});'.format(member.name))
+
+                # setters
+                setter_name = 'set_' + member.name
+                if setter_name in [m.name for m in members]:
+                    raise CompilerError("Cannot have object with fields with "
+                        "names of form 'field' and 'set_field'. (In structure "
+                        "{0}: fields '{1}' and '{2}'.)"
+                        .format(obj.name, member.name, setter_name))
+                param_name = member.name + '_'
+                if not self._is_complex_type(member.type):
+                    # setter: T& set_field(T t)
+                    with struct.defn('{0}& {{name}}({0} {1})'
+                                     .format(t, param_name),
+                                     name=setter_name,
+                                     in_header=True):
+                        out('{0} = {1};'.format(member.name, param_name))
+                        if self._has_isset(member):
+                            out('__isset.{0} = true;'.format(member.name))
+                        out('return {0};'.format(member.name))
+                else:
+                    # rely on compiler to generate appropriate pass-by-ref
+                    # setters
+                    setter_arg = 'T_{0}_{1}_struct_setter'.format(
+                        obj.name, member.name)
+                    with struct.defn(('template <typename {0}>\n'
+                                    '{1}& {{name}}({0}&& {2})')
+                                    .format(setter_arg, t, param_name),
+                                    name=setter_name,
+                                    output=self._out_tcc if outofline else None,
+                                    in_header=not outofline):
+                        out('{0} = std::forward<{1}>({2});'
+                            .format(member.name, setter_arg, param_name))
+                        if self._has_isset(member):
+                            out('__isset.{0} = true;'.format(member.name))
+                        out('return {0};'.format(member.name))
+
         # generate union accessors/settors
         if obj.is_union:
             for member in members:
-                t = self._type_name(self._get_true_type(member.type))
-                with struct.defn('template<typename... T>\n'
-                                 'void set_{name}(T&&... t)',
-                                 in_header=True, name=member.name):
-                    out('__clear();')
-                    out('type_ = Type::{0};'.format(member.name))
-                    if self._is_reference(member):
-                        out('new (&value_.{0}) std::unique_ptr<{1}>('
-                                'new {1}(std::forward<T>(t)...));'.format(
-                                    member.name, t))
-                    else:
-                        out('new (&value_.{0}) {1}(std::forward<T>(t)...);'
-                                .format(member.name, t))
+                mtype = member.type
+                t = self._type_name(self._get_true_type(mtype))
+                setter_result = t
+                is_reference = self._is_reference(member)
+                if is_reference:
+                    setter_result = "std::unique_ptr<" + setter_result + ">"
+                # generate definition on the tcc file if layout information
+                # is incomplete (say, recursive types)
+                outofline = is_reference and not mtype.is_base_type \
+                    and not mtype in self._generated_types
+                setter_result += '&'
+                is_primitive = (mtype.is_base_type and not mtype.is_string) \
+                               or mtype.is_enum
+                if is_primitive:
+                    with struct.defn('{{result_type}} {{symbol_scope}}'
+                                     'set_{{symbol_name}}({0} t = {0}())'
+                                     .format(t),
+                                   name=member.name,
+                                   symbol_name=member.name,
+                                   result_type=setter_result,
+                                   in_header=True):
+                        out('__clear();')
+                        out('type_ = Type::{0};'.format(member.name))
+                        if is_reference:
+                            out(('::new (std::addressof(value_.{0})) '
+                                 'std::unique_ptr<{1}>(new {1}(t));')
+                                 .format(member.name, t))
+                        else:
+                            out('::new (std::addressof(value_.{0})) {1}(t);'
+                              .format(member.name, t))
+                        out('return value_.{0};'.format(member.name))
+                else:
+                    with struct.defn('{{result_type}} {{symbol_scope}}'
+                                     'set_{{symbol_name}}({0} const &t)'
+                                     .format(t),
+                                   name=member.name,
+                                   symbol_name=member.name,
+                                   result_type=setter_result,
+                                   in_header=not outofline):
+                        out('__clear();')
+                        out('type_ = Type::{0};'.format(member.name))
+                        if is_reference:
+                            out(('::new (std::addressof(value_.{0})) '
+                                 'std::unique_ptr<{1}>(new {1}(t));')
+                                 .format(member.name, t))
+                        else:
+                            out('::new (std::addressof(value_.{0})) {1}(t);'
+                              .format(member.name, t))
+                        out('return value_.{0};'.format(member.name))
+                    with struct.defn('{{result_type}} {{symbol_scope}}'
+                                     'set_{{symbol_name}}({0}&& t)'.format(t),
+                                   name=member.name,
+                                   symbol_name=member.name,
+                                   result_type=setter_result,
+                                   in_header=not outofline):
+                        out('__clear();')
+                        out('type_ = Type::{0};'.format(member.name))
+                        if is_reference:
+                            out(('::new (std::addressof(value_.{0})) '
+                                 'std::unique_ptr<{1}>(new {1}(std::move(t)));')
+                                 .format(member.name, t))
+                        else:
+                            out(('::new (std::addressof(value_.{0})) '
+                                 '{1}(std::move(t));')
+                                 .format(member.name, t))
+                        out('return value_.{0};'.format(member.name))
+                    with struct.defn('template<typename... T, typename '
+                                  '{tpl_default_0}> {result_type} '
+                                  '{symbol_scope}set_{symbol_name}(T&&... t)',
+                                   name=member.name,
+                                   symbol_name=member.name,
+                                   result_type=setter_result,
+                                   tpl_default_0='::apache::thrift::'
+                                    'safe_overload_t<{0}, T...>'.format(t),
+                                   output=self._out_tcc if outofline else None,
+                                   in_header=not outofline):
+                        out('__clear();')
+                        out('type_ = Type::{0};'.format(member.name))
+                        if is_reference:
+                            out(('::new (std::addressof(value_.{0})) '
+                                 'std::unique_ptr<{1}>(new {1}('
+                                 'std::forward<T>(t)...));')
+                                 .format(member.name, t))
+                        else:
+                            out(('::new (std::addressof(value_.{0})) '
+                                 '{1}(std::forward<T>(t)...);')
+                                 .format(member.name, t))
+                        out('return value_.{0};'.format(member.name))
 
             for member in members:
                 t = self._type_name(self._get_true_type(member.type))
                 if self._is_reference(member):
                     t = "std::unique_ptr<" + t + ">"
-                with struct.defn('get_{name}() const', in_header=True,
-                        name=member.name,
-                        modifiers='const {0}&'.format(t)):
+                with struct.defn('{result_type} {symbol_scope}'
+                               + 'get_{symbol_name}() const',
+                               name=member.name,
+                               symbol_name=member.name,
+                               result_type=t + ' const &',
+                               in_header=True):
                     out('assert(type_ == Type::{0});'.format(member.name))
                     out('return value_.{0};'.format(member.name))
 
@@ -2694,9 +2906,12 @@ class CppGenerator(t_generator.Generator):
                 t = self._type_name(self._get_true_type(member.type))
                 if self._is_reference(member):
                     t = "std::unique_ptr<" + t + ">"
-                with struct.defn('mutable_{name}()', in_header=True,
-                        name=member.name,
-                        modifiers='{0}&'.format(t)):
+                with struct.defn('{result_type} {symbol_scope}'
+                               + 'mutable_{symbol_name}()',
+                               name=member.name,
+                               symbol_name=member.name,
+                               result_type=t + ' &',
+                               in_header=True):
                     out('assert(type_ == Type::{0});'.format(member.name))
                     out('return value_.{0};'.format(member.name))
 
@@ -2704,8 +2919,12 @@ class CppGenerator(t_generator.Generator):
                 t = self._type_name(self._get_true_type(member.type))
                 if self._is_reference(member):
                     t = "std::unique_ptr<" + t + ">"
-                with struct.defn('move_{name}()', in_header=True,
-                        name=member.name, modifiers=t):
+                with struct.defn('{result_type} {symbol_scope}'
+                               + 'move_{symbol_name}()',
+                               name=member.name,
+                               symbol_name=member.name,
+                               result_type=t,
+                               in_header=True):
                     out('assert(type_ == Type::{0});'.format(member.name))
                     out('return std::move(value_.{0});'.format(member.name))
 
@@ -3648,34 +3867,32 @@ class CppGenerator(t_generator.Generator):
         if self.flag_compatibility:
             return
 
-        gen_hash = self._has_cpp_annotation(obj, 'declare_hash')
-        gen_equal_to = self._has_cpp_annotation(obj, 'declare_equal_to')
+        is_enum = isinstance(obj, frontend.t_enum)
+        gen_hash = is_enum or self._has_cpp_annotation(obj, 'declare_hash')
+        gen_equal_to = is_enum or self._has_cpp_annotation(obj, 'declare_equal_to')
         if gen_hash or gen_equal_to:
             full_name = self._namespace_prefix(self._get_namespace()) + obj.name
             with self._types_global.namespace('std').scope:
                 if gen_hash:
-                    out('template<> struct hash<typename ' + full_name + '> {')
-                    out('size_t operator()(const ' + full_name + '&) const;')
-                    out("};")
-                    if frontend.t_enum == obj.__class__:
-                        out('inline size_t '
-                            + 'hash<typename ' + full_name + '>::operator()'
-                            +    '(const ' + full_name + '& e) const {')
-                        out('  return std::hash<int64_t>()(static_cast<int64_t>(e));')
-                        out('}')
+                    if is_enum:
+                        out(('template<> struct hash<typename {t}> '
+                             ': public apache::thrift::detail::enum_hash<typename {t}> {{}};')
+                            .format(t=full_name))
+                    else:
+                        out('template<> struct hash<typename ' + full_name + '> {')
+                        out('  size_t operator()(const ' + full_name + '&) const;')
+                        out("};")
 
                 if gen_equal_to:
-                    out('template<> struct equal_to<typename ' + full_name + '> {')
-                    out('bool operator()(const ' + full_name + '&,')
-                    out('const ' + full_name + '&) const;')
-                    out("};")
-                    if frontend.t_enum == obj.__class__:
-                        out('inline bool '
-                            + 'equal_to<typename ' + full_name + '>::operator()'
-                            +    '(const ' + full_name + '& e1,'
-                            +    ' const ' + full_name + '& e2) const {')
-                        out('  return e1 == e2;')
-                        out('}')
+                    if is_enum:
+                        out(('template<> struct equal_to<typename {t}> '
+                             ': public apache::thrift::detail::enum_equal_to<typename {t}> {{}};')
+                            .format(t=full_name))
+                    else:
+                        out('template<> struct equal_to<typename ' + full_name + '> {')
+                        out('  bool operator()(const ' + full_name + '&,'
+                            'const ' + full_name + '&) const;')
+                        out("};")
 
     def _generate_cpp_struct(self, obj, is_exception=False):
         # We write all of these to the types scope
@@ -3770,15 +3987,14 @@ class CppGenerator(t_generator.Generator):
             if not value_map:
                 return '{0}()'.format(self._type_name(t)) if explicit else None
             fields = filter(self._should_generate_field, t.as_struct.members)
-            out_list = ['apache::thrift::FRAGILE']
+            out_list = []
             for field in fields:
                 if field.name in value_map:
-                    val = self._render_const_value(field.type,
-                                                   value_map[field.name],
-                                                   explicit=True)
-                else:
-                    val = self._member_default_value(field, explicit=True)
-                out_list.append(val or "")
+                    out_list.append(
+                        '::apache::thrift::detail::wrap_argument<{0}>({1})'
+                        .format(field.key, self._render_const_value(field.type,
+                                                          value_map[field.name],
+                                                          explicit=True)))
             return '{0}({1})'.format(self._type_name(t), ', '.join(out_list))
         elif t.is_map:
             outlist = []
@@ -3788,9 +4004,12 @@ class CppGenerator(t_generator.Generator):
                 value_render = self._render_const_value(t.value_type, value,
                                                         explicit=True)
                 outlist.append('{{{0}, {1}}}'.format(key_render, value_render))
+            out_prefix = 'std::initializer_list<std::pair<const {0}, {1}>>'\
+                .format(self._type_name(self._get_true_type(t.key_type)),
+                        self._type_name(self._get_true_type(t.value_type)))
             if not outlist:
-                return '{}' if explicit else None
-            return '{' + ', '.join(outlist) + '}'
+                return out_prefix + '{}' if explicit else None
+            return out_prefix + '{' + ', '.join(outlist) + '}'
         elif t.is_list:
             outlist = []
             for item in value.list:
@@ -3863,8 +4082,6 @@ class CppGenerator(t_generator.Generator):
             cpp1_namespace = self._namespace_prefix(
                 self._program.get_namespace('cpp')).lstrip()
             sns('using ' + cpp1_namespace + self._program.name + '_constants;')
-            sns('using ' + cpp1_namespace + self._program.name
-                + '_constants_codemod;')
             sns.release()
             sg.release()
             return
@@ -3910,33 +4127,6 @@ class CppGenerator(t_generator.Generator):
                         ))
                         b('return instance;')
 
-        # CODEMOD TRANSITIONAL
-        s = sns.cls(('struct __attribute__((__deprecated__("{1}"))) '
-            + '{0}_constants_codemod').format(name, ('{0}_constants_codemod is '
-                + 'a transitional class only intended for codemods from the '
-                + 'deprecated {0}Constants to {0}_constants. Consider switching'
-                + ' to the latter as soon as possible.').format(name))).scope
-
-        with s:
-            # Default constructor
-            for c in constants:
-                value = self._render_const_value(c.type, c.value)
-                inlined = (c.type.is_base_type
-                    and not c.type.is_string) or c.type.is_enum
-                b = s.defn('static {0}{1} {2}{{name}}()'.format(
-                    'constexpr ' if inlined else '', self._type_name(
-                    c.type), '' if inlined else 'const& '), name=c.name,
-                    in_header=True).scope
-                with b:
-                    if inlined:
-                        b('return {0};'.format(
-                          value if value is not None else '{}'))
-                    else:
-                        b('static {0} const instance{1};'.format(
-                            self._type_name(c.type),
-                            '({0})'.format(value) if value is not None else ''))
-                        b('return instance;')
-
         # DEPRECATED
         s = sns.cls('class __attribute__((__deprecated__("{1}"))) {0}Constants'
             .format(name, ("{0}Constants suffers from the 'static "
@@ -3962,9 +4152,14 @@ class CppGenerator(t_generator.Generator):
 
         sg.release()   # global scope
 
+    # ==========================================================================
+    # FATAL REFLECTION CODE - begin
+    # ==========================================================================
+
     def _generate_fatal(self, program):
         name = self._program.name
         ns = self._get_original_namespace()
+        self.fatal_detail_ns = 'thrift_fatal_impl_detail'
         context = self._make_context(name + '_fatal', tcc=False)
         with get_global_scope(CppPrimitiveFactory, context) as sg:
             sg('#include "{0}"'.format(self._with_include_prefix(
@@ -3982,78 +4177,127 @@ class CppGenerator(t_generator.Generator):
                     self._generate_fatal_impl(sns, program)
             else:
                 self._generate_fatal_impl(sg, program)
+            if self.flag_compatibility:
+                with sg.namespace(self._get_namespace()).scope as sns:
+                    sns('using {0} = {1}::{0};'.format(
+                        self.fatal_tags_class, ns.replace('.', '::')))
 
     def _generate_fatal_impl(self, sns, program):
         name = self._program.name
-        tag = '{0}_tags::metadata'.format(name)
+        self.fatal_tags_class = '{0}_tags'.format(name)
+        self.fatal_tag = '{0}::module'.format(self.fatal_tags_class)
         safe_ns = self._get_namespace().replace('.', '_')
+
         str_class = '{0}_{1}__unique_strings_list'.format(safe_ns, name)
-        strclsid = 'detail::{0}'.format(str_class)
+        self.fatal_str_map_id = '{0}::{1}'.format(
+            self.fatal_detail_ns, str_class)
+        self.fatal_str_map = {}
+        self.fatal_str_uid = []
 
         order = ['language', 'enum', 'union', 'struct', 'constant', 'service']
-        as_map = ['language', 'enum', 'union', 'struct']
-        str_from_mapped = ['language']
         items = {}
-        items['language'] = self._generate_fatal_lanuage(program)
+        items['language'] = self._generate_fatal_language(program)
         items['enum'] = self._generate_fatal_enum(program)
         items['union'] = self._generate_fatal_union(program)
         items['struct'] = self._generate_fatal_struct(program)
         items['constant'] = self._generate_fatal_constant(program)
         items['service'] = self._generate_fatal_service(program)
 
-        with sns.namespace('detail').scope as detail:
+        # Combo include: types
+        context_cmb_types = self._make_context(name + '_fatal_types', tcc=False)
+        with get_global_scope(CppPrimitiveFactory, context_cmb_types) as sg:
+            for what in ['enum', 'union', 'struct']:
+                sg('#include "{0}"'.format(self._with_include_prefix(
+                    self._program, name + '_' + what + '_fatal.h')))
+
+        # Combo include: all
+        context_cmb_all = self._make_context(name + '_fatal_all', tcc=False)
+        with get_global_scope(CppPrimitiveFactory, context_cmb_all) as sg:
+            for what in ['enum', 'union', 'struct', 'constant', 'service']:
+                sg('#include "{0}"'.format(self._with_include_prefix(
+                    self._program, name + '_' + what + '_fatal.h')))
+
+        # Unique Compile-time Strings
+        with sns.namespace(self.fatal_detail_ns).scope as detail:
             with detail.cls('struct {0}'.format(str_class)).scope as cstr:
-                strings = {}
-                for i in items:
-                    for s in items[i]:
-                        if s[0] not in strings:
-                            strings[s[0]] = s[1]
-                for i in str_from_mapped:
-                    for k in items[i]:
-                        s = items[i][k]
-                        if s[0] not in strings:
-                            strings[s[0]] = s[1]
-                for i in strings:
-                    cstr('using {0} = {1};'
-                        .format(i, self._render_fatal_string(strings[i])))
+                for i in self.fatal_str_map:
+                    cstr('using {0} = {1};'.format(
+                        self.fatal_str_map[i],
+                        self._render_fatal_string(i)))
+
+        # Metadata tags
         sns('class {0}_tags {1}'.format(name, '{')).scope
         nname = {}
-        for i in order:
-            nname[i] = '{0}_{1}__unique_{2}s_list'.format(safe_ns, name, i)
-
-            sns('  struct {0} {1}'.format(nname[i], '{'))
-            for n in items[i]:
-                sns('    using {0} = {1}::{2};'.format(n[0], strclsid, n[1]))
-            sns('};')
+        for o in order:
+            nname[o] = '{0}_{1}__unique_{2}s_list'.format(safe_ns, name, o)
+            eorder = items[o][0]
+            entries = items[o][1]
+            sns('  struct {0} {1}'.format(nname[o], '{'))
+            for i in eorder:
+                if type(entries) == list:
+                    sns('    using {0} = {1};'.format(
+                        self._get_fatal_string_short_id(i[0]), i[1]))
+                elif type(entries) == dict:
+                    sns('    using {0} = {1};'.format(
+                        self._get_fatal_string_short_id(entries[i][0]),
+                        entries[i][1]))
+            sns('  };')
+            sns()
         sns('public:')
-        for i in order:
-            sns('  using {0}s = {1};'.format(i, nname[i]))
-        sns('struct metadata {0}'.format('{};'))
+        sns('  struct module {0}'.format('{};'))
+        sns()
+        for o in order:
+            sns('  using {0}s = {1};'.format(o, nname[o]))
+        sns()
+        sns('  using strings = {0};'.format(self.fatal_str_map_id))
         sns('};')
         sns()
+
+        # Metadata registration
         sns('THRIFT_REGISTER_REFLECTION_METADATA(')
-        sns('  {0},'.format(tag))
-        for item_idx, item in enumerate(order):
-            entries = items[item]
-            sns('  // {0}s'.format(item))
-            if item in as_map:
-                sns('  ::fatal::type_map<')
-            else:
+        sns('  {0},'.format(self.fatal_tag))
+        for item_idx, o in enumerate(order):
+            eorder = items[o][0]
+            entries = items[o][1]
+            sns('  // {0}s'.format(o))
+            if type(entries) == list:
                 sns('  ::fatal::type_list<')
-            for idx, i in enumerate(entries):
-                cseq = ('{0}::{1}'.format(strclsid, i[0]))
-                if item not in as_map:
+            elif type(entries) == dict:
+                sns('  ::fatal::type_map<')
+            for idx, i in enumerate(eorder):
+                if type(entries) == list:
                     sns('    {0}{1}'.format(
-                        cseq, ',' if idx + 1 < len(entries) else ''))
-                elif item not in str_from_mapped:
-                    sns('    ::fatal::type_pair<{0}, {1}>{2}'.format(
-                        i[0], cseq, ',' if idx + 1 < len(entries) else ''))
-                else:
-                    mseq = ('{0}::{1}'.format(strclsid, entries[i][0]))
-                    sns('    ::fatal::type_pair<{0}, {1}>{2}'.format(
-                        cseq, mseq, ',' if idx + 1 < len(entries) else ''))
-            sns('  >{0}'.format(',' if item_idx + 1 < len(order) else ''))
+                        i[2], ',' if idx + 1 < len(entries) else ''))
+                elif type(entries) == dict:
+                    sns('    ::fatal::type_pair<{0}, {1}>{2}'.format(i,
+                        entries[i][2], ',' if idx + 1 < len(entries) else ''))
+            sns('  >{0}'.format(',' if item_idx + 1 < len(items) else ''))
         sns(');')
+
+    def _get_fatal_string_short_id(self, s):
+        return self.fatal_str_map[s]
+
+    def _get_fatal_string_id(self, s):
+        return '{0}::{1}'.format(
+            self.fatal_str_map_id, self._get_fatal_string_short_id(s))
+
+    def _set_fatal_string(self, s):
+        if s not in self.fatal_str_map:
+            identifier = s
+            if len(identifier) == 0:
+                identifier = "empty"
+            else:
+                if identifier[0] not in string.ascii_letters + '_':
+                    identifier = "s_" + identifier
+                identifier = re.sub(r'[\W\.:]', '_', s)
+
+            uid = identifier
+            uid_round = 0
+            while uid in self.fatal_str_uid:
+                uid = "{0}_{1}".format(identifier, uid_round)
+                uid_round = uid_round + 1
+            self.fatal_str_map[s] = uid
+        return self._get_fatal_string_id(s)
 
     def _get_original_namespace(self):
         if self.flag_compatibility:
@@ -4067,9 +4311,13 @@ class CppGenerator(t_generator.Generator):
         return ''
 
     def _render_fatal_string(self, s):
-        l = []
-        l.extend(s)
-        return "::fatal::constant_sequence<char, '{0}'>".format("', '".join(l))
+        result = "::fatal::constant_sequence<char"
+        for i in s:
+            result += ", '"
+            result += re.sub(r"(['\n\\])", r'\\\1', i)
+            result += "'"
+        result += ">"
+        return result
 
     def _render_fatal_thrift_category(self, ttype):
         while ttype.is_typedef:
@@ -4098,17 +4346,72 @@ class CppGenerator(t_generator.Generator):
         else:
             return 'unknown'
 
-    def _generate_fatal_lanuage(self, program):
+    def _render_fatal_required_qualifier(self, required):
+        if required == e_req.required:
+            return 'required'
+        elif required == e_req.optional:
+            return 'optional'
+        else:
+            assert required == e_req.opt_in_req_out, \
+                "unknown required qualifier"
+            return 'required_of_writer'
+
+    def _render_fatal_annotations(self, annotations, class_name, scope):
+        clsnmkeys = '{0}__unique_annotations_keys'.format(class_name)
+        clsnmvalues = '{0}__unique_annotations_values'.format(class_name)
+        with scope.cls('class {0}'.format(class_name)).scope as aclass:
+            with scope.cls('struct {0}'.format(clsnmkeys)).scope as akeys:
+                if annotations is not None:
+                    for idx, i in enumerate(annotations.keys()):
+                        full_id = self._set_fatal_string(i)
+                        short_id = self._get_fatal_string_short_id(i)
+                        akeys('using {0} = {1};'.format(short_id, full_id))
+            with scope.cls('struct {0}'.format(clsnmvalues)).scope as avalues:
+                if annotations is not None:
+                    for idx, i in enumerate(annotations.keys()):
+                        avalues('using {0} = {1};'.format(
+                            self._get_fatal_string_short_id(i),
+                            self._render_fatal_string(annotations[i])))
+            aclass()
+            aclass('public:')
+            aclass('using keys = {0};'.format(clsnmkeys))
+            aclass('using values = {0};'.format(clsnmvalues))
+            aclass('using map = ::fatal::type_map<')
+            if annotations is not None:
+                for idx, i in enumerate(sorted(annotations.keys())):
+                    identifier = self._get_fatal_string_short_id(i)
+                    aclass('  ::fatal::type_pair<')
+                    aclass('    keys::{0},'.format(identifier))
+                    aclass('    values::{0}'.format(identifier))
+                    comma = ',' if idx + 1 < len(annotations) else ''
+                    aclass('  >{0}'.format(comma))
+            aclass('>;')
+        return class_name
+
+    def _render_fatal_type_common_metadata(self, annotations_class, legacyid,
+      scope, indent):
+        scope('{0}::apache::thrift::detail::type_common_metadata_impl<'.format(
+            indent))
+        scope('{0}  {1},'.format(indent, self.fatal_tag))
+        scope('{0}  ::apache::thrift::reflected_annotations<{1}>,'
+            .format(indent, annotations_class))
+        scope('{0}  static_cast<::apache::thrift::legacy_type_id_t>({1}ull)'
+            .format(indent, legacyid))
+        scope('{0}>'.format(indent))
+
+    def _generate_fatal_language(self, program):
         replacement = {'cpp': '::', 'cpp2': '::', 'php': '_'}
+        order = []
         result = {}
         for i in program.namespaces:
             language = i.key()
             ns = self._program.get_namespace(language)
-            safe_ns = ns.replace('.', '__')
             if language in replacement:
                 ns = ns.replace('.', replacement[language])
-            result[(language, language)] = (safe_ns, ns)
-        return result
+            lang_id = self._set_fatal_string(language)
+            result[lang_id] = (language, lang_id, self._set_fatal_string(ns))
+            order.append(lang_id)
+        return (order, result)
 
     def _generate_fatal_enum(self, program):
         name = self._program.name
@@ -4130,26 +4433,32 @@ class CppGenerator(t_generator.Generator):
                 return self._generate_fatal_enum_impl(sg, program)
 
     def _generate_fatal_enum_impl(self, sns, program):
-        result = []
+        result = {}
+        order = []
         for i in program.enums:
-            self._generate_fatal_enum_traits(i.name, i.name, i.constants, sns)
-            result.append((i.name, i.name))
-        return result
+            self._generate_fatal_enum_traits(i.name, i.name, i.constants, sns,
+                i.annotations, i.type_id)
+            string_ref = self._set_fatal_string(i.name)
+            result[i.name] = (i.name, string_ref, string_ref)
+            order.append(i.name)
+        return (order, result)
 
-    def _generate_fatal_enum_traits(self, name, scoped_name, members, scope):
+    def _generate_fatal_enum_traits(self, name, scoped_name, members, scope,
+      annotations, legacyid, guaranteed_unique=False):
         scoped_ns = self._get_scoped_original_namespace()
         traits_name = '{0}_enum_traits'.format(scoped_name.replace('::', '_'))
-        tag = '{0}_tags::metadata'.format(self._program.name)
-        with scope.namespace('detail').scope as detail:
-            with detail.cls('struct {0}'.format(traits_name)).scope as t:
-                t('using type = {0}::{1};'.format(scoped_ns, scoped_name))
-                t('using name = {0};'.format(self._render_fatal_string(name)))
-                t()
-                with t.cls('struct str'):
+        with scope.namespace(self.fatal_detail_ns).scope as detail:
+            with detail.cls('class {0}'.format(traits_name)).scope as t:
+                strcls = '{0}__struct_unique_strings_list'.format(name)
+                with t.cls('struct {0}'.format(strcls)):
                     for i in members:
-                        cseq = self._render_fatal_string(i.name)
+                        cseq = self._set_fatal_string(i.name)
                         t('using {0} = {1};'.format(i.name, cseq))
                 t()
+                t('public:')
+                t('using type = {0}::{1};'.format(scoped_ns, scoped_name))
+                t('using name = {0};'.format(self._set_fatal_string(name)))
+                t('using str = {0};'.format(strcls))
                 t('using name_to_value = ::fatal::type_map<')
                 for idx, i in enumerate(members):
                     t('  ::fatal::type_pair<')
@@ -4159,17 +4468,31 @@ class CppGenerator(t_generator.Generator):
                     t('  >{0}'.format(',' if idx + 1 < len(members) else ''))
                 t('>;')
                 t()
+                self._render_fatal_annotations(annotations, 'annotations', t)
+                t()
                 t('static char const *to_string(type e, char const *fallback)'
                     + ' {0}'.format('{'))
                 t('  switch (e) {')
+                member_names = []
+                member_values = []
                 for i in members:
-                    t('    case type::{0}: return "{0}";'.format(i.name))
+                    if guaranteed_unique or i.value not in member_values:
+                        member_names.append(i.name)
+                        member_values.append(i.value)
+                for i in member_names:
+                    t('    case type::{0}: return "{0}";'.format(i))
                 t('    default: return fallback;')
                 t('  }')
                 t('}')
         scope()
-        scope('FATAL_REGISTER_ENUM_TRAITS({0}::detail::{1}, {2});'
-            .format(scoped_ns, traits_name, tag))
+        scope('FATAL_REGISTER_ENUM_TRAITS(')
+        scope('  {0}::{1}::{2},'.format(
+            scoped_ns, self.fatal_detail_ns, traits_name))
+        self._render_fatal_type_common_metadata(
+            '{0}::{1}::{2}::annotations'.format(
+                scoped_ns, self.fatal_detail_ns, traits_name),
+            legacyid, scope, '  ')
+        scope(');')
         return traits_name
 
     def _generate_fatal_union(self, program):
@@ -4193,57 +4516,73 @@ class CppGenerator(t_generator.Generator):
                 return self._generate_fatal_union_impl(sg, program)
 
     def _generate_fatal_union_impl(self, sns, program):
-        tag = '{0}_tags::metadata'.format(self._program.name)
         scoped_ns = self._get_scoped_original_namespace()
-        result = []
-        traits = {}
+        result = {}
+        order = []
+        data = {}
         for i in program.structs:
             if not i.is_union:
                 continue
             self._generate_fatal_enum_traits(
-                'Type', '{0}::Type'.format(i.name), i.members, sns)
+                'Type', '{0}::Type'.format(i.name),
+                i.members, sns, None, 0, True)
             sns()
-            result.append((i.name, i.name))
-            with sns.namespace('detail').scope as detail:
-                traits[i.name] = self._generate_fatal_union_traits(i, detail)
-        if len(traits) > 0:
+            string_ref = self._set_fatal_string(i.name)
+            result[i.name] = (i.name, string_ref, string_ref)
+            order.append(i.name)
+            data[i.name] = [None, i.type_id]
+            with sns.namespace(self.fatal_detail_ns).scope as detail:
+                data[i.name][0] = self._generate_fatal_union_traits(
+                    i, detail, i.annotations)
+        if len(data) > 0:
             sns()
-        for i in result:
-            sns('FATAL_REGISTER_VARIANT_TRAITS({0}::detail::{1}, {2});'
-                .format(scoped_ns, traits[i[1]], tag))
-        return result
+        for i in order:
+            traits_class = '{0}::{1}::{2}'.format(
+                scoped_ns, self.fatal_detail_ns, data[i][0])
+            sns('FATAL_REGISTER_VARIANT_TRAITS(')
+            sns('  {0},'.format(traits_class))
+            self._render_fatal_type_common_metadata(
+                '{0}::annotations'.format(traits_class), data[i][1], sns, '  ')
+            sns(');')
+        return (order, result)
 
-    def _generate_fatal_union_traits(self, union, scope):
+    def _generate_fatal_union_traits(self, union, scope, annotations):
         scoped_ns = self._get_scoped_original_namespace()
         name = '{0}_variant_traits'.format(union.name)
+        type_name = '{0}::{1}'.format(scoped_ns, union.name)
         with scope.cls('class {0}'.format(name)).scope as t:
-            with t.cls('struct get'):
+            idscls = '{0}__struct_unique_identifiers_list'.format(union.name)
+            with t.cls('struct {0}'.format(idscls)):
+                for i in union.members:
+                    t(('using {0} = std::integral_constant<{1}::Type, {1}::Type'
+                       '::{0}>;').format(i.name, type_name))
+            t()
+            getcls = '{0}__struct_unique_getters_list'.format(union.name)
+            with t.cls('struct {0}'.format(getcls)):
                 for i in union.members:
                     self._generate_fatal_union_traits_getter(union, i, t)
             t()
-            with t.cls('struct set'):
+            setcls = '{0}__struct_unique_setters_list'.format(union.name)
+            with t.cls('struct {0}'.format(setcls)):
                 for i in union.members:
                     self._generate_fatal_union_traits_setter(union, i, t)
             t()
             t('public:')
-            t('using type = {0}::{1};'.format(scoped_ns, union.name))
-            t('using name = {0};'.format(self._render_fatal_string(union.name)))
+            t('using type = {0};'.format(type_name))
+            t('using name = {0};'.format(self._set_fatal_string(union.name)))
             t('using id = type::Type;')
-            t()
-            with t.cls('struct ids'):
-                for i in union.members:
-                    t("using {0} = std::integral_constant<id, id::{0}>;"
-                        .format(i.name))
-            t()
+            t('using ids = {0};'.format(idscls))
             t('using descriptors = ::fatal::type_list<')
             for idx, i in enumerate(union.members):
                 t('  ::fatal::variant_type_descriptor<')
                 t('    {0},'.format(self._type_name(i.type)))
-                t('    ids::{0},'.format(i.name))
-                t('    get::{0},'.format(i.name))
-                t('    set::{0}'.format(i.name))
+                t('    {0}::{1},'.format(idscls, i.name))
+                t('    {0}::{1},'.format(getcls, i.name))
+                t('    {0}::{1}'.format(setcls, i.name))
                 t('  >{0}'.format(',' if idx + 1 < len(union.members) else ''))
             t('>;')
+            t()
+            self._render_fatal_annotations(annotations, 'annotations', t)
             t()
             t('static id get_id(type const &variant) {0}'.format('{'))
             t('  return variant.getType();')
@@ -4252,23 +4591,36 @@ class CppGenerator(t_generator.Generator):
             t('static bool empty(type const &variant) {0}'.format('{'))
             t('  return variant.getType() == id::__EMPTY__;')
             t('}')
+            t()
+            t('static void clear(type &variant) {0}'.format('{'))
+            t('  return variant.__clear();')
+            t('}')
         return name
 
     def _generate_fatal_union_traits_getter(self, union, field, scope):
         ftname = self._type_name(field.type)
         with scope.cls('struct {0}'.format(field.name)):
-            scope('{0} const &operator ()({1} const &variant) const {2}'
-                .format(ftname, union.name, '{'))
+            scope('auto operator ()({0} const &variant) const'
+                .format(union.name))
+            scope('  -> decltype(std::declval<{0} const &>().get_{1}())'
+                .format(union.name, field.name))
+            scope('{')
             scope('  return variant.get_{0}();'.format(field.name))
             scope('}')
             scope()
-            scope('{0} &operator ()({1} &variant) const {2}'
-                .format(ftname, union.name, '{'))
+            scope('auto operator ()({0} &variant) const'
+                .format(union.name))
+            scope('  -> decltype(std::declval<{0} &>().mutable_{1}())'
+                .format(union.name, field.name))
+            scope('{')
             scope('  return variant.mutable_{0}();'.format(field.name))
             scope('}')
             scope()
-            scope('{0} operator ()({1} &&variant) const {2}'
-                .format(ftname, union.name, '{'))
+            scope('auto operator ()({0} &&variant) const'
+                .format(union.name))
+            scope('  -> decltype(std::declval<{0} &&>().move_{1}())'
+                .format(union.name, field.name))
+            scope('{')
             scope('  return std::move(variant).move_{0}();'.format(field.name))
             scope('}')
 
@@ -4276,8 +4628,13 @@ class CppGenerator(t_generator.Generator):
         ftname = self._type_name(field.type)
         with scope.cls('struct {0}'.format(field.name)):
             scope('template <typename... Args>')
-            scope('void operator ()({1} &variant, Args &&...args) const {2}'
-                .format(ftname, union.name, '{'))
+            scope('auto operator ()({0} &variant, Args &&...args) const'
+                .format(union.name))
+            scope('  -> decltype(')
+            scope('    std::declval<{0} &>()'.format(union.name)
+                + '.set_{0}(std::forward<Args>(args)...)'.format(field.name))
+            scope('  )')
+            scope('{')
             scope('  return variant.set_{0}(std::forward<Args>(args)...);'
                 .format(field.name))
             scope('}')
@@ -4300,74 +4657,116 @@ class CppGenerator(t_generator.Generator):
 
     def _generate_fatal_struct_impl(self, sns, program):
         name = self._program.name
-        tag = '{0}_tags::metadata'.format(name)
         safe_ns = self._get_namespace().replace('.', '_')
-        strclsprefix = '{0}_{1}__struct_unique_strings_list'.format(
-            safe_ns, name)
         dtmclsprefix = '{0}_{1}__struct_unique_data_member_getters_list'.format(
             safe_ns, name)
         mpdclsprefix = '{0}_{1}__struct_unique_member_pod_list'.format(
             safe_ns, name)
-        with sns.namespace('detail').scope as detail:
+        annclsprefix = '{0}_{1}__struct_unique_annotations'.format(
+            safe_ns, name)
+        mnfclsprefix = '{0}_{1}__struct_unique_member_info_list'.format(
+            safe_ns, name)
+        with sns.namespace(self.fatal_detail_ns).scope as detail:
             members = []
-            strings = []
             for i in program.structs:
                 if i.is_union:
                     continue
-                if i.name not in strings:
-                    strings.append(i.name)
+                self._set_fatal_string(i.name)
                 for m in i.members:
-                    if m.name not in strings:
-                        strings.append(m.name)
+                    self._set_fatal_string(m.name)
                     if m.name not in members:
                         members.append(m.name)
-            with detail.cls('struct {0}'.format(strclsprefix)).scope as cstr:
-                for i in strings:
-                    cstr('using {0} = {1};'
-                        .format(i, self._render_fatal_string(i)))
             with detail.cls('struct {0}'.format(dtmclsprefix)).scope as dtm:
                 for i in members:
                     dtm('FATAL_DATA_MEMBER_GETTER({0}, {0});'.format(i))
             with detail.cls('struct {0}'.format(mpdclsprefix)).scope as mpd:
+                pod_arg = 'T_{0}_{1}_struct_member_pod'.format(safe_ns, name)
                 for i in members:
-                    mpd('template <typename T>')
+                    mpd('template <typename {0}>'.format(pod_arg))
                     with detail.cls('struct {0}_{1}_struct_member_pod_{2}'
                       .format(safe_ns, name, i)).scope as pod:
-                        pod('T {0};'.format(i))
+                        pod('{0} {1};'.format(pod_arg, i))
             for i in program.structs:
                 if i.is_union:
                     continue
-                cnms = detail.cls('struct {0}_{1}'
-                    .format(i.name, strclsprefix)).scope
-                with cnms:
+                with detail.cls('class {0}_{1}'.format(
+                        i.name, annclsprefix)).scope as cann:
+                    members_class = '{0}_{1}_members'.format(
+                        i.name, annclsprefix)
+                    with cann.cls('class {0}'.format(
+                            members_class)).scope as cmann:
+                        for m in i.members:
+                            self._render_fatal_annotations(
+                                m.annotations, '{0}_{1}'.format(
+                                    members_class, m.name), cmann)
+                        cmann('public:')
+                        for m in i.members:
+                            cmann(('using {0} = ::apache::thrift::'
+                                'reflected_annotations<{1}_{0}>;').format(
+                                    m.name, members_class))
+                    self._render_fatal_annotations(i.annotations,
+                        'annotations', cann)
+                    cann('public:')
+                    cann('using keys = annotations::keys;')
+                    cann('using values = annotations::values;')
+                    cann('using map = annotations::map;')
+                    cann('using members = {0};'.format(members_class))
+                transform_arg = '{0}__struct_unique_member_info_list_arg_T' \
+                  .format(name)
+                detail('template <template <typename> class {0}>'.format(
+                    transform_arg))
+                with detail.cls(('struct {0}_{1}').format(
+                        i.name, mnfclsprefix)).scope as cmnf:
                     for m in i.members:
-                        cnms('using {0} = {1}::{0};'
-                            .format(m.name, strclsprefix))
-        result = []
+                        cmnf(('using {0} = {1}<'
+                            '::apache::thrift::reflected_struct_data_member<')
+                            .format(m.name, transform_arg))
+                        cmnf('')
+                        cmnf('  {0},'.format(self._get_fatal_string_id(m.name)))
+                        cmnf('  {0},'.format(self._type_name(m.type)))
+                        cmnf('  {0},'.format(m.key))
+                        cmnf('  ::apache::thrift::optionality::{0},'.format(
+                            self._render_fatal_required_qualifier(m.req)))
+                        cmnf('  {0}::{1}::{2},'.format(
+                            self.fatal_detail_ns, dtmclsprefix, m.name))
+                        cmnf('        ::apache::thrift::thrift_category::{0},'
+                            .format(self._render_fatal_thrift_category(m.type)))
+                        cmnf('  {0}::{1}::{2}_{3}_struct_member_pod_{4},'
+                            .format(self.fatal_detail_ns, mpdclsprefix,
+                                safe_ns, name, m.name))
+                        cmnf('  ::apache::thrift::reflected_annotations<'
+                            '{0}::{1}_{2}::members::{3}>'.format(
+                                self.fatal_detail_ns, i.name, annclsprefix,
+                                m.name))
+                        cmnf('>>;')
+        result = {}
+        order = []
         for i in program.structs:
             if i.is_union:
                 continue
-            result.append((i.name, i.name))
+            string_ref = self._set_fatal_string(i.name)
+            result[i.name] = (i.name, string_ref, string_ref)
+            order.append(i.name)
             sns('THRIFT_REGISTER_STRUCT_TRAITS(')
             sns('  {0},'.format(i.name))
-            sns('  detail::{0}::{1},'.format(strclsprefix, i.name))
-            sns('  {0},'.format(tag))
-            sns('  detail::{0}_{1},'.format(i.name, strclsprefix))
-            sns('  ::fatal::type_list<')
+            sns('  {0},'.format(self._get_fatal_string_id(i.name)))
+            sns('  {0}::{1}_{2},'.format(
+                self.fatal_detail_ns, i.name, mnfclsprefix))
+            sns('  ::fatal::type_map<')
+            annclsnm = '{0}::{1}_{2}'.format(
+                self.fatal_detail_ns, i.name, annclsprefix)
             for midx, m in enumerate(i.members):
-                sns('    ::apache::thrift::reflected_struct_data_member<')
-                sns('      detail::{0}::{1},'.format(strclsprefix, m.name))
-                sns('      {0},'.format(self._type_name(m.type)))
-                sns('      {0},'.format(m.key))
-                sns('      detail::{0}::{1},'.format(dtmclsprefix, m.name))
-                sns('      ::apache::thrift::thrift_category::{0},'
-                    .format(self._render_fatal_thrift_category(m.type)))
-                sns('      detail::{0}::{1}_{2}_struct_member_pod_{3}'
-                    .format(mpdclsprefix, safe_ns, name, m.name))
+                sns('    ::fatal::type_pair<')
+                sns('      {0},'.format(self._get_fatal_string_id(m.name)))
+                sns('      {0}::{1}_{2}<::fatal::identity>::{3}'.format(
+                    self.fatal_detail_ns, i.name, mnfclsprefix, m.name))
                 sns('    >{0}'.format(',' if midx + 1 < len(i.members) else ''))
-            sns('  >')
+            sns('  >,')
+            sns('  {0}::members,'.format(annclsnm))
+            self._render_fatal_type_common_metadata(
+                annclsnm, i.type_id, sns, '  ')
             sns(');')
-        return result
+        return (order, result)
 
     def _generate_fatal_constant(self, program):
         name = self._program.name
@@ -4391,8 +4790,9 @@ class CppGenerator(t_generator.Generator):
     def _generate_fatal_constant_impl(self, sns, program):
         result = []
         for i in program.consts:
-            result.append((i.name, i.name))
-        return result
+            string_ref = self._set_fatal_string(i.name)
+            result.append((i.name, string_ref, string_ref))
+        return (result, result)
 
     def _generate_fatal_service(self, program):
         name = self._program.name
@@ -4411,26 +4811,21 @@ class CppGenerator(t_generator.Generator):
     def _generate_fatal_service_impl(self, sns, program):
         name = self._program.name
         safe_ns = self._get_namespace().replace('.', '_')
-        strclsprefix = '{0}_{1}__service_unique_strings_list'.format(
-            safe_ns, name)
-        with sns.namespace('detail').scope as detail:
-            cstr = detail.cls('struct {0}_strings'.format(strclsprefix)).scope
-            with cstr:
-                strings = []
-                for s in program.services:
-                    for m in s.functions:
-                        if m.name not in strings:
-                            strings.append(m.name)
-                        for a in m.arglist.members:
-                            if a.name not in strings:
-                                strings.append(a.name)
-                for i in strings:
-                    cstr('using {0} = {1};'
-                        .format(i, self._render_fatal_string(i)))
+        with sns.namespace(self.fatal_detail_ns).scope:
+            for s in program.services:
+                for m in s.functions:
+                    self._set_fatal_string(m.name)
+                    for a in m.arglist.members:
+                        self._set_fatal_string(a.name)
         result = []
         for i in program.services:
-            result.append((i.name, i.name))
-        return result
+            string_ref = self._set_fatal_string(i.name)
+            result.append((i.name, string_ref, string_ref))
+        return (result, result)
+
+    # ==========================================================================
+    # FATAL REFLECTION CODE - end
+    # ==========================================================================
 
     def _make_context(self, filename,
                       tcc=False,
@@ -4516,6 +4911,7 @@ class CppGenerator(t_generator.Generator):
         self._types_out_impl = types_out_impl = context.impl
         self._types_out_h = types_out_h = context.h
         self._out_tcc = types_out_tcc = context.tcc
+        self._generated_types = []
         # Enter the scope (prints guard)
         s.acquire()
         # Include base types

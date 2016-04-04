@@ -43,11 +43,13 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
     const apache::thrift::async::TAsyncSocket* socket = nullptr,
     const apache::thrift::SaslServer* sasl_server = nullptr,
     folly::EventBaseManager* manager = nullptr,
-    const std::shared_ptr<RequestChannel>& duplexChannel = nullptr)
+    const std::shared_ptr<RequestChannel>& duplexChannel = nullptr,
+    const std::shared_ptr<X509> peerCert = nullptr /*overridden from socket*/)
     : saslServer_(sasl_server),
       manager_(manager),
       requestHeader_(nullptr),
-      duplexChannel_(duplexChannel) {
+      duplexChannel_(duplexChannel),
+      peerCert_(peerCert) {
     if (address) {
       peerAddress_ = *address;
     }
@@ -92,6 +94,10 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
     return std::string();
   }
 
+  std::shared_ptr<X509> getPeerCertificate() const {
+    return peerCert_;
+  }
+
   template <typename Client>
   std::shared_ptr<Client> getDuplexClient() {
     DCHECK(duplexChannel_);
@@ -102,13 +108,14 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
     }
     return client;
   }
+
  private:
   const apache::thrift::SaslServer* saslServer_;
   folly::EventBaseManager* manager_;
   transport::THeader* requestHeader_;
   std::shared_ptr<RequestChannel> duplexChannel_;
   std::shared_ptr<TClientBase> duplexClient_;
-  std::unique_ptr<X509, folly::AsyncSSLSocket::X509_deleter> peerCert_;
+  std::shared_ptr<X509> peerCert_;
 };
 
 // Request-specific context
@@ -204,6 +211,30 @@ class Cpp2RequestContext : public apache::thrift::server::TConnectionContext {
     requestTimeout_ = requestTimeout;
   }
 
+  void setMethodName(std::string methodName) {
+    methodName_ = std::move(methodName);
+  }
+
+  const std::string& getMethodName() {
+    return methodName_;
+  }
+
+  void setProtoSeqId(int32_t protoSeqId) {
+    protoSeqId_ = protoSeqId;
+  }
+
+  int32_t getProtoSeqId() {
+    return protoSeqId_;
+  }
+
+  void setMessageBeginSize(uint32_t messageBeginSize) {
+    messageBeginSize_ = messageBeginSize;
+  }
+
+  uint32_t getMessageBeginSize() {
+    return messageBeginSize_;
+  }
+
  protected:
   static void no_op_destructor(void* /*ptr*/) {}
 
@@ -213,6 +244,10 @@ class Cpp2RequestContext : public apache::thrift::server::TConnectionContext {
   apache::thrift::transport::THeader* header_;
   bool startedProcessing_ = false;
   std::chrono::milliseconds requestTimeout_{0};
+  std::string methodName_;
+  int32_t protoSeqId_{0};
+  uint32_t messageBeginSize_{0};
+
 };
 
 } }

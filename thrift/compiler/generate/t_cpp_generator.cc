@@ -1101,70 +1101,6 @@ void t_cpp_generator::generate_consts(std::vector<t_const*> consts) {
   }
   f_consts_impl << endl;
 
-  // compatibility layer for codemoding from the old to the new version
-  // declarations
-  f_consts << "struct  __attribute__((__deprecated__(\""
-      << program_name_ << "_constants_codemod is a transitional class only "
-      "intended for codemods from the deprecated " << program_name_ <<
-      "Constants to " << program_name_ << "_constants. Consider switching to "
-      "the latter as soon as possible.\"))) " << program_name_ <<
-      "_constants_codemod {" << endl;
-  indent_up();
-  for (c_iter = consts.begin(); c_iter != consts.end(); ++c_iter) {
-    string name = (*c_iter)->get_name();
-    t_type* type = (*c_iter)->get_type();
-    t_const_value *value = (*c_iter)->get_value();
-    bool const inlined = (type->is_base_type() && !type->is_string())
-      || type->is_enum();
-
-    f_consts << indent() << "static ";
-    if (inlined) {
-      f_consts << "constexpr ";
-    }
-    f_consts << type_name(type) << " ";
-    if (!inlined) {
-      f_consts << "const& ";
-    }
-    f_consts << name << "()";
-    if (inlined) {
-      f_consts << " { return " << consts_struct << "::" << name
-               << "(); }" << endl;
-    } else {
-      f_consts << ';' << endl;
-    }
-  }
-  indent_down();
-  f_consts << "};" << endl << endl;
-
-  // definitions
-  for (c_iter = consts.begin(); c_iter != consts.end(); ++c_iter) {
-    string name = (*c_iter)->get_name();
-    t_type* type = (*c_iter)->get_type();
-    t_const_value *value = (*c_iter)->get_value();
-
-    bool const inlined = (type->is_base_type() && !type->is_string())
-      || type->is_enum();
-
-    if (inlined) {
-      continue;
-    }
-
-    f_consts_impl << indent() << type_name(type) << " const " << "&" <<
-      program_name_ << "_constants_codemod::" << name << "() {" << endl;
-    indent_up();
-    f_consts_impl << indent() << "static auto const instance([]() {" << endl;
-    indent_up();
-    f_consts_impl << indent() << type_name(type) << " value = "
-                  << consts_struct << "::" << name << "();" << endl;
-     f_consts_impl << indent() << "return value;" << endl;
-    indent_down();
-    f_consts_impl << indent() << "}());" << endl
-      << indent() << "return instance;" << endl;
-    indent_down();
-    f_consts_impl << indent() << '}' << endl;
-  }
-  f_consts_impl << endl;
-
   // DEPRECATED VERSION
   f_consts <<
     "class __attribute__((__deprecated__(\""
@@ -1222,9 +1158,28 @@ void t_cpp_generator::generate_consts(std::vector<t_const*> consts) {
  */
 void t_cpp_generator::print_const_value(ofstream& out, string name, t_type* type, t_const_value* value) {
   type = get_true_type(type);
+  auto as_struct = dynamic_cast<t_struct *>(type);
+  assert((as_struct != nullptr) == type->is_struct());
   if (type->is_base_type() || type->is_enum()) {
     string v2 = render_const_value(out, type, value);
     indent(out) << name << " = " << v2 << ";" << endl;
+  } else if (as_struct && as_struct->is_union()) {
+    assert(value->get_type() == t_const_value::CV_MAP);
+    auto const &map = value->get_map();
+    assert(map.size() <= 1);
+    if (!map.empty()) {
+      assert(map.front().first->get_type() == t_const_value::CV_STRING);
+      auto &member_name = map.front().first->get_string();
+      indent(out) << name << ".set_" << member_name << "([](){" << endl;
+      indent_up();
+      auto const member = as_struct->get_member(member_name);
+      indent(out) << type_name(member->get_type()) << " value;" << endl << endl;
+      assert(member);
+      print_const_value(out, "value", member->get_type(), map.front().second);
+      indent(out) << "return value;" << endl;
+      indent_down();
+      indent(out) << "}());" << endl;
+    }
   } else if (type->is_struct() || type->is_xception()) {
     const vector<t_field*>& fields = ((t_struct*)type)->get_members();
     vector<t_field*>::const_iterator f_iter;
@@ -1874,9 +1829,12 @@ void t_cpp_generator::generate_union_json_reader(ofstream& out,
   indent(out) << "folly::dynamic parsed = "
     << "folly::parseJson(folly::StringPiece(jsonText, len));" << endl;
 
-  indent(out) << "if (!parsed.isObject() || parsed.size() != 1) {" << endl;
+  indent(out) << "if (!parsed.isObject() || parsed.size() > 1) {" << endl;
   indent(out) << "  throw apache::thrift::TLibraryException("
               <<        "\"Can't parse " << name << "\");" << endl;
+  indent(out) << "}" << endl << endl;
+  indent(out) << "if (parsed.empty()) {" << endl;
+  indent(out) << "  return;" << endl;
   indent(out) << "}" << endl << endl;
 
   for (auto& member: members) {
@@ -1885,6 +1843,7 @@ void t_cpp_generator::generate_union_json_reader(ofstream& out,
     indent_up();
     indent(out) << "set_" << member->get_name() << "();" << endl;
     generate_json_field(out, member, "this->value_.", "", elem);
+    indent(out) << "return;" << endl;
     indent_down();
     indent(out) << "}" << endl;
   }
@@ -4317,26 +4276,32 @@ void t_cpp_generator::generate_service_multiface(t_service* tservice) {
     indent() << " public:" << endl;
   indent_up();
 
+  char const *indexVar = "thrift_multifaces_index_tmp_";
+  char const *sizeVar = "thrift_multifaces_size_tmp_";
   for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter) {
     t_struct* arglist = (*f_iter)->get_arglist();
     const vector<t_field*>& args = arglist->get_members();
     vector<t_field*>::const_iterator a_iter;
 
-    string call = string("ifaces_[i]->") + (*f_iter)->get_name() + "(";
+    string call("ifaces_[");
+    call.append(indexVar);
+    call.append("]->");
+    call.append((*f_iter)->get_name());
+    call.push_back('(');
     bool first = true;
     if (is_complex_type((*f_iter)->get_returntype())) {
-      call += "_return";
+      call.append("_return");
       first = false;
     }
     for (a_iter = args.begin(); a_iter != args.end(); ++a_iter) {
       if (first) {
         first = false;
       } else {
-        call += ", ";
+        call.append(", ");
       }
-      call += (*a_iter)->get_name();
+      call.append((*a_iter)->get_name());
     }
-    call += ")";
+    call.push_back(')');
 
     // If the generated function actually returns a value, then we break
     // out of the loop an iteration early to return the value from the call
@@ -4350,10 +4315,11 @@ void t_cpp_generator::generate_service_multiface(t_service* tservice) {
     indent_up();
 
     f_header_ <<
-      indent() << "uint32_t i;" << endl <<
-      indent() << "uint32_t sz = ifaces_.size();" << endl <<
-      indent() << "for (i = 0; i < sz" << (has_ret ? " - 1" : "")
-               << "; ++i) {" << endl <<
+      indent() << "uint32_t " << indexVar << ";" << endl <<
+      indent() << "uint32_t " << sizeVar << " = ifaces_.size();" << endl <<
+      indent() << "for (" << indexVar << " = 0; " << indexVar << " < "
+               << sizeVar << (has_ret ? " - 1" : "")
+               << "; ++" << indexVar << ") {" << endl <<
       indent() << "  " << call << ";" << endl <<
       indent() << "}" << endl;
 

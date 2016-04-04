@@ -80,6 +80,10 @@ class ThreadManager::Task {
     return queueBeginTime_ != SystemClockTimePoint();
   }
 
+  const std::shared_ptr<folly::RequestContext>& getContext() const {
+    return context_;
+  }
+
  private:
   shared_ptr<Runnable> runnable_;
   SystemClockTimePoint queueBeginTime_;
@@ -227,7 +231,7 @@ class ThreadManager::ImplT : public ThreadManager  {
   // Methods to be invoked by workers
   void workerStarted(Worker<SemType>* worker);
   void workerExiting(Worker<SemType>* worker);
-  void reportTaskStats(const SystemClockTimePoint& queueBegin,
+  void reportTaskStats(const Task& task,
                        const SystemClockTimePoint& workBegin,
                        const SystemClockTimePoint& workEnd);
   std::unique_ptr<Task> waitOnTask();

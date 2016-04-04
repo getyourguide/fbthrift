@@ -191,8 +191,12 @@ void HeaderClientChannel::SaslClientCallback::saslSendServer(
     channel_.timer_->scheduleTimeout(this,
         std::chrono::milliseconds(channel_.timeoutSASL_));
   }
+  if (sendServerHook_) {
+    sendServerHook_();
+  }
   channel_.handshakeMessagesSent_++;
 
+  header_->setFlags(HEADER_FLAG_SUPPORT_OUT_OF_ORDER);
   header_->setProtocolId(T_COMPACT_PROTOCOL);
   header_->setClientType(THRIFT_HEADER_SASL_CLIENT_TYPE);
   channel_.setProtectionState(ProtectionState::WAITING);

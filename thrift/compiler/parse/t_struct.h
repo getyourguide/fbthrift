@@ -93,7 +93,15 @@ class t_struct : public t_type {
     return members_;
   }
 
-  const members_type& get_sorted_members() {
+  const t_field* get_member(const std::string& name) const {
+    auto const result = std::find_if(
+      members_.begin(), members_.end(),
+      [&name](const t_field* m) { return m->get_name() == name; }
+    );
+    return result == members_.end() ? nullptr : *result;
+  }
+
+  const members_type& get_sorted_members() const {
     return members_in_id_order_;
   }
 

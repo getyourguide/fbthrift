@@ -22,7 +22,9 @@ class union1;
 class union2;
 class union3;
 class structA;
+class unionA;
 class structB;
+class structC;
 class struct1;
 class struct2;
 class struct3;
@@ -37,6 +39,12 @@ extern const std::map<enum1, const char*> _enum1_VALUES_TO_NAMES;
 extern const std::map<const char*, enum1, apache::thrift::ltstr> _enum1_NAMES_TO_VALUES;
 
 }} // test_cpp2::cpp_reflection
+namespace std {
+
+template<> struct hash<typename  ::test_cpp2::cpp_reflection::enum1> : public apache::thrift::detail::enum_hash<typename  ::test_cpp2::cpp_reflection::enum1> {};
+template<> struct equal_to<typename  ::test_cpp2::cpp_reflection::enum1> : public apache::thrift::detail::enum_equal_to<typename  ::test_cpp2::cpp_reflection::enum1> {};
+
+} // std
 namespace apache { namespace thrift {
 
 template <> const char* TEnumTraitsBase< ::test_cpp2::cpp_reflection::enum1>::findName( ::test_cpp2::cpp_reflection::enum1 value);
@@ -63,6 +71,12 @@ extern const std::map<enum2, const char*> _enum2_VALUES_TO_NAMES;
 extern const std::map<const char*, enum2, apache::thrift::ltstr> _enum2_NAMES_TO_VALUES;
 
 }} // test_cpp2::cpp_reflection
+namespace std {
+
+template<> struct hash<typename  ::test_cpp2::cpp_reflection::enum2> : public apache::thrift::detail::enum_hash<typename  ::test_cpp2::cpp_reflection::enum2> {};
+template<> struct equal_to<typename  ::test_cpp2::cpp_reflection::enum2> : public apache::thrift::detail::enum_equal_to<typename  ::test_cpp2::cpp_reflection::enum2> {};
+
+} // std
 namespace apache { namespace thrift {
 
 template <> const char* TEnumTraitsBase< ::test_cpp2::cpp_reflection::enum2>::findName( ::test_cpp2::cpp_reflection::enum2 value);
@@ -89,6 +103,12 @@ extern const std::map<enum3, const char*> _enum3_VALUES_TO_NAMES;
 extern const std::map<const char*, enum3, apache::thrift::ltstr> _enum3_NAMES_TO_VALUES;
 
 }} // test_cpp2::cpp_reflection
+namespace std {
+
+template<> struct hash<typename  ::test_cpp2::cpp_reflection::enum3> : public apache::thrift::detail::enum_hash<typename  ::test_cpp2::cpp_reflection::enum3> {};
+template<> struct equal_to<typename  ::test_cpp2::cpp_reflection::enum3> : public apache::thrift::detail::enum_equal_to<typename  ::test_cpp2::cpp_reflection::enum3> {};
+
+} // std
 namespace apache { namespace thrift {
 
 template <> const char* TEnumTraitsBase< ::test_cpp2::cpp_reflection::enum3>::findName( ::test_cpp2::cpp_reflection::enum3 value);
@@ -253,6 +273,30 @@ class union1 : private boost::totally_ordered<union1> {
     }
     return *this;
   }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union1(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_ui(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union1(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_ud(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union1(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_us(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union1(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_ue(arg.move());
+  }
   void __clear();
 
   virtual ~union1() throw() {
@@ -301,70 +345,84 @@ class union1 : private boost::totally_ordered<union1> {
     }
   }
 
-  template<typename... T>
-  void set_ui(T&&... t) {
+  int32_t& set_ui(int32_t t = int32_t()) {
     __clear();
     type_ = Type::ui;
-    new (&value_.ui) int32_t(std::forward<T>(t)...);
+    ::new (std::addressof(value_.ui)) int32_t(t);
+    return value_.ui;
   }
 
-  template<typename... T>
-  void set_ud(T&&... t) {
+  double& set_ud(double t = double()) {
     __clear();
     type_ = Type::ud;
-    new (&value_.ud) double(std::forward<T>(t)...);
+    ::new (std::addressof(value_.ud)) double(t);
+    return value_.ud;
   }
 
-  template<typename... T>
-  void set_us(T&&... t) {
+  std::string& set_us(std::string const &t) {
     __clear();
     type_ = Type::us;
-    new (&value_.us) std::string(std::forward<T>(t)...);
+    ::new (std::addressof(value_.us)) std::string(t);
+    return value_.us;
   }
 
-  template<typename... T>
-  void set_ue(T&&... t) {
+  std::string& set_us(std::string&& t) {
+    __clear();
+    type_ = Type::us;
+    ::new (std::addressof(value_.us)) std::string(std::move(t));
+    return value_.us;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::string, T...>> std::string& set_us(T&&... t) {
+    __clear();
+    type_ = Type::us;
+    ::new (std::addressof(value_.us)) std::string(std::forward<T>(t)...);
+    return value_.us;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1& set_ue( ::test_cpp2::cpp_reflection::enum1 t =  ::test_cpp2::cpp_reflection::enum1()) {
     __clear();
     type_ = Type::ue;
-    new (&value_.ue)  ::test_cpp2::cpp_reflection::enum1(std::forward<T>(t)...);
+    ::new (std::addressof(value_.ue))  ::test_cpp2::cpp_reflection::enum1(t);
+    return value_.ue;
   }
 
-  const int32_t& get_ui() const {
+  int32_t const & get_ui() const {
     assert(type_ == Type::ui);
     return value_.ui;
   }
 
-  const double& get_ud() const {
+  double const & get_ud() const {
     assert(type_ == Type::ud);
     return value_.ud;
   }
 
-  const std::string& get_us() const {
+  std::string const & get_us() const {
     assert(type_ == Type::us);
     return value_.us;
   }
 
-  const  ::test_cpp2::cpp_reflection::enum1& get_ue() const {
+   ::test_cpp2::cpp_reflection::enum1 const & get_ue() const {
     assert(type_ == Type::ue);
     return value_.ue;
   }
 
-  int32_t& mutable_ui() {
+  int32_t & mutable_ui() {
     assert(type_ == Type::ui);
     return value_.ui;
   }
 
-  double& mutable_ud() {
+  double & mutable_ud() {
     assert(type_ == Type::ud);
     return value_.ud;
   }
 
-  std::string& mutable_us() {
+  std::string & mutable_us() {
     assert(type_ == Type::us);
     return value_.us;
   }
 
-   ::test_cpp2::cpp_reflection::enum1& mutable_ue() {
+   ::test_cpp2::cpp_reflection::enum1 & mutable_ue() {
     assert(type_ == Type::ue);
     return value_.ue;
   }
@@ -589,6 +647,30 @@ class union2 : private boost::totally_ordered<union2> {
     }
     return *this;
   }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union2(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_ui_2(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union2(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_ud_2(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union2(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_us_2(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union2(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_ue_2(arg.move());
+  }
   void __clear();
 
   virtual ~union2() throw() {
@@ -637,70 +719,84 @@ class union2 : private boost::totally_ordered<union2> {
     }
   }
 
-  template<typename... T>
-  void set_ui_2(T&&... t) {
+  int32_t& set_ui_2(int32_t t = int32_t()) {
     __clear();
     type_ = Type::ui_2;
-    new (&value_.ui_2) int32_t(std::forward<T>(t)...);
+    ::new (std::addressof(value_.ui_2)) int32_t(t);
+    return value_.ui_2;
   }
 
-  template<typename... T>
-  void set_ud_2(T&&... t) {
+  double& set_ud_2(double t = double()) {
     __clear();
     type_ = Type::ud_2;
-    new (&value_.ud_2) double(std::forward<T>(t)...);
+    ::new (std::addressof(value_.ud_2)) double(t);
+    return value_.ud_2;
   }
 
-  template<typename... T>
-  void set_us_2(T&&... t) {
+  std::string& set_us_2(std::string const &t) {
     __clear();
     type_ = Type::us_2;
-    new (&value_.us_2) std::string(std::forward<T>(t)...);
+    ::new (std::addressof(value_.us_2)) std::string(t);
+    return value_.us_2;
   }
 
-  template<typename... T>
-  void set_ue_2(T&&... t) {
+  std::string& set_us_2(std::string&& t) {
+    __clear();
+    type_ = Type::us_2;
+    ::new (std::addressof(value_.us_2)) std::string(std::move(t));
+    return value_.us_2;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::string, T...>> std::string& set_us_2(T&&... t) {
+    __clear();
+    type_ = Type::us_2;
+    ::new (std::addressof(value_.us_2)) std::string(std::forward<T>(t)...);
+    return value_.us_2;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1& set_ue_2( ::test_cpp2::cpp_reflection::enum1 t =  ::test_cpp2::cpp_reflection::enum1()) {
     __clear();
     type_ = Type::ue_2;
-    new (&value_.ue_2)  ::test_cpp2::cpp_reflection::enum1(std::forward<T>(t)...);
+    ::new (std::addressof(value_.ue_2))  ::test_cpp2::cpp_reflection::enum1(t);
+    return value_.ue_2;
   }
 
-  const int32_t& get_ui_2() const {
+  int32_t const & get_ui_2() const {
     assert(type_ == Type::ui_2);
     return value_.ui_2;
   }
 
-  const double& get_ud_2() const {
+  double const & get_ud_2() const {
     assert(type_ == Type::ud_2);
     return value_.ud_2;
   }
 
-  const std::string& get_us_2() const {
+  std::string const & get_us_2() const {
     assert(type_ == Type::us_2);
     return value_.us_2;
   }
 
-  const  ::test_cpp2::cpp_reflection::enum1& get_ue_2() const {
+   ::test_cpp2::cpp_reflection::enum1 const & get_ue_2() const {
     assert(type_ == Type::ue_2);
     return value_.ue_2;
   }
 
-  int32_t& mutable_ui_2() {
+  int32_t & mutable_ui_2() {
     assert(type_ == Type::ui_2);
     return value_.ui_2;
   }
 
-  double& mutable_ud_2() {
+  double & mutable_ud_2() {
     assert(type_ == Type::ud_2);
     return value_.ud_2;
   }
 
-  std::string& mutable_us_2() {
+  std::string & mutable_us_2() {
     assert(type_ == Type::us_2);
     return value_.us_2;
   }
 
-   ::test_cpp2::cpp_reflection::enum1& mutable_ue_2() {
+   ::test_cpp2::cpp_reflection::enum1 & mutable_ue_2() {
     assert(type_ == Type::ue_2);
     return value_.ue_2;
   }
@@ -925,6 +1021,30 @@ class union3 : private boost::totally_ordered<union3> {
     }
     return *this;
   }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union3(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_ui_3(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union3(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_ud_3(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union3(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_us_3(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  union3(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_ue_3(arg.move());
+  }
   void __clear();
 
   virtual ~union3() throw() {
@@ -973,70 +1093,84 @@ class union3 : private boost::totally_ordered<union3> {
     }
   }
 
-  template<typename... T>
-  void set_ui_3(T&&... t) {
+  int32_t& set_ui_3(int32_t t = int32_t()) {
     __clear();
     type_ = Type::ui_3;
-    new (&value_.ui_3) int32_t(std::forward<T>(t)...);
+    ::new (std::addressof(value_.ui_3)) int32_t(t);
+    return value_.ui_3;
   }
 
-  template<typename... T>
-  void set_ud_3(T&&... t) {
+  double& set_ud_3(double t = double()) {
     __clear();
     type_ = Type::ud_3;
-    new (&value_.ud_3) double(std::forward<T>(t)...);
+    ::new (std::addressof(value_.ud_3)) double(t);
+    return value_.ud_3;
   }
 
-  template<typename... T>
-  void set_us_3(T&&... t) {
+  std::string& set_us_3(std::string const &t) {
     __clear();
     type_ = Type::us_3;
-    new (&value_.us_3) std::string(std::forward<T>(t)...);
+    ::new (std::addressof(value_.us_3)) std::string(t);
+    return value_.us_3;
   }
 
-  template<typename... T>
-  void set_ue_3(T&&... t) {
+  std::string& set_us_3(std::string&& t) {
+    __clear();
+    type_ = Type::us_3;
+    ::new (std::addressof(value_.us_3)) std::string(std::move(t));
+    return value_.us_3;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::string, T...>> std::string& set_us_3(T&&... t) {
+    __clear();
+    type_ = Type::us_3;
+    ::new (std::addressof(value_.us_3)) std::string(std::forward<T>(t)...);
+    return value_.us_3;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1& set_ue_3( ::test_cpp2::cpp_reflection::enum1 t =  ::test_cpp2::cpp_reflection::enum1()) {
     __clear();
     type_ = Type::ue_3;
-    new (&value_.ue_3)  ::test_cpp2::cpp_reflection::enum1(std::forward<T>(t)...);
+    ::new (std::addressof(value_.ue_3))  ::test_cpp2::cpp_reflection::enum1(t);
+    return value_.ue_3;
   }
 
-  const int32_t& get_ui_3() const {
+  int32_t const & get_ui_3() const {
     assert(type_ == Type::ui_3);
     return value_.ui_3;
   }
 
-  const double& get_ud_3() const {
+  double const & get_ud_3() const {
     assert(type_ == Type::ud_3);
     return value_.ud_3;
   }
 
-  const std::string& get_us_3() const {
+  std::string const & get_us_3() const {
     assert(type_ == Type::us_3);
     return value_.us_3;
   }
 
-  const  ::test_cpp2::cpp_reflection::enum1& get_ue_3() const {
+   ::test_cpp2::cpp_reflection::enum1 const & get_ue_3() const {
     assert(type_ == Type::ue_3);
     return value_.ue_3;
   }
 
-  int32_t& mutable_ui_3() {
+  int32_t & mutable_ui_3() {
     assert(type_ == Type::ui_3);
     return value_.ui_3;
   }
 
-  double& mutable_ud_3() {
+  double & mutable_ud_3() {
     assert(type_ == Type::ud_3);
     return value_.ud_3;
   }
 
-  std::string& mutable_us_3() {
+  std::string & mutable_us_3() {
     assert(type_ == Type::us_3);
     return value_.us_3;
   }
 
-   ::test_cpp2::cpp_reflection::enum1& mutable_ue_3() {
+   ::test_cpp2::cpp_reflection::enum1 & mutable_ue_3() {
     assert(type_ == Type::ue_3);
     return value_.ue_3;
   }
@@ -1122,7 +1256,24 @@ class structA : private boost::totally_ordered<structA> {
 
   structA(apache::thrift::FragileConstructor, int32_t a__arg, std::string b__arg) :
       a(std::move(a__arg)),
-      b(std::move(b__arg)) {}
+      b(std::move(b__arg)) {
+    __isset.a = true;
+    __isset.b = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structA(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structA(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    a = arg.move();
+    __isset.a = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structA(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structA(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    b = arg.move();
+    __isset.b = true;
+  }
 
   structA(structA&&) = default;
 
@@ -1139,17 +1290,13 @@ class structA : private boost::totally_ordered<structA> {
   std::string b;
 
   struct __isset {
-    __isset() {
-      __clear();
-    }
-
     void __clear() {
       a = false;
       b = false;
     }
 
-    bool a;
-    bool b;
+    bool a = false;
+    bool b = false;
   } __isset;
   bool operator==(const structA& rhs) const;
 
@@ -1161,6 +1308,31 @@ class structA : private boost::totally_ordered<structA> {
       return b < rhs.b;
     }
     return false;
+  }
+
+  int32_t get_a() const {
+    return a;
+  }
+
+  int32_t& set_a(int32_t a_) {
+    a = a_;
+    __isset.a = true;
+    return a;
+  }
+
+  const std::string& get_b() const& {
+    return b;
+  }
+
+  std::string get_b() && {
+    return std::move(b);
+  }
+
+  template <typename T_structA_b_struct_setter>
+  std::string& set_b(T_structA_b_struct_setter&& b_) {
+    b = std::forward<T_structA_b_struct_setter>(b_);
+    __isset.b = true;
+    return b;
   }
 
   template <class Protocol_>
@@ -1205,6 +1377,449 @@ template <> template <class Protocol> inline uint32_t Cpp2Ops< ::test_cpp2::cpp_
 }} // apache::thrift
 namespace test_cpp2 { namespace cpp_reflection {
 
+class unionA : private boost::totally_ordered<unionA> {
+ public:
+  enum Type {
+    __EMPTY__ = 0,
+    i = 1,
+    d = 2,
+    s = 3,
+    e = 4,
+    a = 5,
+  } ;
+
+  unionA() :
+      type_(Type::__EMPTY__) {}
+
+  unionA(unionA&& rhs) :
+      type_(Type::__EMPTY__) {
+    if (this == &rhs) {return; }
+    if (rhs.type_ == Type::__EMPTY__) { return; }
+    switch(rhs.type_) {
+      case Type::i:
+      {
+        set_i(std::move(rhs.value_.i));
+        break;
+      }
+      case Type::d:
+      {
+        set_d(std::move(rhs.value_.d));
+        break;
+      }
+      case Type::s:
+      {
+        set_s(std::move(rhs.value_.s));
+        break;
+      }
+      case Type::e:
+      {
+        set_e(std::move(rhs.value_.e));
+        break;
+      }
+      case Type::a:
+      {
+        set_a(std::move(rhs.value_.a));
+        break;
+      }
+      default:
+      {
+        assert(false);
+        break;
+      }
+    }
+    rhs.__clear();
+  }
+
+  unionA(const unionA& rhs) :
+      type_(Type::__EMPTY__) {
+    if (this == &rhs) {return; }
+    if (rhs.type_ == Type::__EMPTY__) { return; }
+    switch(rhs.type_) {
+      case Type::i:
+      {
+        set_i(rhs.value_.i);
+        break;
+      }
+      case Type::d:
+      {
+        set_d(rhs.value_.d);
+        break;
+      }
+      case Type::s:
+      {
+        set_s(rhs.value_.s);
+        break;
+      }
+      case Type::e:
+      {
+        set_e(rhs.value_.e);
+        break;
+      }
+      case Type::a:
+      {
+        set_a(rhs.value_.a);
+        break;
+      }
+      default:
+      {
+        assert(false);
+        break;
+      }
+    }
+  }
+
+  unionA& operator=(unionA&& rhs) {
+    if (this == &rhs) {return *this; }
+    __clear();
+    if (rhs.type_ == Type::__EMPTY__) { return *this; }
+    switch(rhs.type_) {
+      case Type::i:
+      {
+        set_i(std::move(rhs.value_.i));
+        break;
+      }
+      case Type::d:
+      {
+        set_d(std::move(rhs.value_.d));
+        break;
+      }
+      case Type::s:
+      {
+        set_s(std::move(rhs.value_.s));
+        break;
+      }
+      case Type::e:
+      {
+        set_e(std::move(rhs.value_.e));
+        break;
+      }
+      case Type::a:
+      {
+        set_a(std::move(rhs.value_.a));
+        break;
+      }
+      default:
+      {
+        assert(false);
+        break;
+      }
+    }
+    rhs.__clear();
+    return *this;
+  }
+
+  unionA& operator=(const unionA& rhs) {
+    if (this == &rhs) {return *this; }
+    __clear();
+    if (rhs.type_ == Type::__EMPTY__) { return *this; }
+    switch(rhs.type_) {
+      case Type::i:
+      {
+        set_i(rhs.value_.i);
+        break;
+      }
+      case Type::d:
+      {
+        set_d(rhs.value_.d);
+        break;
+      }
+      case Type::s:
+      {
+        set_s(rhs.value_.s);
+        break;
+      }
+      case Type::e:
+      {
+        set_e(rhs.value_.e);
+        break;
+      }
+      case Type::a:
+      {
+        set_a(rhs.value_.a);
+        break;
+      }
+      default:
+      {
+        assert(false);
+        break;
+      }
+    }
+    return *this;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  unionA(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_i(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  unionA(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_d(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  unionA(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_s(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  unionA(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_e(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  unionA(::apache::thrift::detail::argument_wrapper<5, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_a(arg.move());
+  }
+  void __clear();
+
+  virtual ~unionA() throw() {
+    __clear();
+  }
+
+  union storage_type {
+    int32_t i;
+    double d;
+    std::string s;
+     ::test_cpp2::cpp_reflection::enum1 e;
+     ::test_cpp2::cpp_reflection::structA a;
+
+    storage_type() {}
+    ~storage_type() {}
+  } ;
+  bool operator==(const unionA& rhs) const;
+
+  bool operator < (const unionA& rhs) const {
+    if (type_ != rhs.type_) { return type_ < rhs.type_; }
+    switch(type_) {
+      case Type::i:
+      {
+        return value_.i < rhs.value_.i;
+        break;
+      }
+      case Type::d:
+      {
+        return value_.d < rhs.value_.d;
+        break;
+      }
+      case Type::s:
+      {
+        return value_.s < rhs.value_.s;
+        break;
+      }
+      case Type::e:
+      {
+        return value_.e < rhs.value_.e;
+        break;
+      }
+      case Type::a:
+      {
+        return value_.a < rhs.value_.a;
+        break;
+      }
+      default:
+      {
+        return false;
+        break;
+      }
+    }
+  }
+
+  int32_t& set_i(int32_t t = int32_t()) {
+    __clear();
+    type_ = Type::i;
+    ::new (std::addressof(value_.i)) int32_t(t);
+    return value_.i;
+  }
+
+  double& set_d(double t = double()) {
+    __clear();
+    type_ = Type::d;
+    ::new (std::addressof(value_.d)) double(t);
+    return value_.d;
+  }
+
+  std::string& set_s(std::string const &t) {
+    __clear();
+    type_ = Type::s;
+    ::new (std::addressof(value_.s)) std::string(t);
+    return value_.s;
+  }
+
+  std::string& set_s(std::string&& t) {
+    __clear();
+    type_ = Type::s;
+    ::new (std::addressof(value_.s)) std::string(std::move(t));
+    return value_.s;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::string, T...>> std::string& set_s(T&&... t) {
+    __clear();
+    type_ = Type::s;
+    ::new (std::addressof(value_.s)) std::string(std::forward<T>(t)...);
+    return value_.s;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1& set_e( ::test_cpp2::cpp_reflection::enum1 t =  ::test_cpp2::cpp_reflection::enum1()) {
+    __clear();
+    type_ = Type::e;
+    ::new (std::addressof(value_.e))  ::test_cpp2::cpp_reflection::enum1(t);
+    return value_.e;
+  }
+
+   ::test_cpp2::cpp_reflection::structA& set_a( ::test_cpp2::cpp_reflection::structA const &t) {
+    __clear();
+    type_ = Type::a;
+    ::new (std::addressof(value_.a))  ::test_cpp2::cpp_reflection::structA(t);
+    return value_.a;
+  }
+
+   ::test_cpp2::cpp_reflection::structA& set_a( ::test_cpp2::cpp_reflection::structA&& t) {
+    __clear();
+    type_ = Type::a;
+    ::new (std::addressof(value_.a))  ::test_cpp2::cpp_reflection::structA(std::move(t));
+    return value_.a;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t< ::test_cpp2::cpp_reflection::structA, T...>>  ::test_cpp2::cpp_reflection::structA& set_a(T&&... t) {
+    __clear();
+    type_ = Type::a;
+    ::new (std::addressof(value_.a))  ::test_cpp2::cpp_reflection::structA(std::forward<T>(t)...);
+    return value_.a;
+  }
+
+  int32_t const & get_i() const {
+    assert(type_ == Type::i);
+    return value_.i;
+  }
+
+  double const & get_d() const {
+    assert(type_ == Type::d);
+    return value_.d;
+  }
+
+  std::string const & get_s() const {
+    assert(type_ == Type::s);
+    return value_.s;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1 const & get_e() const {
+    assert(type_ == Type::e);
+    return value_.e;
+  }
+
+   ::test_cpp2::cpp_reflection::structA const & get_a() const {
+    assert(type_ == Type::a);
+    return value_.a;
+  }
+
+  int32_t & mutable_i() {
+    assert(type_ == Type::i);
+    return value_.i;
+  }
+
+  double & mutable_d() {
+    assert(type_ == Type::d);
+    return value_.d;
+  }
+
+  std::string & mutable_s() {
+    assert(type_ == Type::s);
+    return value_.s;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1 & mutable_e() {
+    assert(type_ == Type::e);
+    return value_.e;
+  }
+
+   ::test_cpp2::cpp_reflection::structA & mutable_a() {
+    assert(type_ == Type::a);
+    return value_.a;
+  }
+
+  int32_t move_i() {
+    assert(type_ == Type::i);
+    return std::move(value_.i);
+  }
+
+  double move_d() {
+    assert(type_ == Type::d);
+    return std::move(value_.d);
+  }
+
+  std::string move_s() {
+    assert(type_ == Type::s);
+    return std::move(value_.s);
+  }
+
+   ::test_cpp2::cpp_reflection::enum1 move_e() {
+    assert(type_ == Type::e);
+    return std::move(value_.e);
+  }
+
+   ::test_cpp2::cpp_reflection::structA move_a() {
+    assert(type_ == Type::a);
+    return std::move(value_.a);
+  }
+
+  Type getType() const { return type_; }
+
+  template <class Protocol_>
+  uint32_t read(Protocol_* iprot);
+  template <class Protocol_>
+  uint32_t serializedSize(Protocol_* prot_) const;
+  template <class Protocol_>
+  uint32_t serializedSizeZC(Protocol_* prot_) const;
+  template <class Protocol_>
+  uint32_t write(Protocol_* prot_) const;
+ protected:
+  template <class T>
+  void destruct(T &val) {
+    (&val)->~T();
+  }
+
+  Type type_;
+  storage_type value_;
+};
+
+void swap(unionA& a, unionA& b);
+
+}} // test_cpp2::cpp_reflection
+namespace apache { namespace thrift {
+
+template <> inline void Cpp2Ops< ::test_cpp2::cpp_reflection::unionA>::clear( ::test_cpp2::cpp_reflection::unionA* obj) {
+  return obj->__clear();
+}
+
+template <> inline constexpr apache::thrift::protocol::TType Cpp2Ops< ::test_cpp2::cpp_reflection::unionA>::thriftType() {
+  return apache::thrift::protocol::T_STRUCT;
+}
+
+template <> template <class Protocol> inline uint32_t Cpp2Ops< ::test_cpp2::cpp_reflection::unionA>::write(Protocol* proto, const  ::test_cpp2::cpp_reflection::unionA* obj) {
+  return obj->write(proto);
+}
+
+template <> template <class Protocol> inline uint32_t Cpp2Ops< ::test_cpp2::cpp_reflection::unionA>::read(Protocol* proto,   ::test_cpp2::cpp_reflection::unionA* obj) {
+  return obj->read(proto);
+}
+
+template <> template <class Protocol> inline uint32_t Cpp2Ops< ::test_cpp2::cpp_reflection::unionA>::serializedSize(Protocol* proto, const  ::test_cpp2::cpp_reflection::unionA* obj) {
+  return obj->serializedSize(proto);
+}
+
+template <> template <class Protocol> inline uint32_t Cpp2Ops< ::test_cpp2::cpp_reflection::unionA>::serializedSizeZC(Protocol* proto, const  ::test_cpp2::cpp_reflection::unionA* obj) {
+  return obj->serializedSizeZC(proto);
+}
+
+}} // apache::thrift
+namespace test_cpp2 { namespace cpp_reflection {
+
 class structB : private boost::totally_ordered<structB> {
  public:
 
@@ -1215,7 +1830,24 @@ class structB : private boost::totally_ordered<structB> {
 
   structB(apache::thrift::FragileConstructor, double c__arg, bool d__arg) :
       c(std::move(c__arg)),
-      d(std::move(d__arg)) {}
+      d(std::move(d__arg)) {
+    __isset.c = true;
+    __isset.d = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structB(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structB(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    c = arg.move();
+    __isset.c = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structB(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structB(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    d = arg.move();
+    __isset.d = true;
+  }
 
   structB(structB&&) = default;
 
@@ -1232,17 +1864,13 @@ class structB : private boost::totally_ordered<structB> {
   bool d;
 
   struct __isset {
-    __isset() {
-      __clear();
-    }
-
     void __clear() {
       c = false;
       d = false;
     }
 
-    bool c;
-    bool d;
+    bool c = false;
+    bool d = false;
   } __isset;
   bool operator==(const structB& rhs) const;
 
@@ -1254,6 +1882,26 @@ class structB : private boost::totally_ordered<structB> {
       return d < rhs.d;
     }
     return false;
+  }
+
+  double get_c() const {
+    return c;
+  }
+
+  double& set_c(double c_) {
+    c = c_;
+    __isset.c = true;
+    return c;
+  }
+
+  bool get_d() const {
+    return d;
+  }
+
+  bool& set_d(bool d_) {
+    d = d_;
+    __isset.d = true;
+    return d;
   }
 
   template <class Protocol_>
@@ -1298,6 +1946,696 @@ template <> template <class Protocol> inline uint32_t Cpp2Ops< ::test_cpp2::cpp_
 }} // apache::thrift
 namespace test_cpp2 { namespace cpp_reflection {
 
+class structC : private boost::totally_ordered<structC> {
+ public:
+
+  structC() :
+      a(0),
+      c(0),
+      d(0),
+      e( ::test_cpp2::cpp_reflection::enum1()),
+      f( ::test_cpp2::cpp_reflection::enum2()) {}
+  // FragileConstructor for use in initialization lists only
+
+  structC(apache::thrift::FragileConstructor, int32_t a__arg, std::string b__arg, double c__arg, bool d__arg,  ::test_cpp2::cpp_reflection::enum1 e__arg,  ::test_cpp2::cpp_reflection::enum2 f__arg,  ::test_cpp2::cpp_reflection::union1 g__arg,  ::test_cpp2::cpp_reflection::unionA h__arg,  ::test_cpp2::cpp_reflection::unionA i__arg, std::vector<int32_t> j__arg, std::vector<int32_t> j1__arg, std::vector< ::test_cpp2::cpp_reflection::enum1> j2__arg, std::vector< ::test_cpp2::cpp_reflection::structA> j3__arg, std::set<int32_t> k__arg, std::set<int32_t> k1__arg, std::set< ::test_cpp2::cpp_reflection::enum2> k2__arg, std::set< ::test_cpp2::cpp_reflection::structB> k3__arg, std::map<int32_t, int32_t> l__arg, std::map<int32_t, int32_t> l1__arg, std::map<int32_t,  ::test_cpp2::cpp_reflection::enum1> l2__arg, std::map<int32_t,  ::test_cpp2::cpp_reflection::structB> l3__arg, std::map< ::test_cpp2::cpp_reflection::enum1, int32_t> m1__arg, std::map< ::test_cpp2::cpp_reflection::enum1,  ::test_cpp2::cpp_reflection::enum2> m2__arg, std::map< ::test_cpp2::cpp_reflection::enum1,  ::test_cpp2::cpp_reflection::structB> m3__arg, std::map<std::string, int32_t> n1__arg, std::map<std::string,  ::test_cpp2::cpp_reflection::enum1> n2__arg, std::map<std::string,  ::test_cpp2::cpp_reflection::structB> n3__arg, std::map< ::test_cpp2::cpp_reflection::structA, int32_t> o1__arg, std::map< ::test_cpp2::cpp_reflection::structA,  ::test_cpp2::cpp_reflection::enum1> o2__arg, std::map< ::test_cpp2::cpp_reflection::structA,  ::test_cpp2::cpp_reflection::structB> o3__arg) :
+      a(std::move(a__arg)),
+      b(std::move(b__arg)),
+      c(std::move(c__arg)),
+      d(std::move(d__arg)),
+      e(std::move(e__arg)),
+      f(std::move(f__arg)),
+      g(std::move(g__arg)),
+      h(std::move(h__arg)),
+      i(std::move(i__arg)),
+      j(std::move(j__arg)),
+      j1(std::move(j1__arg)),
+      j2(std::move(j2__arg)),
+      j3(std::move(j3__arg)),
+      k(std::move(k__arg)),
+      k1(std::move(k1__arg)),
+      k2(std::move(k2__arg)),
+      k3(std::move(k3__arg)),
+      l(std::move(l__arg)),
+      l1(std::move(l1__arg)),
+      l2(std::move(l2__arg)),
+      l3(std::move(l3__arg)),
+      m1(std::move(m1__arg)),
+      m2(std::move(m2__arg)),
+      m3(std::move(m3__arg)),
+      n1(std::move(n1__arg)),
+      n2(std::move(n2__arg)),
+      n3(std::move(n3__arg)),
+      o1(std::move(o1__arg)),
+      o2(std::move(o2__arg)),
+      o3(std::move(o3__arg)) {
+    __isset.a = true;
+    __isset.b = true;
+    __isset.c = true;
+    __isset.d = true;
+    __isset.e = true;
+    __isset.f = true;
+    __isset.g = true;
+    __isset.h = true;
+    __isset.i = true;
+    __isset.j = true;
+    __isset.j1 = true;
+    __isset.j2 = true;
+    __isset.j3 = true;
+    __isset.k = true;
+    __isset.k1 = true;
+    __isset.k2 = true;
+    __isset.k3 = true;
+    __isset.l = true;
+    __isset.l1 = true;
+    __isset.l2 = true;
+    __isset.l3 = true;
+    __isset.m1 = true;
+    __isset.m2 = true;
+    __isset.m3 = true;
+    __isset.n1 = true;
+    __isset.n2 = true;
+    __isset.n3 = true;
+    __isset.o1 = true;
+    __isset.o2 = true;
+    __isset.o3 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    a = arg.move();
+    __isset.a = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    b = arg.move();
+    __isset.b = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    c = arg.move();
+    __isset.c = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    d = arg.move();
+    __isset.d = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<5, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    e = arg.move();
+    __isset.e = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<6, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    f = arg.move();
+    __isset.f = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<7, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    g = arg.move();
+    __isset.g = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<8, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    h = arg.move();
+    __isset.h = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<9, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    i = arg.move();
+    __isset.i = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<10, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    j = arg.move();
+    __isset.j = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<11, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    j1 = arg.move();
+    __isset.j1 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<12, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    j2 = arg.move();
+    __isset.j2 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<13, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    j3 = arg.move();
+    __isset.j3 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<14, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    k = arg.move();
+    __isset.k = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<15, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    k1 = arg.move();
+    __isset.k1 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<16, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    k2 = arg.move();
+    __isset.k2 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<17, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    k3 = arg.move();
+    __isset.k3 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<18, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    l = arg.move();
+    __isset.l = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<19, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    l1 = arg.move();
+    __isset.l1 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<20, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    l2 = arg.move();
+    __isset.l2 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<21, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    l3 = arg.move();
+    __isset.l3 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<22, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    m1 = arg.move();
+    __isset.m1 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<23, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    m2 = arg.move();
+    __isset.m2 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<24, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    m3 = arg.move();
+    __isset.m3 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<25, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    n1 = arg.move();
+    __isset.n1 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<26, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    n2 = arg.move();
+    __isset.n2 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<27, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    n3 = arg.move();
+    __isset.n3 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<28, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    o1 = arg.move();
+    __isset.o1 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<29, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    o2 = arg.move();
+    __isset.o2 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  structC(::apache::thrift::detail::argument_wrapper<30, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    structC(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    o3 = arg.move();
+    __isset.o3 = true;
+  }
+
+  structC(structC&&) = default;
+
+  structC(const structC&) = default;
+
+  structC& operator=(structC&&) = default;
+
+  structC& operator=(const structC&) = default;
+  void __clear();
+
+  virtual ~structC() throw() {}
+
+  int32_t a;
+  std::string b;
+  double c;
+  bool d;
+   ::test_cpp2::cpp_reflection::enum1 e;
+   ::test_cpp2::cpp_reflection::enum2 f;
+   ::test_cpp2::cpp_reflection::union1 g;
+   ::test_cpp2::cpp_reflection::unionA h;
+   ::test_cpp2::cpp_reflection::unionA i;
+  std::vector<int32_t> j;
+  std::vector<int32_t> j1;
+  std::vector< ::test_cpp2::cpp_reflection::enum1> j2;
+  std::vector< ::test_cpp2::cpp_reflection::structA> j3;
+  std::set<int32_t> k;
+  std::set<int32_t> k1;
+  std::set< ::test_cpp2::cpp_reflection::enum2> k2;
+  std::set< ::test_cpp2::cpp_reflection::structB> k3;
+  std::map<int32_t, int32_t> l;
+  std::map<int32_t, int32_t> l1;
+  std::map<int32_t,  ::test_cpp2::cpp_reflection::enum1> l2;
+  std::map<int32_t,  ::test_cpp2::cpp_reflection::structB> l3;
+  std::map< ::test_cpp2::cpp_reflection::enum1, int32_t> m1;
+  std::map< ::test_cpp2::cpp_reflection::enum1,  ::test_cpp2::cpp_reflection::enum2> m2;
+  std::map< ::test_cpp2::cpp_reflection::enum1,  ::test_cpp2::cpp_reflection::structB> m3;
+  std::map<std::string, int32_t> n1;
+  std::map<std::string,  ::test_cpp2::cpp_reflection::enum1> n2;
+  std::map<std::string,  ::test_cpp2::cpp_reflection::structB> n3;
+  std::map< ::test_cpp2::cpp_reflection::structA, int32_t> o1;
+  std::map< ::test_cpp2::cpp_reflection::structA,  ::test_cpp2::cpp_reflection::enum1> o2;
+  std::map< ::test_cpp2::cpp_reflection::structA,  ::test_cpp2::cpp_reflection::structB> o3;
+
+  struct __isset {
+    void __clear() {
+      a = false;
+      b = false;
+      c = false;
+      d = false;
+      e = false;
+      f = false;
+      g = false;
+      h = false;
+      i = false;
+      j = false;
+      j1 = false;
+      j2 = false;
+      j3 = false;
+      k = false;
+      k1 = false;
+      k2 = false;
+      k3 = false;
+      l = false;
+      l1 = false;
+      l2 = false;
+      l3 = false;
+      m1 = false;
+      m2 = false;
+      m3 = false;
+      n1 = false;
+      n2 = false;
+      n3 = false;
+      o1 = false;
+      o2 = false;
+      o3 = false;
+    }
+
+    bool a = false;
+    bool b = false;
+    bool c = false;
+    bool d = false;
+    bool e = false;
+    bool f = false;
+    bool g = false;
+    bool h = false;
+    bool i = false;
+    bool j = false;
+    bool j1 = false;
+    bool j2 = false;
+    bool j3 = false;
+    bool k = false;
+    bool k1 = false;
+    bool k2 = false;
+    bool k3 = false;
+    bool l = false;
+    bool l1 = false;
+    bool l2 = false;
+    bool l3 = false;
+    bool m1 = false;
+    bool m2 = false;
+    bool m3 = false;
+    bool n1 = false;
+    bool n2 = false;
+    bool n3 = false;
+    bool o1 = false;
+    bool o2 = false;
+    bool o3 = false;
+  } __isset;
+  bool operator==(const structC& rhs) const;
+
+  bool operator < (const structC& rhs) const {
+    if (!(a == rhs.a)) {
+      return a < rhs.a;
+    }
+    if (!(b == rhs.b)) {
+      return b < rhs.b;
+    }
+    if (!(c == rhs.c)) {
+      return c < rhs.c;
+    }
+    if (!(d == rhs.d)) {
+      return d < rhs.d;
+    }
+    if (!(e == rhs.e)) {
+      return e < rhs.e;
+    }
+    if (!(f == rhs.f)) {
+      return f < rhs.f;
+    }
+    if (!(g == rhs.g)) {
+      return g < rhs.g;
+    }
+    if (!(h == rhs.h)) {
+      return h < rhs.h;
+    }
+    if (!(i == rhs.i)) {
+      return i < rhs.i;
+    }
+    if (!(j == rhs.j)) {
+      return j < rhs.j;
+    }
+    if (!(j1 == rhs.j1)) {
+      return j1 < rhs.j1;
+    }
+    if (!(j2 == rhs.j2)) {
+      return j2 < rhs.j2;
+    }
+    if (!(j3 == rhs.j3)) {
+      return j3 < rhs.j3;
+    }
+    if (!(k == rhs.k)) {
+      return k < rhs.k;
+    }
+    if (!(k1 == rhs.k1)) {
+      return k1 < rhs.k1;
+    }
+    if (!(k2 == rhs.k2)) {
+      return k2 < rhs.k2;
+    }
+    if (!(k3 == rhs.k3)) {
+      return k3 < rhs.k3;
+    }
+    if (!(l == rhs.l)) {
+      return l < rhs.l;
+    }
+    if (!(l1 == rhs.l1)) {
+      return l1 < rhs.l1;
+    }
+    if (!(l2 == rhs.l2)) {
+      return l2 < rhs.l2;
+    }
+    if (!(l3 == rhs.l3)) {
+      return l3 < rhs.l3;
+    }
+    if (!(m1 == rhs.m1)) {
+      return m1 < rhs.m1;
+    }
+    if (!(m2 == rhs.m2)) {
+      return m2 < rhs.m2;
+    }
+    if (!(m3 == rhs.m3)) {
+      return m3 < rhs.m3;
+    }
+    if (!(n1 == rhs.n1)) {
+      return n1 < rhs.n1;
+    }
+    if (!(n2 == rhs.n2)) {
+      return n2 < rhs.n2;
+    }
+    if (!(n3 == rhs.n3)) {
+      return n3 < rhs.n3;
+    }
+    if (!(o1 == rhs.o1)) {
+      return o1 < rhs.o1;
+    }
+    if (!(o2 == rhs.o2)) {
+      return o2 < rhs.o2;
+    }
+    if (!(o3 == rhs.o3)) {
+      return o3 < rhs.o3;
+    }
+    return false;
+  }
+
+  int32_t get_a() const {
+    return a;
+  }
+
+  int32_t& set_a(int32_t a_) {
+    a = a_;
+    __isset.a = true;
+    return a;
+  }
+
+  const std::string& get_b() const& {
+    return b;
+  }
+
+  std::string get_b() && {
+    return std::move(b);
+  }
+
+  template <typename T_structC_b_struct_setter>
+  std::string& set_b(T_structC_b_struct_setter&& b_) {
+    b = std::forward<T_structC_b_struct_setter>(b_);
+    __isset.b = true;
+    return b;
+  }
+
+  double get_c() const {
+    return c;
+  }
+
+  double& set_c(double c_) {
+    c = c_;
+    __isset.c = true;
+    return c;
+  }
+
+  bool get_d() const {
+    return d;
+  }
+
+  bool& set_d(bool d_) {
+    d = d_;
+    __isset.d = true;
+    return d;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1 get_e() const {
+    return e;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1& set_e( ::test_cpp2::cpp_reflection::enum1 e_) {
+    e = e_;
+    __isset.e = true;
+    return e;
+  }
+
+   ::test_cpp2::cpp_reflection::enum2 get_f() const {
+    return f;
+  }
+
+   ::test_cpp2::cpp_reflection::enum2& set_f( ::test_cpp2::cpp_reflection::enum2 f_) {
+    f = f_;
+    __isset.f = true;
+    return f;
+  }
+  const  ::test_cpp2::cpp_reflection::union1& get_g() const&;
+   ::test_cpp2::cpp_reflection::union1 get_g() &&;
+  template <typename T_structC_g_struct_setter>
+   ::test_cpp2::cpp_reflection::union1& set_g(T_structC_g_struct_setter&& g_);
+  const  ::test_cpp2::cpp_reflection::unionA& get_h() const&;
+   ::test_cpp2::cpp_reflection::unionA get_h() &&;
+  template <typename T_structC_h_struct_setter>
+   ::test_cpp2::cpp_reflection::unionA& set_h(T_structC_h_struct_setter&& h_);
+  const  ::test_cpp2::cpp_reflection::unionA& get_i() const&;
+   ::test_cpp2::cpp_reflection::unionA get_i() &&;
+  template <typename T_structC_i_struct_setter>
+   ::test_cpp2::cpp_reflection::unionA& set_i(T_structC_i_struct_setter&& i_);
+  const std::vector<int32_t>& get_j() const&;
+  std::vector<int32_t> get_j() &&;
+  template <typename T_structC_j_struct_setter>
+  std::vector<int32_t>& set_j(T_structC_j_struct_setter&& j_);
+  const std::vector<int32_t>& get_j1() const&;
+  std::vector<int32_t> get_j1() &&;
+  template <typename T_structC_j1_struct_setter>
+  std::vector<int32_t>& set_j1(T_structC_j1_struct_setter&& j1_);
+  const std::vector< ::test_cpp2::cpp_reflection::enum1>& get_j2() const&;
+  std::vector< ::test_cpp2::cpp_reflection::enum1> get_j2() &&;
+  template <typename T_structC_j2_struct_setter>
+  std::vector< ::test_cpp2::cpp_reflection::enum1>& set_j2(T_structC_j2_struct_setter&& j2_);
+  const std::vector< ::test_cpp2::cpp_reflection::structA>& get_j3() const&;
+  std::vector< ::test_cpp2::cpp_reflection::structA> get_j3() &&;
+  template <typename T_structC_j3_struct_setter>
+  std::vector< ::test_cpp2::cpp_reflection::structA>& set_j3(T_structC_j3_struct_setter&& j3_);
+  const std::set<int32_t>& get_k() const&;
+  std::set<int32_t> get_k() &&;
+  template <typename T_structC_k_struct_setter>
+  std::set<int32_t>& set_k(T_structC_k_struct_setter&& k_);
+  const std::set<int32_t>& get_k1() const&;
+  std::set<int32_t> get_k1() &&;
+  template <typename T_structC_k1_struct_setter>
+  std::set<int32_t>& set_k1(T_structC_k1_struct_setter&& k1_);
+  const std::set< ::test_cpp2::cpp_reflection::enum2>& get_k2() const&;
+  std::set< ::test_cpp2::cpp_reflection::enum2> get_k2() &&;
+  template <typename T_structC_k2_struct_setter>
+  std::set< ::test_cpp2::cpp_reflection::enum2>& set_k2(T_structC_k2_struct_setter&& k2_);
+  const std::set< ::test_cpp2::cpp_reflection::structB>& get_k3() const&;
+  std::set< ::test_cpp2::cpp_reflection::structB> get_k3() &&;
+  template <typename T_structC_k3_struct_setter>
+  std::set< ::test_cpp2::cpp_reflection::structB>& set_k3(T_structC_k3_struct_setter&& k3_);
+  const std::map<int32_t, int32_t>& get_l() const&;
+  std::map<int32_t, int32_t> get_l() &&;
+  template <typename T_structC_l_struct_setter>
+  std::map<int32_t, int32_t>& set_l(T_structC_l_struct_setter&& l_);
+  const std::map<int32_t, int32_t>& get_l1() const&;
+  std::map<int32_t, int32_t> get_l1() &&;
+  template <typename T_structC_l1_struct_setter>
+  std::map<int32_t, int32_t>& set_l1(T_structC_l1_struct_setter&& l1_);
+  const std::map<int32_t,  ::test_cpp2::cpp_reflection::enum1>& get_l2() const&;
+  std::map<int32_t,  ::test_cpp2::cpp_reflection::enum1> get_l2() &&;
+  template <typename T_structC_l2_struct_setter>
+  std::map<int32_t,  ::test_cpp2::cpp_reflection::enum1>& set_l2(T_structC_l2_struct_setter&& l2_);
+  const std::map<int32_t,  ::test_cpp2::cpp_reflection::structB>& get_l3() const&;
+  std::map<int32_t,  ::test_cpp2::cpp_reflection::structB> get_l3() &&;
+  template <typename T_structC_l3_struct_setter>
+  std::map<int32_t,  ::test_cpp2::cpp_reflection::structB>& set_l3(T_structC_l3_struct_setter&& l3_);
+  const std::map< ::test_cpp2::cpp_reflection::enum1, int32_t>& get_m1() const&;
+  std::map< ::test_cpp2::cpp_reflection::enum1, int32_t> get_m1() &&;
+  template <typename T_structC_m1_struct_setter>
+  std::map< ::test_cpp2::cpp_reflection::enum1, int32_t>& set_m1(T_structC_m1_struct_setter&& m1_);
+  const std::map< ::test_cpp2::cpp_reflection::enum1,  ::test_cpp2::cpp_reflection::enum2>& get_m2() const&;
+  std::map< ::test_cpp2::cpp_reflection::enum1,  ::test_cpp2::cpp_reflection::enum2> get_m2() &&;
+  template <typename T_structC_m2_struct_setter>
+  std::map< ::test_cpp2::cpp_reflection::enum1,  ::test_cpp2::cpp_reflection::enum2>& set_m2(T_structC_m2_struct_setter&& m2_);
+  const std::map< ::test_cpp2::cpp_reflection::enum1,  ::test_cpp2::cpp_reflection::structB>& get_m3() const&;
+  std::map< ::test_cpp2::cpp_reflection::enum1,  ::test_cpp2::cpp_reflection::structB> get_m3() &&;
+  template <typename T_structC_m3_struct_setter>
+  std::map< ::test_cpp2::cpp_reflection::enum1,  ::test_cpp2::cpp_reflection::structB>& set_m3(T_structC_m3_struct_setter&& m3_);
+  const std::map<std::string, int32_t>& get_n1() const&;
+  std::map<std::string, int32_t> get_n1() &&;
+  template <typename T_structC_n1_struct_setter>
+  std::map<std::string, int32_t>& set_n1(T_structC_n1_struct_setter&& n1_);
+  const std::map<std::string,  ::test_cpp2::cpp_reflection::enum1>& get_n2() const&;
+  std::map<std::string,  ::test_cpp2::cpp_reflection::enum1> get_n2() &&;
+  template <typename T_structC_n2_struct_setter>
+  std::map<std::string,  ::test_cpp2::cpp_reflection::enum1>& set_n2(T_structC_n2_struct_setter&& n2_);
+  const std::map<std::string,  ::test_cpp2::cpp_reflection::structB>& get_n3() const&;
+  std::map<std::string,  ::test_cpp2::cpp_reflection::structB> get_n3() &&;
+  template <typename T_structC_n3_struct_setter>
+  std::map<std::string,  ::test_cpp2::cpp_reflection::structB>& set_n3(T_structC_n3_struct_setter&& n3_);
+  const std::map< ::test_cpp2::cpp_reflection::structA, int32_t>& get_o1() const&;
+  std::map< ::test_cpp2::cpp_reflection::structA, int32_t> get_o1() &&;
+  template <typename T_structC_o1_struct_setter>
+  std::map< ::test_cpp2::cpp_reflection::structA, int32_t>& set_o1(T_structC_o1_struct_setter&& o1_);
+  const std::map< ::test_cpp2::cpp_reflection::structA,  ::test_cpp2::cpp_reflection::enum1>& get_o2() const&;
+  std::map< ::test_cpp2::cpp_reflection::structA,  ::test_cpp2::cpp_reflection::enum1> get_o2() &&;
+  template <typename T_structC_o2_struct_setter>
+  std::map< ::test_cpp2::cpp_reflection::structA,  ::test_cpp2::cpp_reflection::enum1>& set_o2(T_structC_o2_struct_setter&& o2_);
+  const std::map< ::test_cpp2::cpp_reflection::structA,  ::test_cpp2::cpp_reflection::structB>& get_o3() const&;
+  std::map< ::test_cpp2::cpp_reflection::structA,  ::test_cpp2::cpp_reflection::structB> get_o3() &&;
+  template <typename T_structC_o3_struct_setter>
+  std::map< ::test_cpp2::cpp_reflection::structA,  ::test_cpp2::cpp_reflection::structB>& set_o3(T_structC_o3_struct_setter&& o3_);
+
+  template <class Protocol_>
+  uint32_t read(Protocol_* iprot);
+  template <class Protocol_>
+  uint32_t serializedSize(Protocol_* prot_) const;
+  template <class Protocol_>
+  uint32_t serializedSizeZC(Protocol_* prot_) const;
+  template <class Protocol_>
+  uint32_t write(Protocol_* prot_) const;
+};
+
+void swap(structC& a, structC& b);
+
+}} // test_cpp2::cpp_reflection
+namespace apache { namespace thrift {
+
+template <> inline void Cpp2Ops< ::test_cpp2::cpp_reflection::structC>::clear( ::test_cpp2::cpp_reflection::structC* obj) {
+  return obj->__clear();
+}
+
+template <> inline constexpr apache::thrift::protocol::TType Cpp2Ops< ::test_cpp2::cpp_reflection::structC>::thriftType() {
+  return apache::thrift::protocol::T_STRUCT;
+}
+
+template <> template <class Protocol> inline uint32_t Cpp2Ops< ::test_cpp2::cpp_reflection::structC>::write(Protocol* proto, const  ::test_cpp2::cpp_reflection::structC* obj) {
+  return obj->write(proto);
+}
+
+template <> template <class Protocol> inline uint32_t Cpp2Ops< ::test_cpp2::cpp_reflection::structC>::read(Protocol* proto,   ::test_cpp2::cpp_reflection::structC* obj) {
+  return obj->read(proto);
+}
+
+template <> template <class Protocol> inline uint32_t Cpp2Ops< ::test_cpp2::cpp_reflection::structC>::serializedSize(Protocol* proto, const  ::test_cpp2::cpp_reflection::structC* obj) {
+  return obj->serializedSize(proto);
+}
+
+template <> template <class Protocol> inline uint32_t Cpp2Ops< ::test_cpp2::cpp_reflection::structC>::serializedSizeZC(Protocol* proto, const  ::test_cpp2::cpp_reflection::structC* obj) {
+  return obj->serializedSizeZC(proto);
+}
+
+}} // apache::thrift
+namespace test_cpp2 { namespace cpp_reflection {
+
 class struct1 : private boost::totally_ordered<struct1> {
  public:
 
@@ -1313,7 +2651,52 @@ class struct1 : private boost::totally_ordered<struct1> {
       field2(std::move(field2__arg)),
       field3(std::move(field3__arg)),
       field4(std::move(field4__arg)),
-      field5(std::move(field5__arg)) {}
+      field5(std::move(field5__arg)) {
+    __isset.field1 = true;
+    __isset.field2 = true;
+    __isset.field4 = true;
+    __isset.field5 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct1(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct1(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    field0 = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct1(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct1(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    field1 = arg.move();
+    __isset.field1 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct1(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct1(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    field2 = arg.move();
+    __isset.field2 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct1(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct1(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    field3 = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct1(::apache::thrift::detail::argument_wrapper<5, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct1(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    field4 = arg.move();
+    __isset.field4 = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct1(::apache::thrift::detail::argument_wrapper<6, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct1(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    field5 = arg.move();
+    __isset.field5 = true;
+  }
 
   struct1(struct1&&) = default;
 
@@ -1334,49 +2717,73 @@ class struct1 : private boost::totally_ordered<struct1> {
    ::test_cpp2::cpp_reflection::union2 field5;
 
   struct __isset {
-    __isset() {
-      __clear();
-    }
-
     void __clear() {
-      field0 = false;
       field1 = false;
       field2 = false;
-      field3 = false;
       field4 = false;
       field5 = false;
     }
 
-    bool field0;
-    bool field1;
-    bool field2;
-    bool field3;
-    bool field4;
-    bool field5;
+    bool field1 = false;
+    bool field2 = false;
+    bool field4 = false;
+    bool field5 = false;
   } __isset;
   bool operator==(const struct1& rhs) const;
+  bool operator < (const struct1& rhs) const;
 
-  bool operator < (const struct1& rhs) const {
-    if (!(field0 == rhs.field0)) {
-      return field0 < rhs.field0;
-    }
-    if (!(field1 == rhs.field1)) {
-      return field1 < rhs.field1;
-    }
-    if (!(field2 == rhs.field2)) {
-      return field2 < rhs.field2;
-    }
-    if (!(field3 == rhs.field3)) {
-      return field3 < rhs.field3;
-    }
-    if (!(field4 == rhs.field4)) {
-      return field4 < rhs.field4;
-    }
-    if (!(field5 == rhs.field5)) {
-      return field5 < rhs.field5;
-    }
-    return false;
+  int32_t get_field0() const {
+    return field0;
   }
+
+  int32_t& set_field0(int32_t field0_) {
+    field0 = field0_;
+    return field0;
+  }
+
+  const std::string* get_field1() const& {
+    return __isset.field1 ? std::addressof(field1) : nullptr;
+  }
+
+  std::string* get_field1() & {
+    return __isset.field1 ? std::addressof(field1) : nullptr;
+  }
+  std::string* get_field1() && = delete;
+
+  template <typename T_struct1_field1_struct_setter>
+  std::string& set_field1(T_struct1_field1_struct_setter&& field1_) {
+    field1 = std::forward<T_struct1_field1_struct_setter>(field1_);
+    __isset.field1 = true;
+    return field1;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1 get_field2() const {
+    return field2;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1& set_field2( ::test_cpp2::cpp_reflection::enum1 field2_) {
+    field2 = field2_;
+    __isset.field2 = true;
+    return field2;
+  }
+
+   ::test_cpp2::cpp_reflection::enum2 get_field3() const {
+    return field3;
+  }
+
+   ::test_cpp2::cpp_reflection::enum2& set_field3( ::test_cpp2::cpp_reflection::enum2 field3_) {
+    field3 = field3_;
+    return field3;
+  }
+  const  ::test_cpp2::cpp_reflection::union1* get_field4() const&;
+   ::test_cpp2::cpp_reflection::union1* get_field4() &;
+   ::test_cpp2::cpp_reflection::union1* get_field4() && = delete;
+  template <typename T_struct1_field4_struct_setter>
+   ::test_cpp2::cpp_reflection::union1& set_field4(T_struct1_field4_struct_setter&& field4_);
+  const  ::test_cpp2::cpp_reflection::union2& get_field5() const&;
+   ::test_cpp2::cpp_reflection::union2 get_field5() &&;
+  template <typename T_struct1_field5_struct_setter>
+   ::test_cpp2::cpp_reflection::union2& set_field5(T_struct1_field5_struct_setter&& field5_);
 
   template <class Protocol_>
   uint32_t read(Protocol_* iprot);
@@ -1436,7 +2843,64 @@ class struct2 : private boost::totally_ordered<struct2> {
       fieldD(std::move(fieldD__arg)),
       fieldE(std::move(fieldE__arg)),
       fieldF(std::move(fieldF__arg)),
-      fieldG(std::move(fieldG__arg)) {}
+      fieldG(std::move(fieldG__arg)) {
+    __isset.fieldA = true;
+    __isset.fieldB = true;
+    __isset.fieldC = true;
+    __isset.fieldD = true;
+    __isset.fieldE = true;
+    __isset.fieldF = true;
+    __isset.fieldG = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct2(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct2(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldA = arg.move();
+    __isset.fieldA = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct2(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct2(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldB = arg.move();
+    __isset.fieldB = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct2(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct2(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldC = arg.move();
+    __isset.fieldC = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct2(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct2(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldD = arg.move();
+    __isset.fieldD = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct2(::apache::thrift::detail::argument_wrapper<5, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct2(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldE = arg.move();
+    __isset.fieldE = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct2(::apache::thrift::detail::argument_wrapper<6, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct2(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldF = arg.move();
+    __isset.fieldF = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct2(::apache::thrift::detail::argument_wrapper<7, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct2(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldG = arg.move();
+    __isset.fieldG = true;
+  }
 
   struct2(struct2&&) = default;
 
@@ -1458,10 +2922,6 @@ class struct2 : private boost::totally_ordered<struct2> {
    ::test_cpp2::cpp_reflection::struct1 fieldG;
 
   struct __isset {
-    __isset() {
-      __clear();
-    }
-
     void __clear() {
       fieldA = false;
       fieldB = false;
@@ -1472,40 +2932,73 @@ class struct2 : private boost::totally_ordered<struct2> {
       fieldG = false;
     }
 
-    bool fieldA;
-    bool fieldB;
-    bool fieldC;
-    bool fieldD;
-    bool fieldE;
-    bool fieldF;
-    bool fieldG;
+    bool fieldA = false;
+    bool fieldB = false;
+    bool fieldC = false;
+    bool fieldD = false;
+    bool fieldE = false;
+    bool fieldF = false;
+    bool fieldG = false;
   } __isset;
   bool operator==(const struct2& rhs) const;
+  bool operator < (const struct2& rhs) const;
 
-  bool operator < (const struct2& rhs) const {
-    if (!(fieldA == rhs.fieldA)) {
-      return fieldA < rhs.fieldA;
-    }
-    if (!(fieldB == rhs.fieldB)) {
-      return fieldB < rhs.fieldB;
-    }
-    if (!(fieldC == rhs.fieldC)) {
-      return fieldC < rhs.fieldC;
-    }
-    if (!(fieldD == rhs.fieldD)) {
-      return fieldD < rhs.fieldD;
-    }
-    if (!(fieldE == rhs.fieldE)) {
-      return fieldE < rhs.fieldE;
-    }
-    if (!(fieldF == rhs.fieldF)) {
-      return fieldF < rhs.fieldF;
-    }
-    if (!(fieldG == rhs.fieldG)) {
-      return fieldG < rhs.fieldG;
-    }
-    return false;
+  int32_t get_fieldA() const {
+    return fieldA;
   }
+
+  int32_t& set_fieldA(int32_t fieldA_) {
+    fieldA = fieldA_;
+    __isset.fieldA = true;
+    return fieldA;
+  }
+
+  const std::string& get_fieldB() const& {
+    return fieldB;
+  }
+
+  std::string get_fieldB() && {
+    return std::move(fieldB);
+  }
+
+  template <typename T_struct2_fieldB_struct_setter>
+  std::string& set_fieldB(T_struct2_fieldB_struct_setter&& fieldB_) {
+    fieldB = std::forward<T_struct2_fieldB_struct_setter>(fieldB_);
+    __isset.fieldB = true;
+    return fieldB;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1 get_fieldC() const {
+    return fieldC;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1& set_fieldC( ::test_cpp2::cpp_reflection::enum1 fieldC_) {
+    fieldC = fieldC_;
+    __isset.fieldC = true;
+    return fieldC;
+  }
+
+   ::test_cpp2::cpp_reflection::enum2 get_fieldD() const {
+    return fieldD;
+  }
+
+   ::test_cpp2::cpp_reflection::enum2& set_fieldD( ::test_cpp2::cpp_reflection::enum2 fieldD_) {
+    fieldD = fieldD_;
+    __isset.fieldD = true;
+    return fieldD;
+  }
+  const  ::test_cpp2::cpp_reflection::union1& get_fieldE() const&;
+   ::test_cpp2::cpp_reflection::union1 get_fieldE() &&;
+  template <typename T_struct2_fieldE_struct_setter>
+   ::test_cpp2::cpp_reflection::union1& set_fieldE(T_struct2_fieldE_struct_setter&& fieldE_);
+  const  ::test_cpp2::cpp_reflection::union2& get_fieldF() const&;
+   ::test_cpp2::cpp_reflection::union2 get_fieldF() &&;
+  template <typename T_struct2_fieldF_struct_setter>
+   ::test_cpp2::cpp_reflection::union2& set_fieldF(T_struct2_fieldF_struct_setter&& fieldF_);
+  const  ::test_cpp2::cpp_reflection::struct1& get_fieldG() const&;
+   ::test_cpp2::cpp_reflection::struct1 get_fieldG() &&;
+  template <typename T_struct2_fieldG_struct_setter>
+   ::test_cpp2::cpp_reflection::struct1& set_fieldG(T_struct2_fieldG_struct_setter&& fieldG_);
 
   template <class Protocol_>
   uint32_t read(Protocol_* iprot);
@@ -1576,7 +3069,152 @@ class struct3 : private boost::totally_ordered<struct3> {
       fieldO(std::move(fieldO__arg)),
       fieldP(std::move(fieldP__arg)),
       fieldQ(std::move(fieldQ__arg)),
-      fieldR(std::move(fieldR__arg)) {}
+      fieldR(std::move(fieldR__arg)) {
+    __isset.fieldA = true;
+    __isset.fieldB = true;
+    __isset.fieldC = true;
+    __isset.fieldD = true;
+    __isset.fieldE = true;
+    __isset.fieldF = true;
+    __isset.fieldG = true;
+    __isset.fieldH = true;
+    __isset.fieldI = true;
+    __isset.fieldJ = true;
+    __isset.fieldK = true;
+    __isset.fieldL = true;
+    __isset.fieldM = true;
+    __isset.fieldN = true;
+    __isset.fieldO = true;
+    __isset.fieldP = true;
+    __isset.fieldQ = true;
+    __isset.fieldR = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldA = arg.move();
+    __isset.fieldA = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldB = arg.move();
+    __isset.fieldB = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldC = arg.move();
+    __isset.fieldC = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldD = arg.move();
+    __isset.fieldD = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<5, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldE = arg.move();
+    __isset.fieldE = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<6, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldF = arg.move();
+    __isset.fieldF = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<7, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldG = arg.move();
+    __isset.fieldG = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<8, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldH = arg.move();
+    __isset.fieldH = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<9, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldI = arg.move();
+    __isset.fieldI = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<10, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldJ = arg.move();
+    __isset.fieldJ = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<11, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldK = arg.move();
+    __isset.fieldK = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<12, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldL = arg.move();
+    __isset.fieldL = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<13, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldM = arg.move();
+    __isset.fieldM = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<14, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldN = arg.move();
+    __isset.fieldN = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<15, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldO = arg.move();
+    __isset.fieldO = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<16, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldP = arg.move();
+    __isset.fieldP = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<17, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldQ = arg.move();
+    __isset.fieldQ = true;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  struct3(::apache::thrift::detail::argument_wrapper<18, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    struct3(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    fieldR = arg.move();
+    __isset.fieldR = true;
+  }
 
   struct3(struct3&&) = default;
 
@@ -1609,10 +3247,6 @@ class struct3 : private boost::totally_ordered<struct3> {
   std::map<std::string,  ::test_cpp2::cpp_reflection::structB> fieldR;
 
   struct __isset {
-    __isset() {
-      __clear();
-    }
-
     void __clear() {
       fieldA = false;
       fieldB = false;
@@ -1634,84 +3268,128 @@ class struct3 : private boost::totally_ordered<struct3> {
       fieldR = false;
     }
 
-    bool fieldA;
-    bool fieldB;
-    bool fieldC;
-    bool fieldD;
-    bool fieldE;
-    bool fieldF;
-    bool fieldG;
-    bool fieldH;
-    bool fieldI;
-    bool fieldJ;
-    bool fieldK;
-    bool fieldL;
-    bool fieldM;
-    bool fieldN;
-    bool fieldO;
-    bool fieldP;
-    bool fieldQ;
-    bool fieldR;
+    bool fieldA = false;
+    bool fieldB = false;
+    bool fieldC = false;
+    bool fieldD = false;
+    bool fieldE = false;
+    bool fieldF = false;
+    bool fieldG = false;
+    bool fieldH = false;
+    bool fieldI = false;
+    bool fieldJ = false;
+    bool fieldK = false;
+    bool fieldL = false;
+    bool fieldM = false;
+    bool fieldN = false;
+    bool fieldO = false;
+    bool fieldP = false;
+    bool fieldQ = false;
+    bool fieldR = false;
   } __isset;
   bool operator==(const struct3& rhs) const;
+  bool operator < (const struct3& rhs) const;
 
-  bool operator < (const struct3& rhs) const {
-    if (!(fieldA == rhs.fieldA)) {
-      return fieldA < rhs.fieldA;
-    }
-    if (!(fieldB == rhs.fieldB)) {
-      return fieldB < rhs.fieldB;
-    }
-    if (!(fieldC == rhs.fieldC)) {
-      return fieldC < rhs.fieldC;
-    }
-    if (!(fieldD == rhs.fieldD)) {
-      return fieldD < rhs.fieldD;
-    }
-    if (!(fieldE == rhs.fieldE)) {
-      return fieldE < rhs.fieldE;
-    }
-    if (!(fieldF == rhs.fieldF)) {
-      return fieldF < rhs.fieldF;
-    }
-    if (!(fieldG == rhs.fieldG)) {
-      return fieldG < rhs.fieldG;
-    }
-    if (!(fieldH == rhs.fieldH)) {
-      return fieldH < rhs.fieldH;
-    }
-    if (!(fieldI == rhs.fieldI)) {
-      return fieldI < rhs.fieldI;
-    }
-    if (!(fieldJ == rhs.fieldJ)) {
-      return fieldJ < rhs.fieldJ;
-    }
-    if (!(fieldK == rhs.fieldK)) {
-      return fieldK < rhs.fieldK;
-    }
-    if (!(fieldL == rhs.fieldL)) {
-      return fieldL < rhs.fieldL;
-    }
-    if (!(fieldM == rhs.fieldM)) {
-      return fieldM < rhs.fieldM;
-    }
-    if (!(fieldN == rhs.fieldN)) {
-      return fieldN < rhs.fieldN;
-    }
-    if (!(fieldO == rhs.fieldO)) {
-      return fieldO < rhs.fieldO;
-    }
-    if (!(fieldP == rhs.fieldP)) {
-      return fieldP < rhs.fieldP;
-    }
-    if (!(fieldQ == rhs.fieldQ)) {
-      return fieldQ < rhs.fieldQ;
-    }
-    if (!(fieldR == rhs.fieldR)) {
-      return fieldR < rhs.fieldR;
-    }
-    return false;
+  int32_t get_fieldA() const {
+    return fieldA;
   }
+
+  int32_t& set_fieldA(int32_t fieldA_) {
+    fieldA = fieldA_;
+    __isset.fieldA = true;
+    return fieldA;
+  }
+
+  const std::string& get_fieldB() const& {
+    return fieldB;
+  }
+
+  std::string get_fieldB() && {
+    return std::move(fieldB);
+  }
+
+  template <typename T_struct3_fieldB_struct_setter>
+  std::string& set_fieldB(T_struct3_fieldB_struct_setter&& fieldB_) {
+    fieldB = std::forward<T_struct3_fieldB_struct_setter>(fieldB_);
+    __isset.fieldB = true;
+    return fieldB;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1 get_fieldC() const {
+    return fieldC;
+  }
+
+   ::test_cpp2::cpp_reflection::enum1& set_fieldC( ::test_cpp2::cpp_reflection::enum1 fieldC_) {
+    fieldC = fieldC_;
+    __isset.fieldC = true;
+    return fieldC;
+  }
+
+   ::test_cpp2::cpp_reflection::enum2 get_fieldD() const {
+    return fieldD;
+  }
+
+   ::test_cpp2::cpp_reflection::enum2& set_fieldD( ::test_cpp2::cpp_reflection::enum2 fieldD_) {
+    fieldD = fieldD_;
+    __isset.fieldD = true;
+    return fieldD;
+  }
+  const  ::test_cpp2::cpp_reflection::union1& get_fieldE() const&;
+   ::test_cpp2::cpp_reflection::union1 get_fieldE() &&;
+  template <typename T_struct3_fieldE_struct_setter>
+   ::test_cpp2::cpp_reflection::union1& set_fieldE(T_struct3_fieldE_struct_setter&& fieldE_);
+  const  ::test_cpp2::cpp_reflection::union2& get_fieldF() const&;
+   ::test_cpp2::cpp_reflection::union2 get_fieldF() &&;
+  template <typename T_struct3_fieldF_struct_setter>
+   ::test_cpp2::cpp_reflection::union2& set_fieldF(T_struct3_fieldF_struct_setter&& fieldF_);
+  const  ::test_cpp2::cpp_reflection::struct1& get_fieldG() const&;
+   ::test_cpp2::cpp_reflection::struct1 get_fieldG() &&;
+  template <typename T_struct3_fieldG_struct_setter>
+   ::test_cpp2::cpp_reflection::struct1& set_fieldG(T_struct3_fieldG_struct_setter&& fieldG_);
+  const  ::test_cpp2::cpp_reflection::union2& get_fieldH() const&;
+   ::test_cpp2::cpp_reflection::union2 get_fieldH() &&;
+  template <typename T_struct3_fieldH_struct_setter>
+   ::test_cpp2::cpp_reflection::union2& set_fieldH(T_struct3_fieldH_struct_setter&& fieldH_);
+  const std::vector<int32_t>& get_fieldI() const&;
+  std::vector<int32_t> get_fieldI() &&;
+  template <typename T_struct3_fieldI_struct_setter>
+  std::vector<int32_t>& set_fieldI(T_struct3_fieldI_struct_setter&& fieldI_);
+  const std::vector<std::string>& get_fieldJ() const&;
+  std::vector<std::string> get_fieldJ() &&;
+  template <typename T_struct3_fieldJ_struct_setter>
+  std::vector<std::string>& set_fieldJ(T_struct3_fieldJ_struct_setter&& fieldJ_);
+  const std::vector<std::string>& get_fieldK() const&;
+  std::vector<std::string> get_fieldK() &&;
+  template <typename T_struct3_fieldK_struct_setter>
+  std::vector<std::string>& set_fieldK(T_struct3_fieldK_struct_setter&& fieldK_);
+  const std::vector< ::test_cpp2::cpp_reflection::structA>& get_fieldL() const&;
+  std::vector< ::test_cpp2::cpp_reflection::structA> get_fieldL() &&;
+  template <typename T_struct3_fieldL_struct_setter>
+  std::vector< ::test_cpp2::cpp_reflection::structA>& set_fieldL(T_struct3_fieldL_struct_setter&& fieldL_);
+  const std::set<int32_t>& get_fieldM() const&;
+  std::set<int32_t> get_fieldM() &&;
+  template <typename T_struct3_fieldM_struct_setter>
+  std::set<int32_t>& set_fieldM(T_struct3_fieldM_struct_setter&& fieldM_);
+  const std::set<std::string>& get_fieldN() const&;
+  std::set<std::string> get_fieldN() &&;
+  template <typename T_struct3_fieldN_struct_setter>
+  std::set<std::string>& set_fieldN(T_struct3_fieldN_struct_setter&& fieldN_);
+  const std::set<std::string>& get_fieldO() const&;
+  std::set<std::string> get_fieldO() &&;
+  template <typename T_struct3_fieldO_struct_setter>
+  std::set<std::string>& set_fieldO(T_struct3_fieldO_struct_setter&& fieldO_);
+  const std::set< ::test_cpp2::cpp_reflection::structB>& get_fieldP() const&;
+  std::set< ::test_cpp2::cpp_reflection::structB> get_fieldP() &&;
+  template <typename T_struct3_fieldP_struct_setter>
+  std::set< ::test_cpp2::cpp_reflection::structB>& set_fieldP(T_struct3_fieldP_struct_setter&& fieldP_);
+  const std::map<std::string,  ::test_cpp2::cpp_reflection::structA>& get_fieldQ() const&;
+  std::map<std::string,  ::test_cpp2::cpp_reflection::structA> get_fieldQ() &&;
+  template <typename T_struct3_fieldQ_struct_setter>
+  std::map<std::string,  ::test_cpp2::cpp_reflection::structA>& set_fieldQ(T_struct3_fieldQ_struct_setter&& fieldQ_);
+  const std::map<std::string,  ::test_cpp2::cpp_reflection::structB>& get_fieldR() const&;
+  std::map<std::string,  ::test_cpp2::cpp_reflection::structB> get_fieldR() &&;
+  template <typename T_struct3_fieldR_struct_setter>
+  std::map<std::string,  ::test_cpp2::cpp_reflection::structB>& set_fieldR(T_struct3_fieldR_struct_setter&& fieldR_);
 
   template <class Protocol_>
   uint32_t read(Protocol_* iprot);

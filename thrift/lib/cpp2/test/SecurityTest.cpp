@@ -50,8 +50,12 @@ public:
   void async_tm_sendResponse(
       unique_ptr<HandlerCallback<unique_ptr<std::string>>> callback,
       int64_t size) override {
-    EXPECT_NE(callback->getConnectionContext()->
-                getSaslServer()->getClientIdentity(), "");
+    const auto& headers = callback->getConnectionContext()->
+      getHeader()->getHeaders();
+    if (headers.find("security_test")->second == "1") {
+      EXPECT_NE(callback->getConnectionContext()->
+                  getSaslServer()->getClientIdentity(), "");
+    }
     callback.release()->resultInThread(folly::to<std::string>(size));
   }
 };
@@ -123,12 +127,21 @@ void runTest(std::function<void(HeaderClientChannel* channel)> setup) {
   EventBase base;
   auto channel = getClientChannel(&base, *sst.getAddress());
   setup(channel.get());
+  auto sp = channel->getSecurityPolicy();
   TestServiceAsyncClient client(std::move(channel));
   Countdown c(3, [&base](){base.terminateLoopSoon();});
 
-  client.sendResponse([&base,&client,&c](ClientReceiveState&& state) {
+  RpcOptions rpcOptions;
+  rpcOptions.setWriteHeader("security_test",
+                            sp == THRIFT_SECURITY_REQUIRED ? "1" : "0");
+  client.sendResponse(rpcOptions, folly::make_unique<FunctionReplyCallback>(
+                      [&base,&client,&c,&sp](ClientReceiveState&& state) {
     EXPECT_FALSE(state.isException());
-    EXPECT_TRUE(state.isSecurityActive());
+    if (sp == THRIFT_SECURITY_REQUIRED) {
+      EXPECT_TRUE(state.isSecurityActive());
+    } else {
+      EXPECT_FALSE(state.isSecurityActive());
+    }
     std::string res;
     try {
       TestServiceAsyncClient::recv_sendResponse(res, state);
@@ -137,16 +150,24 @@ void runTest(std::function<void(HeaderClientChannel* channel)> setup) {
     }
     EXPECT_EQ(res, "10");
     c.down();
-  }, 10);
+  }), 10);
 
 
   // fail on time out
   base.tryRunAfterDelay([] {EXPECT_TRUE(false);}, 5000);
 
-  base.tryRunAfterDelay([&client,&base,&c] {
-    client.sendResponse([&base,&c](ClientReceiveState&& state) {
+  base.tryRunAfterDelay([&client,&base,&c,&sp] {
+    RpcOptions rpcOptions1;
+    rpcOptions1.setWriteHeader("security_test",
+                              sp == THRIFT_SECURITY_REQUIRED ? "1" : "0");
+    client.sendResponse(rpcOptions1, folly::make_unique<FunctionReplyCallback>(
+          [&base,&c,&sp](ClientReceiveState&& state) {
       EXPECT_FALSE(state.isException());
-      EXPECT_TRUE(state.isSecurityActive());
+      if (sp == THRIFT_SECURITY_REQUIRED) {
+        EXPECT_TRUE(state.isSecurityActive());
+      } else {
+        EXPECT_FALSE(state.isSecurityActive());
+      }
       std::string res;
       try {
         TestServiceAsyncClient::recv_sendResponse(res, state);
@@ -155,10 +176,19 @@ void runTest(std::function<void(HeaderClientChannel* channel)> setup) {
       }
       EXPECT_EQ(res, "10");
       c.down();
-    }, 10);
-    client.sendResponse([&base,&c](ClientReceiveState&& state) {
+    }), 10);
+
+    RpcOptions rpcOptions2;
+    rpcOptions2.setWriteHeader("security_test",
+                              sp == THRIFT_SECURITY_REQUIRED ? "1" : "0");
+    client.sendResponse(rpcOptions2, folly::make_unique<FunctionReplyCallback>(
+          [&base,&c,&sp](ClientReceiveState&& state) {
       EXPECT_FALSE(state.isException());
-      EXPECT_TRUE(state.isSecurityActive());
+      if (sp == THRIFT_SECURITY_REQUIRED) {
+        EXPECT_TRUE(state.isSecurityActive());
+      } else {
+        EXPECT_FALSE(state.isSecurityActive());
+      }
       std::string res;
       try {
         TestServiceAsyncClient::recv_sendResponse(res, state);
@@ -167,7 +197,7 @@ void runTest(std::function<void(HeaderClientChannel* channel)> setup) {
       }
       EXPECT_EQ(res, "10");
       c.down();
-    }, 10);
+    }), 10);
   }, 1);
 
   base.loopForever();
@@ -226,6 +256,17 @@ TEST(Security, GSS) {
   runTest([](HeaderClientChannel* channel) {
     channel->getSaslClient()->setSecurityMech(
       apache::thrift::SecurityMech::KRB5_GSS);
+  });
+}
+
+TEST(Security, Fallback) {
+  runTest([](HeaderClientChannel* channel) {
+    channel->setSecurityPolicy(THRIFT_SECURITY_PERMITTED);
+    channel->setSaslTimeout(1);
+    channel->getSaslClientCallback()->setSendServerHook([]{
+      /* sleep override */
+      usleep(20000);
+    });
   });
 }
 

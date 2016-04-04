@@ -20,6 +20,7 @@
 #include <folly/io/async/HHWheelTimer.h>
 #include <thrift/lib/cpp/async/TEventConnection.h>
 #include <thrift/lib/cpp/concurrency/Util.h>
+#include <folly/Optional.h>
 #include <folly/SocketAddress.h>
 #include <thrift/lib/cpp/TApplicationException.h>
 #include <thrift/lib/cpp2/async/HeaderServerChannel.h>
@@ -119,20 +120,20 @@ class Cpp2Connection
    public:
     friend class Cpp2Connection;
 
-    class SoftTimeout
+    class QueueTimeout
       : public folly::HHWheelTimer::Callback {
       Cpp2Request* request_;
       void timeoutExpired() noexcept override;
       friend class Cpp2Request;
     };
-    class HardTimeout
+    class TaskTimeout
       : public folly::HHWheelTimer::Callback {
       Cpp2Request* request_;
       void timeoutExpired() noexcept override;
       friend class Cpp2Request;
     };
-    friend class SoftTimeout;
-    friend class HardTimeout;
+    friend class QueueTimeout;
+    friend class TaskTimeout;
 
     Cpp2Request(std::unique_ptr<ResponseChannel::Request> req,
                    std::shared_ptr<Cpp2Connection> con);
@@ -149,6 +150,7 @@ class Cpp2Connection
         folly::exception_wrapper ew,
         std::string exCode,
         MessageChannel::SendCallback* notUsed = nullptr) override;
+    void sendTimeoutResponse();
 
     ~Cpp2Request() override;
 
@@ -174,12 +176,13 @@ class Cpp2Connection
     std::unique_ptr<HeaderServerChannel::HeaderRequest> req_;
     std::shared_ptr<Cpp2Connection> connection_;
     Cpp2RequestContext reqContext_;
-    SoftTimeout softTimeout_;
-    HardTimeout hardTimeout_;
+    folly::Optional<std::string> loadHeader_;
+    QueueTimeout queueTimeout_;
+    TaskTimeout taskTimeout_;
 
     void cancelTimeout() {
-      softTimeout_.cancelTimeout();
-      hardTimeout_.cancelTimeout();
+      queueTimeout_.cancelTimeout();
+      taskTimeout_.cancelTimeout();
     }
   };
 
@@ -207,6 +210,7 @@ class Cpp2Connection
   void removeRequest(Cpp2Request* req);
   void killRequest(ResponseChannel::Request& req,
                    TApplicationException::TApplicationExceptionType reason,
+                   const std::string& errorCode,
                    const char* comment);
   void disconnect(const char* comment) noexcept;
 

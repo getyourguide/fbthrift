@@ -44,6 +44,8 @@
 #include <thrift/lib/cpp2/async/SaslServer.h>
 #include <thrift/lib/cpp2/async/HeaderServerChannel.h>
 #include <thrift/lib/cpp2/server/BaseThriftServer.h>
+#include <thrift/lib/cpp2/security/SecurityKillSwitchPoller.h>
+#include <folly/Singleton.h>
 
 #include <wangle/ssl/SSLContextConfig.h>
 #include <wangle/acceptor/ServerSocketConfig.h>
@@ -73,6 +75,8 @@ class ThriftServer : public apache::thrift::BaseThriftServer
   std::shared_ptr<wangle::SSLContextConfig> sslContext_;
   folly::Optional<wangle::TLSTicketKeySeeds> ticketSeeds_;
 
+  folly::Optional<wangle::SSLCacheOptions> sslCacheOptions_;
+
   // Security negotiation settings
   bool saslEnabled_ = false;
   bool nonSaslEnabled_ = true;
@@ -84,6 +88,7 @@ class ThriftServer : public apache::thrift::BaseThriftServer
   std::shared_ptr<apache::thrift::concurrency::ThreadManager>
     saslThreadManager_;
   int nSaslPoolThreads_ = 0;
+  std::string saslThreadsNamePrefix_ = "thrift-sasl";
 
   std::unique_ptr<folly::ShutdownSocketSet> shutdownSocketSet_ =
       folly::make_unique<folly::ShutdownSocketSet>();
@@ -103,6 +108,13 @@ class ThriftServer : public apache::thrift::BaseThriftServer
   //! IO thread pool. Drives Cpp2Workers.
   std::shared_ptr<wangle::IOThreadPoolExecutor> ioThreadPool_ =
       std::make_shared<wangle::IOThreadPoolExecutor>(0);
+
+  /*
+   * deserializeMessageBegin is called before thrift server hands over the
+   * request to the processor. Some custom processor (e.g. a proxy) doesn't
+   * need this.
+   */
+  bool skipDeserializeMessageBegin_ = false;
 
   /**
    * The speed for adjusting connection accept rate.
@@ -229,14 +241,11 @@ class ThriftServer : public apache::thrift::BaseThriftServer
    */
   int32_t getPendingCount() const;
 
-  virtual bool isOverloaded(uint32_t workerActiveRequests = 0,
-                    const apache::thrift::transport::THeader* header = nullptr) override;
+  virtual bool isOverloaded(
+    const apache::thrift::transport::THeader* header = nullptr) override;
 
-  // Get load percent of the server.  Must be a number between 0 and 100:
-  // 0 - no load, 100-fully loaded.
   int64_t getRequestLoad() override;
-  int64_t getConnectionLoad() override;
-  std::string getLoadInfo(int64_t reqload, int64_t connload, int64_t queueload) override;
+  std::string getLoadInfo(int64_t load) override;
 
   void setIOThreadPoolExecutor(
     std::shared_ptr<wangle::IOThreadPoolExecutor> pool) {
@@ -260,20 +269,38 @@ class ThriftServer : public apache::thrift::BaseThriftServer
     sslContext_ = context;
   }
 
+  void setSSLCacheOptions(wangle::SSLCacheOptions options) {
+    sslCacheOptions_ = std::move(options);
+  }
+
   void setTicketSeeds(
       wangle::TLSTicketKeySeeds seeds) {
     ticketSeeds_ = seeds;
   }
+
+  void updateTicketSeeds(wangle::TLSTicketKeySeeds seeds);
 
   std::shared_ptr<wangle::SSLContextConfig>
   getSSLConfig() const {
     return sslContext_;
   }
 
+  folly::Optional<wangle::TLSTicketKeySeeds>
+  getTicketSeeds() const {
+    return ticketSeeds_;
+  }
+
+  folly::Optional<wangle::SSLCacheOptions> getSSLCacheOptions() const {
+    return sslCacheOptions_;
+  }
+
   wangle::ServerSocketConfig getServerSocketConfig() {
     wangle::ServerSocketConfig config;
     if (getSSLConfig()) {
       config.sslContextConfigs.push_back(*getSSLConfig());
+    }
+    if (sslCacheOptions_) {
+      config.sslCacheOptions = *sslCacheOptions_;
     }
     config.connectionIdleTimeout = getIdleTimeout();
     config.acceptBacklog = getListenBacklog();
@@ -324,7 +351,14 @@ class ThriftServer : public apache::thrift::BaseThriftServer
   }
 
   SSLPolicy getSSLPolicy() const {
-    return sslPolicy_;
+    auto policy = sslPolicy_;
+    if (policy == SSLPolicy::REQUIRED) {
+      auto ksPoller = folly::Singleton<SecurityKillSwitchPoller>::try_get();
+      if (ksPoller && ksPoller->isKillSwitchEnabled()) {
+        policy = SSLPolicy::PERMITTED;
+      }
+    }
+    return policy;
   }
 
   void setSSLPolicy(SSLPolicy policy) {
@@ -391,6 +425,21 @@ class ThriftServer : public apache::thrift::BaseThriftServer
    */
   int getNSaslPoolThreads() {
     return nSaslPoolThreads_;
+  }
+
+  /**
+   * Sets the prefix used for SASL threads.
+   */
+  void setSaslThreadsNamePrefix(std::string saslThreadsNamePrefix) {
+    CHECK(configMutable());
+    saslThreadsNamePrefix_ = std::move(saslThreadsNamePrefix);
+  }
+
+  /**
+   * Get the prefix used for SASL threads.
+   */
+  const std::string& getSaslThreadsNamePrefix() {
+    return saslThreadsNamePrefix_;
   }
 
   /**
@@ -481,6 +530,14 @@ class ThriftServer : public apache::thrift::BaseThriftServer
    */
   void setMinCompressBytes(uint32_t bytes) {
     minCompressBytes_ = bytes;
+  }
+
+  void setSkipDeserializeMessageBegin(bool skip) {
+    skipDeserializeMessageBegin_ = skip;
+  }
+
+  bool getSkipDeserializeMessageBegin() {
+    return skipDeserializeMessageBegin_;
   }
 
   /**

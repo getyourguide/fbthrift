@@ -924,42 +924,38 @@ process_missing(
       std::move(req), std::move(buf), protType, ctx, eb, tm);
 }
 
+bool deserializeMessageBegin(
+    protocol::PROTOCOL_TYPES protType,
+    std::unique_ptr<ResponseChannel::Request>& req,
+    folly::IOBuf* buf,
+    Cpp2RequestContext* ctx,
+    folly::EventBase* eb);
+
 template <class ProtocolReader, class Processor>
 void process_pmap(
     Processor* proc,
     const typename GeneratedAsyncProcessor::ProcessMap<
-        typename GeneratedAsyncProcessor::ProcessFunc<
+        GeneratedAsyncProcessor::ProcessFunc<
             Processor, ProtocolReader>>& pmap,
     std::unique_ptr<ResponseChannel::Request> req,
     std::unique_ptr<folly::IOBuf> buf,
     Cpp2RequestContext* ctx,
     folly::EventBase* eb,
     concurrency::ThreadManager* tm) {
-  using h = helper_r<ProtocolReader>;
-  const char* fn = "process";
-  std::string fname;
-  MessageType mtype;
-  int32_t protoSeqId = 0;
-  auto iprot = folly::make_unique<ProtocolReader>();
-  iprot->setInput(buf.get());
-  try {
-    iprot->readMessageBegin(fname, mtype, protoSeqId);
-  } catch (const TException& ex) {
-    LOG(ERROR) << "received invalid message from client: " << ex.what();
-    const char* msg = "invalid message from client";
-    return h::process_exn(fn, msg, std::move(req), ctx, eb, protoSeqId);
-  }
-  if (mtype != T_CALL && mtype != T_ONEWAY) {
-    LOG(ERROR) << "received invalid message of type " << mtype;
-    const char* msg = "invalid message arguments";
-    return h::process_exn(fn, msg, std::move(req), ctx, eb, protoSeqId);
-  }
+  const auto& fname = ctx->getMethodName();
   auto pfn = pmap.find(fname);
   if (pfn == pmap.end()) {
-    process_missing<ProtocolReader>(
-        proc, fname, std::move(req), std::move(buf), ctx, eb, tm, protoSeqId);
+    process_missing<ProtocolReader>(proc, fname, std::move(req),
+        std::move(buf), ctx, eb, tm, ctx->getProtoSeqId());
     return;
   }
+
+  folly::io::Cursor cursor(buf.get());
+  cursor.skip(ctx->getMessageBeginSize());
+
+  auto iprot = folly::make_unique<ProtocolReader>();
+  iprot->setInput(cursor);
+
   (proc->*(pfn->second))(
       std::move(req), std::move(buf), std::move(iprot), ctx, eb, tm);
 }
@@ -1078,11 +1074,22 @@ future_exn(std::exception_ptr ex) {
   return folly::makeFuture<R>(folly::exception_wrapper(std::move(ex)));
 }
 
+template <class R, class E>
+folly::Future<R>
+future_exn(std::exception_ptr ex, E& e) {
+  return folly::makeFuture<R>(folly::exception_wrapper(std::move(ex), e));
+}
+
 template <class F>
 ret<F>
 future_catching(F&& f) {
-  try { return f(); }
-  catch(...) { return future_exn<fut_ret<F>>(std::current_exception()); }
+  try {
+    return f();
+  } catch (const std::exception& e) {
+    return future_exn<fut_ret<F>>(std::current_exception(), e);
+  } catch(...) {
+    return future_exn<fut_ret<F>>(std::current_exception());
+  }
 }
 
 using CallbackBase = HandlerCallbackBase;
