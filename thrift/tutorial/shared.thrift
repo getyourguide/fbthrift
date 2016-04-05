@@ -27,6 +27,7 @@ namespace java shared
 namespace perl shared
 namespace py shared
 namespace py.asyncio thrift_asyncio.shared
+namespace php tutorial
 
 struct SharedStruct {
   1: i32 key

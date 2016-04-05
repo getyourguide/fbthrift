@@ -1,0 +1,17 @@
+{
+	"autoload": {
+		"classmap": [".", "gen-php/", "../../lib/php/src/"]
+	},
+	"repositories": [
+		{
+			"type": "vcs",
+			"url": "https://github.com/getyourguide/hhvm-h2tp-resources"
+		}
+	],
+	"require": {
+		"gyg/hhvm-h2tp-resources": "dev-master"
+	}
+}
+
+
+
