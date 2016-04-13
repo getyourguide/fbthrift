@@ -2906,9 +2906,45 @@ void t_php_generator::generate_client_adapter_http(t_service* tservice, bool man
   indent_down();
   indent_down();
   indent(f_service_adapter) << "}"  << endl;
+  indent(f_service_adapter) << "if (isset($adapterConfig['secure']) && $adapterConfig['secure'] === true) {"  << endl;
+  indent_up();
+  indent(f_service_adapter) << "$httpProtocol = 'https';"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "} else {"  << endl;
+  indent_up();
+  indent(f_service_adapter) << "$httpProtocol = 'http';"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "}"  << endl;
+  indent(f_service_adapter) << "$headers = [];"  << endl;
+  indent(f_service_adapter) << "//add auth headers if configured"  << endl;
+  indent(f_service_adapter) << "if ((isset($adapterConfig['user']) && !isset($adapterConfig['password'])) ||"  << endl;
+  indent_up();
+  indent(f_service_adapter) << "(!isset($adapterConfig['user']) && isset($adapterConfig['password']))"  << endl;
+  indent_down();
+  indent(f_service_adapter) << ") {"  << endl;
+  indent_up();
+  indent(f_service_adapter) << "throw new Exception('Invalid configuration for thrift http adapter (user/password" <<
+                               "must be set as pair)');"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "}"  << endl;
+  indent(f_service_adapter) << "if (isset($adapterConfig['user']) && isset($adapterConfig['password'])) {"  << endl;
+  indent_up();
+  indent(f_service_adapter) << "if ($adapterConfig['secure'] !== true) {"  << endl;
+  indent_up();
+  indent(f_service_adapter) << "throw new Exception('Invalid configuration for thrift http adapter (can only use" <<
+                               " auth over secure connection)');"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "} else {"  << endl;
+  indent_up();
+  indent(f_service_adapter) << "$headers['Authorization'] = 'Basic ' . base64_encode($adapterConfig['user'] . ':'" <<
+                               " . $adapterConfig['password']);"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "}"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "}"  << endl;
   indent(f_service_adapter) << "$httpClient = new \\THttpClient($adapterConfig['host'], $adapterConfig['port'], " <<
                                "$adapterConfig['url'], "
-                            << "'http', 'error_log');"  << endl;
+                            << "$httpProtocol, 'error_log');"  << endl;
   indent(f_service_adapter) << "$this->transport = new \\TBufferedTransport($httpClient, 1024, 1024);"  << endl;
   indent(f_service_adapter) << "$protocol = new \\TBinaryProtocol($this->transport);"  << endl;
   indent(f_service_adapter) << "$this->serviceClient = new " << long_name << "Client($protocol);"  << endl;
@@ -2924,7 +2960,13 @@ void t_php_generator::generate_client_adapter_http(t_service* tservice, bool man
   indent(f_service_adapter) << "$span = $this->traceHelper->getCurrentSpan();"  << endl;
   indent(f_service_adapter) << "$zipkinHeaders = new ZipkinHttpHeaders($span->trace_id, $span->id, $span->parent_id);"
                             << endl;
-  indent(f_service_adapter) << "$httpClient->setCustomHeaders($zipkinHeaders->getHeadersArray());"  << endl;
+  indent(f_service_adapter) << "$headers = array_merge($zipkinHeaders->getHeadersArray(), $headers);"  << endl;
+  indent_down();
+  indent(f_service_adapter) << "}"  << endl;
+  indent(f_service_adapter) << "// set headers"  << endl;
+  indent(f_service_adapter) << "if (0 < count($headers)) {"  << endl;
+  indent_up();
+  indent(f_service_adapter) << "$httpClient->setCustomHeaders($headers);"  << endl;
   indent_down();
   indent(f_service_adapter) << "}"  << endl;
   // close function
