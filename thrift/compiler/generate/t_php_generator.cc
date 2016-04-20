@@ -55,6 +55,7 @@ class t_php_generator : public t_oop_generator {
     mangled_services_ = option_is_set(parsed_options, "mangledsvcs", false);
     unmangled_services_ = option_is_set(parsed_options, "unmangledsvcs", true);
     declare_namespace_ = option_is_specified(parsed_options, "declarens");
+    error_handler_ = option_is_specified(parsed_options, "errorhandler");
     service_adapters_ = option_is_specified(parsed_options, "adapters");
 
     if (service_adapters_ && !norequires_) {
@@ -124,6 +125,7 @@ class t_php_generator : public t_oop_generator {
   void generate_service_processor (t_service* tservice, bool mangle);
   void generate_process_function  (t_service* tservice, t_function* tfunction);
   void generate_processor_event_handler_functions(std::ofstream& out);
+  void generate_processor_error_handler_functions(std::ofstream& out);
   void generate_client_event_handler_functions(std::ofstream& out);
   void generate_event_handler_functions (std::ofstream& out, string cl);
 
@@ -392,6 +394,11 @@ class t_php_generator : public t_oop_generator {
    * Whether to enable namespace declaration
    */
   bool declare_namespace_;
+
+  /**
+   * Whether to allow custom error handler injection
+   */
+  bool error_handler_;
 
   /**
    * Whether to enable the service adapter classes
@@ -1660,6 +1667,23 @@ void t_php_generator::generate_event_handler_functions(ofstream& out, string cl)
 }
 
 /**
+ * Generates process error handler functions.
+ */
+void t_php_generator::generate_processor_error_handler_functions(ofstream& out) {
+  indent(out) <<
+    "public function setErrorHandler(\\IProcessorErrorHandler $error_handler) {" << endl <<
+    indent() << "  $this->errorHandler_ = $error_handler;" << endl <<
+    indent() << "}" << endl <<
+    endl;
+
+  indent(out) <<
+    "public function getErrorHandler() {" << endl <<
+    indent() << "  return $this->errorHandler_;" << endl <<
+    indent() << "}" << endl <<
+    endl;
+}
+
+/**
  * Generates a service server definition.
  *
  * @param tservice The service to generate a server for.
@@ -1686,6 +1710,12 @@ void t_php_generator::generate_service_processor(t_service* tservice,
   if (extends.empty()) {
     f_service_ <<
       indent() << "protected $handler_ = null;" << endl;
+  }
+
+  if (error_handler_) {
+    f_service_ <<
+      indent() << "protected $eventHandler_ = null;"
+               << endl;
   }
 
   f_service_ <<
@@ -1716,6 +1746,11 @@ void t_php_generator::generate_service_processor(t_service* tservice,
 
   // Generate processor event handler functions
   generate_processor_event_handler_functions(f_service_);
+
+  if (error_handler_) {
+    // Generate processor error handler functions
+    generate_processor_error_handler_functions(f_service_);
+  }
 
   // Generate the server implementation
   indent(f_service_) <<
@@ -1853,6 +1888,18 @@ void t_php_generator::generate_process_function(t_service* tservice,
   indent(f_service_) << "$this->eventHandler_->preExec($handler_ctx, '"
                      << fn_name << "', $args);" << endl;
 
+
+
+  if (error_handler_) {
+    f_service_ << indent() <<  "try {" << endl;
+    indent_up();
+  }
+
+
+
+
+
+
   f_service_ << indent();
   if (!tfunction->is_oneway() && !tfunction->get_returntype()->is_void()) {
     f_service_ << "$result->success = ";
@@ -1869,6 +1916,32 @@ void t_php_generator::generate_process_function(t_service* tservice,
     f_service_ << "$args->" << (*f_iter)->get_name();
   }
   f_service_ << ");" << endl;
+
+
+
+
+
+  if (error_handler_) {
+  	indent_down();
+    f_service_ << indent() <<  "} catch (\\Exception $e) {" << endl;
+    indent_up();
+    f_service_ << indent() <<  "if ($this->errorHandler_ === null) {" << endl;
+    indent_up();
+    f_service_ << indent() <<  "throw  $e;" << endl;
+    indent_down();
+    f_service_ << indent() <<  "} else {" << endl;
+    indent_up();
+    f_service_ << indent() <<  "$this->errorHandler_->handle('" << fn_name << "', $e);" << endl;
+    indent_down();
+    f_service_ << indent() <<  "}" << endl;
+    indent_down();
+    f_service_ << indent() <<  "}" << endl;
+  }
+
+
+
+
+
 
   if (!tfunction->is_oneway()) {
     indent(f_service_) << "$this->eventHandler_->postExec($handler_ctx, '"
@@ -4047,5 +4120,6 @@ THRIFT_REGISTER_GENERATOR(php, "PHP",
 "    mangledsvcs      Generate services with namespace mangling.\n"
 "    unmangledsvcs    Generate services without namespace mangling.\n"
 "    declarens:       Use namespace declaration.\n"
+"    errorhandler:    Allow injecting a custom error handler.\n"
 "    adapters:        Create a set of adapters (wrappers with predefined transports and zipkin tracing).\n"
 );
