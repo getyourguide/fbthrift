@@ -1712,15 +1712,15 @@ void t_php_generator::generate_service_processor(t_service* tservice,
       indent() << "protected $handler_ = null;" << endl;
   }
 
-  if (error_handler_) {
-    f_service_ <<
-      indent() << "protected $eventHandler_ = null;"
-               << endl;
-  }
-
   f_service_ <<
     indent() << "protected $eventHandler_ = null;"
              << endl;
+
+  if (error_handler_) {
+    f_service_ <<
+      indent() << "protected $errorHandler_ = null;"
+               << endl;
+  }
 
   if (ducktyping_) {
     f_service_ <<
@@ -1888,17 +1888,10 @@ void t_php_generator::generate_process_function(t_service* tservice,
   indent(f_service_) << "$this->eventHandler_->preExec($handler_ctx, '"
                      << fn_name << "', $args);" << endl;
 
-
-
   if (error_handler_) {
     f_service_ << indent() <<  "try {" << endl;
     indent_up();
   }
-
-
-
-
-
 
   f_service_ << indent();
   if (!tfunction->is_oneway() && !tfunction->get_returntype()->is_void()) {
@@ -1917,10 +1910,6 @@ void t_php_generator::generate_process_function(t_service* tservice,
   }
   f_service_ << ");" << endl;
 
-
-
-
-
   if (error_handler_) {
   	indent_down();
     f_service_ << indent() <<  "} catch (\\Exception $e) {" << endl;
@@ -1937,11 +1926,6 @@ void t_php_generator::generate_process_function(t_service* tservice,
     indent_down();
     f_service_ << indent() <<  "}" << endl;
   }
-
-
-
-
-
 
   if (!tfunction->is_oneway()) {
     indent(f_service_) << "$this->eventHandler_->postExec($handler_ctx, '"
