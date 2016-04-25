@@ -2837,6 +2837,8 @@ void t_php_generator::generate_processor_adapter_http(t_service* tservice, bool 
   f_service_adapter <<
     indent() << "/**  @var " << long_name << "If */" << endl <<
     indent() << "protected $serviceHandler;" << endl <<
+    indent() << "/** @var \\IProcessorErrorHandler */" << endl <<
+    indent() << "protected $errorHandler;" << endl <<
     indent() << "/** @var  TraceHelperInterface */" << endl <<
     indent() << "protected $traceHelper;" << endl <<
     endl;
@@ -2844,17 +2846,20 @@ void t_php_generator::generate_processor_adapter_http(t_service* tservice, bool 
   // open function
   indent(f_service_adapter) << "/**" << endl;
   indent(f_service_adapter) << " * @param " << long_name << "If $handler" << endl;
+  indent(f_service_adapter) << " * @param \\IProcessorErrorHandler|null $errorHandler" << endl;
   indent(f_service_adapter) << " * @param TraceHelperInterface|null $traceHelper" << endl;
-  indent(f_service_adapter) << " * @param bool|true $setTraceSpanByHeader" << endl;
+  indent(f_service_adapter) << " * @param bool $setTraceSpanByHeader" << endl;
   indent(f_service_adapter) << " */" << endl;
   indent(f_service_adapter) << "public function __construct(" << endl;
   indent_up();
   indent(f_service_adapter) << long_name << "If $handler," << endl;
+  indent(f_service_adapter) << "\\IProcessorErrorHandler $errorHandler = null," << endl;
   indent(f_service_adapter) << "TraceHelperInterface $traceHelper = null," << endl;
-  indent(f_service_adapter) << "$setTraceSpanByHeader  = true)" << endl;
+  indent(f_service_adapter) << "$setTraceSpanByHeader = true)" << endl;
   indent_down();
   scope_up(f_service_adapter);
   indent(f_service_adapter) << "$this->serviceHandler = $handler;" << endl;
+  indent(f_service_adapter) << "$this->errorHandler = $errorHandler;" << endl;
   indent(f_service_adapter) << "if ($traceHelper === null) {" << endl;
   indent_up();
   indent(f_service_adapter) <<  "//add mock receiver if no traceing is needed"  << endl;
@@ -2887,6 +2892,11 @@ void t_php_generator::generate_processor_adapter_http(t_service* tservice, bool 
   indent(f_service_adapter) << "$processor = new " << long_name << "Processor($this->serviceHandler);" << endl;
   indent(f_service_adapter) << "$eventHandler = new TraceProcessorEventHandler('" << long_name << "', $this->traceHelper);" << endl;
   indent(f_service_adapter) << "$processor->setEventHandler($eventHandler);" << endl;
+  indent(f_service_adapter) << "if ($this->errorHandler !== null) {" << endl;
+  indent_up();
+  indent(f_service_adapter) << "$processor->setErrorHandler($this->errorHandler);" << endl;
+  indent_down();
+  indent(f_service_adapter) << "}" << endl;
   indent(f_service_adapter) << "$transport = new \\TBufferedTransport(new \\TPhpStream(\\TPhpStream::MODE_R | \\TPhpStream::MODE_W));" << endl;
   indent(f_service_adapter) << "$protocol = new \\TBinaryProtocol($transport, true, true);" << endl;
   indent(f_service_adapter) << "$transport->open();" << endl;
