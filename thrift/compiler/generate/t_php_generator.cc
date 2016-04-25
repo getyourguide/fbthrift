@@ -55,7 +55,7 @@ class t_php_generator : public t_oop_generator {
     mangled_services_ = option_is_set(parsed_options, "mangledsvcs", false);
     unmangled_services_ = option_is_set(parsed_options, "unmangledsvcs", true);
     declare_namespace_ = option_is_specified(parsed_options, "declarens");
-    exception_handler_ = option_is_specified(parsed_options, "errorhandler");
+    exception_handler_ = option_is_specified(parsed_options, "exceptionhandler");
     service_adapters_ = option_is_specified(parsed_options, "adapters");
 
     if (service_adapters_ && !norequires_) {
@@ -4101,19 +4101,19 @@ string t_php_generator ::type_to_enum(t_type* type) {
 }
 
 THRIFT_REGISTER_GENERATOR(php, "PHP",
-"    inlined:          Generate PHP inlined files.\n"
-"    server:           Generate PHP server stubs.\n"
-"    autoload:         Generate PHP with autoload.\n"
-"    norequires:       Generate PHP with no require_once/include_once calls.\n"
-"    oop:              Generate PHP with object oriented subclasses.\n"
-"    rest:             Generate PHP REST processors.\n"
-"    ducktyping:       Generate processor constructors without explicit types.\n"
-"    hphpenum:         Generate enums that extend HPHP Enum.\n"
-"    async:            Generate async methods for Hack.\n"
-"    json:             Generate functions to parse JSON into thrift struct.\n"
-"    mangledsvcs       Generate services with namespace mangling.\n"
-"    unmangledsvcs     Generate services without namespace mangling.\n"
-"    declarens:        Use namespace declaration.\n"
-"    exceptionhandler: Allow injecting a custom exception handler.\n"
-"    adapters:         Create a set of adapters (wrappers with predefined transports and zipkin tracing).\n"
+"    inlined:         Generate PHP inlined files.\n"
+"    server:          Generate PHP server stubs.\n"
+"    autoload:        Generate PHP with autoload.\n"
+"    norequires:      Generate PHP with no require_once/include_once calls.\n"
+"    oop:             Generate PHP with object oriented subclasses.\n"
+"    rest:            Generate PHP REST processors.\n"
+"    ducktyping:      Generate processor constructors without explicit types.\n"
+"    hphpenum:        Generate enums that extend HPHP Enum.\n"
+"    async:           Generate async methods for Hack.\n"
+"    json:            Generate functions to parse JSON into thrift struct.\n"
+"    mangledsvcs      Generate services with namespace mangling.\n"
+"    unmangledsvcs    Generate services without namespace mangling.\n"
+"    declarens:       Use namespace declaration.\n"
+"    exceptionhandler:Allow injecting a custom exception handler.\n"
+"    adapters:        Create a set of adapters (wrappers with predefined transports and zipkin tracing).\n"
 );
