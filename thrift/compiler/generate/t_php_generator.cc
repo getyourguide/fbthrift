@@ -55,7 +55,7 @@ class t_php_generator : public t_oop_generator {
     mangled_services_ = option_is_set(parsed_options, "mangledsvcs", false);
     unmangled_services_ = option_is_set(parsed_options, "unmangledsvcs", true);
     declare_namespace_ = option_is_specified(parsed_options, "declarens");
-    error_handler_ = option_is_specified(parsed_options, "errorhandler");
+    exception_handler_ = option_is_specified(parsed_options, "errorhandler");
     service_adapters_ = option_is_specified(parsed_options, "adapters");
 
     if (service_adapters_ && !norequires_) {
@@ -125,7 +125,7 @@ class t_php_generator : public t_oop_generator {
   void generate_service_processor (t_service* tservice, bool mangle);
   void generate_process_function  (t_service* tservice, t_function* tfunction);
   void generate_processor_event_handler_functions(std::ofstream& out);
-  void generate_processor_error_handler_functions(std::ofstream& out);
+  void generate_processor_exception_handler_functions(std::ofstream& out);
   void generate_client_event_handler_functions(std::ofstream& out);
   void generate_event_handler_functions (std::ofstream& out, string cl);
 
@@ -398,7 +398,7 @@ class t_php_generator : public t_oop_generator {
   /**
    * Whether to allow custom error handler injection
    */
-  bool error_handler_;
+  bool exception_handler_;
 
   /**
    * Whether to enable the service adapter classes
@@ -1669,15 +1669,15 @@ void t_php_generator::generate_event_handler_functions(ofstream& out, string cl)
 /**
  * Generates process error handler functions.
  */
-void t_php_generator::generate_processor_error_handler_functions(ofstream& out) {
+void t_php_generator::generate_processor_exception_handler_functions(ofstream& out) {
   indent(out) <<
-    "public function setErrorHandler(\\IProcessorErrorHandler $error_handler) {" << endl <<
-    indent() << "  $this->errorHandler_ = $error_handler;" << endl <<
+    "public function setExceptionHandler(\\IProcessorExceptionHandler $exception_handler) {" << endl <<
+    indent() << "  $this->errorHandler_ = $exception_handler;" << endl <<
     indent() << "}" << endl <<
     endl;
 
   indent(out) <<
-    "public function getErrorHandler() {" << endl <<
+    "public function getExceptionHandler() {" << endl <<
     indent() << "  return $this->errorHandler_;" << endl <<
     indent() << "}" << endl <<
     endl;
@@ -1716,7 +1716,7 @@ void t_php_generator::generate_service_processor(t_service* tservice,
     indent() << "protected $eventHandler_ = null;"
              << endl;
 
-  if (error_handler_) {
+  if (exception_handler_) {
     f_service_ <<
       indent() << "protected $errorHandler_ = null;"
                << endl;
@@ -1747,9 +1747,9 @@ void t_php_generator::generate_service_processor(t_service* tservice,
   // Generate processor event handler functions
   generate_processor_event_handler_functions(f_service_);
 
-  if (error_handler_) {
+  if (exception_handler_) {
     // Generate processor error handler functions
-    generate_processor_error_handler_functions(f_service_);
+    generate_processor_exception_handler_functions(f_service_);
   }
 
   // Generate the server implementation
@@ -1888,7 +1888,7 @@ void t_php_generator::generate_process_function(t_service* tservice,
   indent(f_service_) << "$this->eventHandler_->preExec($handler_ctx, '"
                      << fn_name << "', $args);" << endl;
 
-  if (error_handler_) {
+  if (exception_handler_) {
     f_service_ << indent() <<  "try {" << endl;
     indent_up();
   }
@@ -1910,17 +1910,17 @@ void t_php_generator::generate_process_function(t_service* tservice,
   }
   f_service_ << ");" << endl;
 
-  if (error_handler_) {
+  if (exception_handler_) {
   	indent_down();
     f_service_ << indent() <<  "} catch (\\Exception $e) {" << endl;
     indent_up();
-    f_service_ << indent() <<  "if ($this->errorHandler_ === null) {" << endl;
+    f_service_ << indent() <<  "if ($this->exceptionHandler_ === null) {" << endl;
     indent_up();
     f_service_ << indent() <<  "throw  $e;" << endl;
     indent_down();
     f_service_ << indent() <<  "} else {" << endl;
     indent_up();
-    f_service_ << indent() <<  "$this->errorHandler_->handle('" << fn_name << "', $e);" << endl;
+    f_service_ << indent() <<  "$this->exceptionHandler_->handle('" << fn_name << "', $e);" << endl;
     indent_down();
     f_service_ << indent() <<  "}" << endl;
     indent_down();
@@ -2837,8 +2837,8 @@ void t_php_generator::generate_processor_adapter_http(t_service* tservice, bool 
   f_service_adapter <<
     indent() << "/**  @var " << long_name << "If */" << endl <<
     indent() << "protected $serviceHandler;" << endl <<
-    indent() << "/** @var \\IProcessorErrorHandler */" << endl <<
-    indent() << "protected $errorHandler;" << endl <<
+    indent() << "/** @var \\IProcessorExceptionHandler */" << endl <<
+    indent() << "protected $exceptionHandler;" << endl <<
     indent() << "/** @var  TraceHelperInterface */" << endl <<
     indent() << "protected $traceHelper;" << endl <<
     endl;
@@ -2846,20 +2846,20 @@ void t_php_generator::generate_processor_adapter_http(t_service* tservice, bool 
   // open function
   indent(f_service_adapter) << "/**" << endl;
   indent(f_service_adapter) << " * @param " << long_name << "If $handler" << endl;
-  indent(f_service_adapter) << " * @param \\IProcessorErrorHandler|null $errorHandler" << endl;
+  indent(f_service_adapter) << " * @param \\IProcessorExceptionHandler|null $exceptionHandler" << endl;
   indent(f_service_adapter) << " * @param TraceHelperInterface|null $traceHelper" << endl;
   indent(f_service_adapter) << " * @param bool $setTraceSpanByHeader" << endl;
   indent(f_service_adapter) << " */" << endl;
   indent(f_service_adapter) << "public function __construct(" << endl;
   indent_up();
   indent(f_service_adapter) << long_name << "If $handler," << endl;
-  indent(f_service_adapter) << "\\IProcessorErrorHandler $errorHandler = null," << endl;
+  indent(f_service_adapter) << "\\IProcessorExceptionHandler $exceptionHandler = null," << endl;
   indent(f_service_adapter) << "TraceHelperInterface $traceHelper = null," << endl;
   indent(f_service_adapter) << "$setTraceSpanByHeader = true)" << endl;
   indent_down();
   scope_up(f_service_adapter);
   indent(f_service_adapter) << "$this->serviceHandler = $handler;" << endl;
-  indent(f_service_adapter) << "$this->errorHandler = $errorHandler;" << endl;
+  indent(f_service_adapter) << "$this->exceptionHandler = $exceptionHandler;" << endl;
   indent(f_service_adapter) << "if ($traceHelper === null) {" << endl;
   indent_up();
   indent(f_service_adapter) <<  "//add mock receiver if no traceing is needed"  << endl;
@@ -2892,9 +2892,9 @@ void t_php_generator::generate_processor_adapter_http(t_service* tservice, bool 
   indent(f_service_adapter) << "$processor = new " << long_name << "Processor($this->serviceHandler);" << endl;
   indent(f_service_adapter) << "$eventHandler = new TraceProcessorEventHandler('" << long_name << "', $this->traceHelper);" << endl;
   indent(f_service_adapter) << "$processor->setEventHandler($eventHandler);" << endl;
-  indent(f_service_adapter) << "if ($this->errorHandler !== null) {" << endl;
+  indent(f_service_adapter) << "if ($this->exceptionHandler !== null) {" << endl;
   indent_up();
-  indent(f_service_adapter) << "$processor->setErrorHandler($this->errorHandler);" << endl;
+  indent(f_service_adapter) << "$processor->setExceptionHandler($this->exceptionHandler);" << endl;
   indent_down();
   indent(f_service_adapter) << "}" << endl;
   indent(f_service_adapter) << "$transport = new \\TBufferedTransport(new \\TPhpStream(\\TPhpStream::MODE_R | \\TPhpStream::MODE_W));" << endl;
@@ -4101,19 +4101,19 @@ string t_php_generator ::type_to_enum(t_type* type) {
 }
 
 THRIFT_REGISTER_GENERATOR(php, "PHP",
-"    inlined:         Generate PHP inlined files.\n"
-"    server:          Generate PHP server stubs.\n"
-"    autoload:        Generate PHP with autoload.\n"
-"    norequires:      Generate PHP with no require_once/include_once calls.\n"
-"    oop:             Generate PHP with object oriented subclasses.\n"
-"    rest:            Generate PHP REST processors.\n"
-"    ducktyping:      Generate processor constructors without explicit types.\n"
-"    hphpenum:        Generate enums that extend HPHP Enum.\n"
-"    async:           Generate async methods for Hack.\n"
-"    json:            Generate functions to parse JSON into thrift struct.\n"
-"    mangledsvcs      Generate services with namespace mangling.\n"
-"    unmangledsvcs    Generate services without namespace mangling.\n"
-"    declarens:       Use namespace declaration.\n"
-"    errorhandler:    Allow injecting a custom error handler.\n"
-"    adapters:        Create a set of adapters (wrappers with predefined transports and zipkin tracing).\n"
+"    inlined:          Generate PHP inlined files.\n"
+"    server:           Generate PHP server stubs.\n"
+"    autoload:         Generate PHP with autoload.\n"
+"    norequires:       Generate PHP with no require_once/include_once calls.\n"
+"    oop:              Generate PHP with object oriented subclasses.\n"
+"    rest:             Generate PHP REST processors.\n"
+"    ducktyping:       Generate processor constructors without explicit types.\n"
+"    hphpenum:         Generate enums that extend HPHP Enum.\n"
+"    async:            Generate async methods for Hack.\n"
+"    json:             Generate functions to parse JSON into thrift struct.\n"
+"    mangledsvcs       Generate services with namespace mangling.\n"
+"    unmangledsvcs     Generate services without namespace mangling.\n"
+"    declarens:        Use namespace declaration.\n"
+"    exceptionhandler: Allow injecting a custom exception handler.\n"
+"    adapters:         Create a set of adapters (wrappers with predefined transports and zipkin tracing).\n"
 );
