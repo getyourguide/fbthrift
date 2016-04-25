@@ -396,7 +396,7 @@ class t_php_generator : public t_oop_generator {
   bool declare_namespace_;
 
   /**
-   * Whether to allow custom error handler injection
+   * Whether to allow custom exception handler injection
    */
   bool exception_handler_;
 
@@ -1667,18 +1667,18 @@ void t_php_generator::generate_event_handler_functions(ofstream& out, string cl)
 }
 
 /**
- * Generates process error handler functions.
+ * Generates process exception handler functions.
  */
 void t_php_generator::generate_processor_exception_handler_functions(ofstream& out) {
   indent(out) <<
     "public function setExceptionHandler(\\IProcessorExceptionHandler $exception_handler) {" << endl <<
-    indent() << "  $this->errorHandler_ = $exception_handler;" << endl <<
+    indent() << "  $this->exceptionHandler_ = $exception_handler;" << endl <<
     indent() << "}" << endl <<
     endl;
 
   indent(out) <<
     "public function getExceptionHandler() {" << endl <<
-    indent() << "  return $this->errorHandler_;" << endl <<
+    indent() << "  return $this->exceptionHandler_;" << endl <<
     indent() << "}" << endl <<
     endl;
 }
@@ -1718,7 +1718,7 @@ void t_php_generator::generate_service_processor(t_service* tservice,
 
   if (exception_handler_) {
     f_service_ <<
-      indent() << "protected $errorHandler_ = null;"
+      indent() << "protected $exceptionHandler_ = null;"
                << endl;
   }
 
@@ -1748,7 +1748,7 @@ void t_php_generator::generate_service_processor(t_service* tservice,
   generate_processor_event_handler_functions(f_service_);
 
   if (exception_handler_) {
-    // Generate processor error handler functions
+    // Generate processor exception handler functions
     generate_processor_exception_handler_functions(f_service_);
   }
 
