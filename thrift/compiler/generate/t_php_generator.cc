@@ -1791,7 +1791,7 @@ void t_php_generator::generate_service_processor(t_service* tservice,
       indent() << "  $this->eventHandler_->postRead($handler_ctx, $methodname, array());" << endl <<
       indent() << "  $x = new \\TApplicationException('Function '.$fname.' not implemented.', \\TApplicationException::UNKNOWN_METHOD);" << endl <<
       indent() << "  $this->eventHandler_->handlerError($handler_ctx, $methodname, $x);" << endl <<
-      indent() << "  $output->writeMessageBegin($fname, TMessageType::EXCEPTION, $rseqid);" << endl <<
+      indent() << "  $output->writeMessageBegin($fname, \\TMessageType::EXCEPTION, $rseqid);" << endl <<
       indent() << "  $x->write($output);" << endl <<
       indent() << "  $output->writeMessageEnd();" << endl <<
       indent() << "  $output->getTransport()->flush();" << endl <<
