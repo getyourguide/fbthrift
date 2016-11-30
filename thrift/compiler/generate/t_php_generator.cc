@@ -2861,8 +2861,6 @@ void t_php_generator::generate_processor_adapter_http(t_service* tservice, bool 
   indent(f_service_adapter) << "$this->serviceHandler = $handler;" << endl;
   indent(f_service_adapter) << "$this->exceptionHandler = $exceptionHandler;" << endl;
   indent(f_service_adapter) << "$this->eventHandler = isset($eventHandler) ? $eventHandler : new \\TProcessorEventHandler();" << endl;
-  indent_down();
-  indent(f_service_adapter) << "}"  << endl;
 
   // close function
   scope_down(f_service_adapter);
