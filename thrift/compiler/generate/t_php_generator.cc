@@ -2841,46 +2841,26 @@ void t_php_generator::generate_processor_adapter_http(t_service* tservice, bool 
     indent() << "protected $exceptionHandler;" << endl <<
     indent() << "/** @var  TraceHelperInterface */" << endl <<
     indent() << "protected $traceHelper;" << endl <<
+    indent() << "/** @var  \\TProcessorEventHandler */" << endl <<
+    indent() << "protected $eventHandler;" << endl <<
     endl;
 
   // open function
   indent(f_service_adapter) << "/**" << endl;
   indent(f_service_adapter) << " * @param " << long_name << "If $handler" << endl;
   indent(f_service_adapter) << " * @param \\IProcessorExceptionHandler|null $exceptionHandler" << endl;
-  indent(f_service_adapter) << " * @param TraceHelperInterface|null $traceHelper" << endl;
-  indent(f_service_adapter) << " * @param bool $setTraceSpanByHeader" << endl;
+  indent(f_service_adapter) << " * @param \\TProcessorEventHandler|null $eventHandler" << endl;
   indent(f_service_adapter) << " */" << endl;
   indent(f_service_adapter) << "public function __construct(" << endl;
   indent_up();
   indent(f_service_adapter) << long_name << "If $handler," << endl;
   indent(f_service_adapter) << "\\IProcessorExceptionHandler $exceptionHandler = null," << endl;
-  indent(f_service_adapter) << "TraceHelperInterface $traceHelper = null," << endl;
-  indent(f_service_adapter) << "$setTraceSpanByHeader = true)" << endl;
+  indent(f_service_adapter) << "\\TProcessorEventHandler $eventHandler = null)" << endl;
   indent_down();
   scope_up(f_service_adapter);
   indent(f_service_adapter) << "$this->serviceHandler = $handler;" << endl;
   indent(f_service_adapter) << "$this->exceptionHandler = $exceptionHandler;" << endl;
-  indent(f_service_adapter) << "if ($traceHelper === null) {" << endl;
-  indent_up();
-  indent(f_service_adapter) <<  "//add mock receiver if no traceing is needed"  << endl;
-  indent(f_service_adapter) <<  "$this->traceHelper = new TraceHelper([new NullReceiver()]);"  << endl;
-  indent_down();
-  indent(f_service_adapter) << "} else {" << endl;
-  indent_up();
-  indent(f_service_adapter) << "$this->traceHelper = $traceHelper;"  << endl;
-  indent(f_service_adapter) << "if ($setTraceSpanByHeader) {"  << endl;
-  indent_up();
-  indent(f_service_adapter) << "$zipkinHeaders = new ZipkinHttpHeaders();"  << endl;
-  indent(f_service_adapter) << "$zipkinHeaders->populateByHeaders(getallheaders());"  << endl;
-  indent(f_service_adapter) << "if ($zipkinHeaders->isValid()) {"  << endl;
-  indent_up();
-  indent(f_service_adapter) << "$this->traceHelper->setCurrentSpan($zipkinHeaders->getSpan());"  << endl;
-  indent_down();
-  indent(f_service_adapter) << "}"  << endl;
-  indent_down();
-  indent(f_service_adapter) << "}"  << endl;
-  indent_down();
-  indent(f_service_adapter) << "}"  << endl;
+  indent(f_service_adapter) << "$this->eventHandler = isset($eventHandler) ? $eventHandler : new \\TProcessorEventHandler();" << endl;
 
   // close function
   scope_down(f_service_adapter);
@@ -2890,8 +2870,7 @@ void t_php_generator::generate_processor_adapter_http(t_service* tservice, bool 
   indent(f_service_adapter) << "public function handle()" << endl;
   scope_up(f_service_adapter);
   indent(f_service_adapter) << "$processor = new " << long_name << "Processor($this->serviceHandler);" << endl;
-  indent(f_service_adapter) << "$eventHandler = new TraceProcessorEventHandler('" << long_name << "', $this->traceHelper);" << endl;
-  indent(f_service_adapter) << "$processor->setEventHandler($eventHandler);" << endl;
+  indent(f_service_adapter) << "$processor->setEventHandler($this->eventHandler);" << endl;
   indent(f_service_adapter) << "if ($this->exceptionHandler !== null) {" << endl;
   indent_up();
   indent(f_service_adapter) << "$processor->setExceptionHandler($this->exceptionHandler);" << endl;
