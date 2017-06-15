@@ -3022,7 +3022,9 @@ void t_php_generator::generate_client_adapter_http(t_service* tservice, bool man
   f_service_adapter << endl;
 
   // Start - Getter for the HTTP client
-  generate_php_docstring(f_service_adapter, *f_iter);
+  indent(f_service_adapter) << "/**" << endl;
+  indent(f_service_adapter) << "* @return \\THttpClient" << endl;
+  indent(f_service_adapter) << "*/" << endl;
   indent(f_service_adapter) << "public function getHttpClient()" << endl;
   scope_up(f_service_adapter);
   indent(f_service_adapter) << "return $this->httpClient;" << endl;
