@@ -2932,6 +2932,8 @@ void t_php_generator::generate_client_adapter_http(t_service* tservice, bool man
   indent() << "protected $serviceClient;" << endl <<
   indent() << "/** @var  TraceHelperInterface */" << endl <<
   indent() << "protected $traceHelper;" << endl <<
+  indent() << "/** @var  \\THttpClient */" << endl <<
+  indent() << "protected $httpClient;" << endl <<
   endl;
 
   // open function
@@ -2988,10 +2990,10 @@ void t_php_generator::generate_client_adapter_http(t_service* tservice, bool man
   indent(f_service_adapter) << "}"  << endl;
   indent_down();
   indent(f_service_adapter) << "}"  << endl;
-  indent(f_service_adapter) << "$httpClient = new \\THttpClient($adapterConfig['host'], $adapterConfig['port'], " <<
+  indent(f_service_adapter) << "$this->httpClient = new \\THttpClient($adapterConfig['host'], $adapterConfig['port'], " <<
                                "$adapterConfig['url'], "
                             << "$httpProtocol, 'error_log');"  << endl;
-  indent(f_service_adapter) << "$this->transport = new \\TBufferedTransport($httpClient, 1024, 1024);"  << endl;
+  indent(f_service_adapter) << "$this->transport = new \\TBufferedTransport($this->httpClient, 1024, 1024);"  << endl;
   indent(f_service_adapter) << "$protocol = new \\TBinaryProtocol($this->transport);"  << endl;
   indent(f_service_adapter) << "$this->serviceClient = new " << long_name << "Client($protocol);"  << endl;
   indent(f_service_adapter) << "//tracing"  << endl;
@@ -3017,6 +3019,15 @@ void t_php_generator::generate_client_adapter_http(t_service* tservice, bool man
   indent(f_service_adapter) << "}"  << endl;
   // close function
   scope_down(f_service_adapter);
+  f_service_adapter << endl;
+
+  // Start - Getter for the HTTP client
+  generate_php_docstring(f_service_adapter, *f_iter);
+  indent(f_service_adapter) << "public function getHttpClient()" << endl;
+  scope_up(f_service_adapter);
+  indent(f_service_adapter) << "return $this->httpClient;" << endl;
+  scope_down(f_service_adapter);
+  // End - Getter for the HTTP client
   f_service_adapter << endl;
 
   // Generate client method wrappers
