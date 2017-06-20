@@ -3014,7 +3014,7 @@ void t_php_generator::generate_client_adapter_http(t_service* tservice, bool man
   indent(f_service_adapter) << "// set headers"  << endl;
   indent(f_service_adapter) << "if (0 < count($headers)) {"  << endl;
   indent_up();
-  indent(f_service_adapter) << "$httpClient->setCustomHeaders($headers);"  << endl;
+  indent(f_service_adapter) << "$this->httpClient->setCustomHeaders($headers);"  << endl;
   indent_down();
   indent(f_service_adapter) << "}"  << endl;
   // close function
