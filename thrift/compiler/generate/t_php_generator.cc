@@ -423,7 +423,6 @@ class t_php_generator : public t_oop_generator {
    * Whether to enable the service adapter classes
    */
   bool service_adapters_;
-};
 
   /**
    * True if we should generate lazy initialization code for constants
