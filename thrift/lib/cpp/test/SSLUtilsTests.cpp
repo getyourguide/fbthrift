@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 #include <glog/logging.h>
 
-#include <arpa/inet.h>
+#include <folly/portability/Sockets.h>
 
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
@@ -27,7 +27,7 @@
 #include <folly/SocketAddress.h>
 #include <folly/io/async/SSLContext.h>
 
-using folly::OpenSSLUtils;
+using folly::ssl::OpenSSLUtils;
 using folly::SSLContext;
 using folly::SocketAddress;
 

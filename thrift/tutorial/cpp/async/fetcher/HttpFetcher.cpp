@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include "thrift/tutorial/cpp/async/fetcher/HttpFetcher.h"
+#include <thrift/tutorial/cpp/async/fetcher/HttpFetcher.h>
 
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
 
-#include "thrift/tutorial/cpp/async/fetcher/gen-cpp2/fetcher_types.h"
+#include <thrift/tutorial/cpp/async/fetcher/gen-cpp2/fetcher_types.h>
 
 using namespace std;
 using apache::thrift::async::TAsyncSocket;
@@ -63,8 +63,8 @@ void HttpFetcher::writeSuccess() noexcept {
   socket_->setReadCallback(this);
 }
 
-void HttpFetcher::writeError(size_t bytesWritten,
-                             const TTransportException& ex) noexcept {
+void HttpFetcher::writeError(
+    size_t /* bytesWritten */, const TTransportException& ex) noexcept {
   fail(string("failed to write HTTP request: ") + ex.what());
 }
 

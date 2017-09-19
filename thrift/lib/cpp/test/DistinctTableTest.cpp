@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #include <cmath>
-#include <set>
 
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp/DistinctTable.h>
@@ -24,7 +23,7 @@ namespace apache { namespace thrift {
 template <class T>
 struct AllSamePolicy : BaseDistinctTablePolicy<T> {
   struct Hash {
-    size_t operator()(const T& x) const { return 0; }
+    size_t operator()(const T&) const { return 0; }
   };
 
   struct Equal {

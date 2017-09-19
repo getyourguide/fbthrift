@@ -19,9 +19,9 @@
 
 #include <iostream>
 #include <cmath>
-#include <thrift/lib/cpp/transport/TTransportUtils.h>
 #include <thrift/lib/cpp/protocol/TBinaryProtocol.h>
-#include "thrift/test/gen-cpp/DebugProtoTest_types.h"
+#include <thrift/lib/cpp/transport/TBufferTransports.h>
+#include <thrift/test/gen-cpp/DebugProtoTest_types.h>
 
 using std::cout;
 using std::endl;

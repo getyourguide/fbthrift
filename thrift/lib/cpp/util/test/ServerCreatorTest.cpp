@@ -14,22 +14,18 @@
  * limitations under the License.
  */
 
-#include <boost/test/unit_test.hpp>
-
 #include <thrift/lib/cpp/ClientUtil.h>
 #include <thrift/lib/cpp/server/TServer.h>
 #include <thrift/lib/cpp/util/ScopedServerThread.h>
 #include <thrift/lib/cpp/util/TEventServerCreator.h>
 #include <thrift/lib/cpp/util/example/TSimpleServerCreator.h>
 #include <thrift/lib/cpp/util/TThreadedServerCreator.h>
+#include <thrift/perf/if/gen-cpp/LoadTest.h>
 #include <thrift/lib/cpp/util/example/TThreadPoolServerCreator.h>
-#include "thrift/perf/if/gen-cpp/LoadTest.h"
-#include "thrift/perf/cpp/AsyncLoadHandler.h"
-#include "thrift/perf/cpp/LoadHandler.h"
 
 #include <iostream>
+#include <gtest/gtest.h>
 
-using namespace boost;
 using namespace apache::thrift::server;
 using namespace apache::thrift::transport;
 using namespace apache::thrift::test;
@@ -50,7 +46,7 @@ void checkLoadServer(const folly::SocketAddress* address, bool framed = true) {
   string output;
   client->echo(output, input);
 
-  BOOST_CHECK_EQUAL(output, "foobar");
+  EXPECT_EQ("foobar", output);
 }
 
 /*
@@ -72,40 +68,6 @@ void testServerCreator() {
 
   // Make sure the server is running
   checkLoadServer(st.getAddress());
-}
-
-template<typename ServerCreatorT>
-void testServerCreator() {
-  testServerCreator<ServerCreatorT, LoadHandler, LoadTestProcessor>();
-}
-
-BOOST_AUTO_TEST_CASE(SimpleServer) {
-  // "Testing TSimpleServerCreator"
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  testServerCreator<TSimpleServerCreator>();
-  #pragma GCC diagnostic pop
-}
-
-BOOST_AUTO_TEST_CASE(ThreadedServer) {
-  testServerCreator<TThreadedServerCreator>();
-}
-
-BOOST_AUTO_TEST_CASE(ThreadPoolServer) {
-  // "Testing TThreadPoolServerCreator"
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  testServerCreator<TThreadPoolServerCreator>();
-  #pragma GCC diagnostic pop
-}
-
-BOOST_AUTO_TEST_CASE(EventServerTaskQueueMode) {
-  testServerCreator<TEventServerCreator>();
-}
-
-BOOST_AUTO_TEST_CASE(EventServerNativeMode) {
-  testServerCreator<TEventServerCreator, AsyncLoadHandler,
-                    LoadTestAsyncProcessor>();
 }
 
 /*
@@ -133,119 +95,11 @@ void testBindFailure() {
   // the server does manage to start, we won't block forever.
   try {
     server->serve();
-    BOOST_ERROR("we expected bind() to fail, but the server returned "
-                "successfully from serve()");
+    ADD_FAILURE() << "we expected bind() to fail, but the server returned "
+                  << "successfully from serve()";
   } catch (const TTransportException& ex) {
-    BOOST_CHECK_EQUAL(ex.getType(), TTransportException::COULD_NOT_BIND);
+    EXPECT_EQ(TTransportException::COULD_NOT_BIND, ex.getType());
   } catch (const std::system_error& ex) {
-    BOOST_CHECK_EQUAL(ex.code().value(), EADDRINUSE);
+    EXPECT_EQ(EADDRINUSE, ex.code().value());
   }
-}
-
-template<typename ServerCreatorT>
-void testBindFailure() {
-  testBindFailure<ServerCreatorT, LoadHandler, LoadTestProcessor>();
-}
-
-BOOST_AUTO_TEST_CASE(SimpleServerBindFailure) {
-  // "Testing TSimpleServerCreator"
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  testBindFailure<TSimpleServerCreator>();
-  #pragma GCC diagnostic pop
-}
-
-BOOST_AUTO_TEST_CASE(ThreadedServerBindFailure) {
-  testBindFailure<TThreadedServerCreator>();
-}
-
-BOOST_AUTO_TEST_CASE(ThreadPoolServerBindFailure) {
-  // "TestingTThreadPoolServerCreator"
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  testBindFailure<TThreadPoolServerCreator>();
-  #pragma GCC diagnostic pop
-}
-
-BOOST_AUTO_TEST_CASE(EventServerBindFailure) {
-  testBindFailure<TEventServerCreator, AsyncLoadHandler,
-                  LoadTestAsyncProcessor>();
-}
-
-/*
- * Make sure ScopedServerThread raises an exception in the original thread
- * if it fails to start the server.
- */
-
-template<typename ServerCreatorT, typename HandlerT, typename ProcessorT>
-void testThreadedBindFailure() {
-  std::shared_ptr<HandlerT> handler(new HandlerT);
-  std::shared_ptr<ProcessorT> processor(new ProcessorT(handler));
-
-  // Start a server thread
-  ServerCreatorT serverCreator(processor, 0);
-  ScopedServerThread st(&serverCreator);
-
-  // Double check that the first server is running
-  checkLoadServer(st.getAddress());
-
-  // Try to start a second server listening on the same port
-  ScopedServerThread st2;
-  try {
-    ServerCreatorT serverCreator2(processor, st.getAddress()->getPort());
-    st2.start(&serverCreator2);
-    BOOST_ERROR("we expected bind() to fail, but the server thread started "
-                "successfully");
-  } catch (const TTransportException& ex) {
-    // Serve should throw a TTransportException
-    BOOST_CHECK_EQUAL(ex.getType(), TTransportException::COULD_NOT_BIND);
-  } catch (const std::system_error& ex) {
-    BOOST_CHECK_EQUAL(ex.code().value(), EADDRINUSE);
-  }
-}
-
-template<typename ServerCreatorT>
-void testThreadedBindFailure() {
-  return testThreadedBindFailure<ServerCreatorT, LoadHandler,
-                                 LoadTestProcessor>();
-}
-
-BOOST_AUTO_TEST_CASE(SimpleServerThreadedBindFailure) {
-  // "Testing TSimpleServerCreator"
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  testThreadedBindFailure<TSimpleServerCreator>();
-  #pragma GCC diagnostic pop
-}
-
-BOOST_AUTO_TEST_CASE(ThreadedServerThreadedBindFailure) {
-  testThreadedBindFailure<TThreadedServerCreator>();
-}
-
-BOOST_AUTO_TEST_CASE(ThreadPoolServerThreadedBindFailure) {
-  // "Testing TThreadPoolServerCreator"
-  #pragma GCC diagnostic push
-  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-  testThreadedBindFailure<TThreadPoolServerCreator>();
-  #pragma GCC diagnostic pop
-}
-
-BOOST_AUTO_TEST_CASE(EventServerThreadedBindFailure) {
-  testThreadedBindFailure<TEventServerCreator, AsyncLoadHandler,
-                          LoadTestAsyncProcessor>();
-}
-
-unit_test::test_suite* init_unit_test_suite(int argc, char* argv[]) {
-  unit_test::framework::master_test_suite().p_name.value = "ServerCreatorTest";
-
-  if (argc != 1) {
-    cerr << "error: unhandled arguments:";
-    for (int n = 1; n < argc; ++n) {
-      cerr << " " << argv[n];
-    }
-    cerr << endl;
-    exit(1);
-  }
-
-  return nullptr;
 }

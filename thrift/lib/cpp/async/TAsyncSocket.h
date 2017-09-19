@@ -18,7 +18,7 @@
 
 #include <folly/io/async/AsyncSocket.h>
 #include <folly/io/async/EventBase.h>
-#include <thrift/lib/cpp/async/TEventHandler.h>
+#include <folly/io/async/EventHandler.h>
 #include <thrift/lib/cpp/transport/TTransportException.h>
 #include <thrift/lib/cpp/async/TAsyncTransport.h>
 
@@ -46,13 +46,13 @@ class TAsyncSocket : public virtual folly::AsyncSocket, public TAsyncTransport {
       : folly::AsyncSocket(evb, ip, port, connectTimeout) {}
 
 
-  static std::shared_ptr<TAsyncSocket> newSocket(TEventBase* evb) {
+  static std::shared_ptr<TAsyncSocket> newSocket(folly::EventBase* evb) {
     return std::shared_ptr<TAsyncSocket>(new TAsyncSocket(evb),
                                            Destructor());
   }
 
   static std::shared_ptr<TAsyncSocket> newSocket(
-      TEventBase* evb,
+      folly::EventBase* evb,
       const folly::SocketAddress& address,
       uint32_t connectTimeout = 0) {
     return std::shared_ptr<TAsyncSocket>(
@@ -61,7 +61,7 @@ class TAsyncSocket : public virtual folly::AsyncSocket, public TAsyncTransport {
   }
 
   static std::shared_ptr<TAsyncSocket> newSocket(
-      TEventBase* evb,
+      folly::EventBase* evb,
       const std::string& ip,
       uint16_t port,
       uint32_t connectTimeout = 0) {
@@ -70,7 +70,7 @@ class TAsyncSocket : public virtual folly::AsyncSocket, public TAsyncTransport {
         Destructor());
   }
 
-  static std::shared_ptr<TAsyncSocket> newSocket(TEventBase* evb, int fd) {
+  static std::shared_ptr<TAsyncSocket> newSocket(folly::EventBase* evb, int fd) {
     return std::shared_ptr<TAsyncSocket>(new TAsyncSocket(evb, fd),
                                            Destructor());
   }
@@ -108,11 +108,20 @@ class TAsyncSocket : public virtual folly::AsyncSocket, public TAsyncTransport {
     AsyncSocket::setReadCB(callback);
   }
 
-  TAsyncTransport::ReadCallback* getReadCallback() const override {
-    return dynamic_cast<TAsyncTransport::ReadCallback*>(
-      AsyncSocket::getReadCallback());
+  void setIsAccepted(bool accepted) {
+    accepted_ = accepted;
   }
 
+  // Returns true if this socket was created as a result of an accept() call,
+  // rather than a connect() call. Used to check if our end is the client or
+  // the server. This can't be inferred automatically from the socket fd,
+  // so we set it manually with setIsAccepted() after accepting.
+  bool isAccepted() const {
+    return accepted_;
+  }
+
+ private:
+  bool accepted_ = false;
 };
 
 typedef folly::WriteFlags WriteFlags;

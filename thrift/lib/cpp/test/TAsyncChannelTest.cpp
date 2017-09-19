@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,9 +21,9 @@
 
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
 #include <thrift/lib/cpp/async/TAsyncTransport.h>
-#include <thrift/lib/cpp/async/TAsyncTimeout.h>
+#include <folly/io/async/AsyncTimeout.h>
 #include <thrift/lib/cpp/async/TBinaryAsyncChannel.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
+#include <folly/io/async/EventBase.h>
 #include <thrift/lib/cpp/async/TFramedAsyncChannel.h>
 #include <thrift/lib/cpp/concurrency/Util.h>
 #include <thrift/lib/cpp/protocol/TBinaryProtocol.h>
@@ -41,9 +41,9 @@ using std::vector;
 using apache::thrift::async::TAsyncChannel;
 using apache::thrift::async::TAsyncTransport;
 using apache::thrift::async::TAsyncSocket;
-using apache::thrift::async::TAsyncTimeout;
+using folly::AsyncTimeout;
 using apache::thrift::async::TBinaryAsyncChannel;
-using apache::thrift::async::TEventBase;
+using folly::EventBase;
 using apache::thrift::async::TFramedAsyncChannel;
 using apache::thrift::protocol::TBinaryProtocolT;
 using apache::thrift::transport::TBufferBase;
@@ -259,11 +259,11 @@ class ChunkSchedule : public vector<ChunkInfo> {
 };
 
 class ChunkSender : private TAsyncTransport::WriteCallback,
-                    private TAsyncTimeout {
+                    private AsyncTimeout {
  public:
-  ChunkSender(TEventBase* evb, TAsyncSocket* socket,
+  ChunkSender(EventBase* evb, TAsyncSocket* socket,
               const Message* msg, const ChunkSchedule& schedule)
-    : TAsyncTimeout(evb)
+    : AsyncTimeout(evb)
     , bufOffset_(0)
     , scheduleIndex_(0)
     , currentChunkLen_(0)
@@ -318,7 +318,7 @@ class ChunkSender : private TAsyncTransport::WriteCallback,
       len = info.bytes;
       if (len + bufOffset_ > message_->getLength()) {
         // bug in the test code: ChunkSchedule lists more data than available
-        FAIL() << "bad ChunkSchedule";
+        ADD_FAILURE() << "bad ChunkSchedule";
 
         len = message_->getLength() - bufOffset_;
         if (len == 0) {
@@ -345,8 +345,9 @@ class ChunkSender : private TAsyncTransport::WriteCallback,
     }
   }
 
-  void writeError(size_t bytesWritten,
-                  const TTransportException& ex) noexcept override {
+  void writeError(
+      size_t /* bytesWritten */,
+      const TTransportException&) noexcept override {
     error_ = true;
   }
 
@@ -383,16 +384,16 @@ class MultiMessageSize : public vector<int> {
 };
 
 class MultiMessageSenderReceiver : private TAsyncTransport::WriteCallback,
-                                   private TAsyncTimeout {
+                                   private AsyncTimeout {
   public:
-    MultiMessageSenderReceiver(TEventBase* evb,
+    MultiMessageSenderReceiver(EventBase* evb,
                                TAsyncSocket* socket,
                                const MultiMessageSize& multiMessage,
                                bool framed,
                                uint32_t writeTimes,
                                bool queued = false,
                                milliseconds delayMS = milliseconds(2))
-    : TAsyncTimeout(evb)
+    : AsyncTimeout(evb)
     , writeError_(false)
     , readError_(false)
     , socket_(socket)
@@ -477,8 +478,9 @@ class MultiMessageSenderReceiver : private TAsyncTransport::WriteCallback,
       }
     }
 
-    void writeError(size_t bytesWritten,
-                    const TTransportException& ex) noexcept override {
+    void writeError(
+        size_t /* bytesWritten */,
+        const TTransportException&) noexcept override {
       writeError_ = true;
     }
 
@@ -516,22 +518,22 @@ class MultiMessageSenderReceiver : private TAsyncTransport::WriteCallback,
   std::shared_ptr<TAsyncChannel> recvChannel_;
 };
 
-class EventBaseAborter : public TAsyncTimeout {
+class EventBaseAborter : public AsyncTimeout {
  public:
-  EventBaseAborter(TEventBase* eventBase, uint32_t timeoutMS)
-    : TAsyncTimeout(eventBase,
-                    TAsyncTimeout::InternalEnum::INTERNAL)
+  EventBaseAborter(EventBase* eventBase, uint32_t timeoutMS)
+    : AsyncTimeout(eventBase,
+                    AsyncTimeout::InternalEnum::INTERNAL)
     , eventBase_(eventBase) {
     scheduleTimeout(timeoutMS);
   }
 
   void timeoutExpired() noexcept override {
-    FAIL() << "test timed out";
+    ADD_FAILURE() << "test timed out";
     eventBase_->terminateLoopSoon();
   }
 
  private:
-  TEventBase* eventBase_;
+  EventBase* eventBase_;
 };
 
 template<typename ChannelT>
@@ -570,7 +572,7 @@ class SocketPairTest {
   virtual void postLoop() {}
 
  protected:
-  TEventBase eventBase_;
+  EventBase eventBase_;
   SocketPair socketPair_;
   std::shared_ptr<TAsyncSocket> socket0_;
   std::shared_ptr<TAsyncSocket> socket1_;
@@ -672,7 +674,7 @@ class MultiSendRecvTest : public SocketPairTest<ChannelT> {
     vector<Message>& writeMessages
                       = multiMessageSenderReceiver_.getWriteMessages();
     CHECK_EQ(readBuffers.size(), writeMessages.size());
-    for (int i = 0; i < writeMessages.size(); i++) {
+    for (size_t i = 0; i < writeMessages.size(); i++) {
       writeMessages[i].checkEqual(readBuffers[i].get());
     }
   }
@@ -829,7 +831,7 @@ template<typename ChannelT>
 class TimeoutQueuedTest : public SocketPairTest<ChannelT> {
  public:
 
-  explicit TimeoutQueuedTest(int n_msgs = 3)
+  explicit TimeoutQueuedTest(uint32_t n_msgs = 3)
       : n_msgs_(n_msgs)
       , start_(false)
       , msg_(911) {
@@ -839,7 +841,7 @@ class TimeoutQueuedTest : public SocketPairTest<ChannelT> {
 
     this->channel1_->setRecvTimeout(kRecvDelay * n_msgs_ + kTimeout);
 
-    for (int i = 0; i < n_msgs_; i++ ) {
+    for (size_t i = 0; i < n_msgs_; i++) {
       // queue some reads 200ms apart
       this->eventBase_.tryRunAfterDelay(
         std::bind(&TimeoutQueuedTest<ChannelT>::recvMe, this),

@@ -26,8 +26,8 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sstream>
-#include "thrift/compiler/generate/t_oop_generator.h"
-#include "thrift/compiler/platform.h"
+#include <thrift/compiler/generate/t_oop_generator.h>
+#include <thrift/compiler/platform.h>
 
 using std::map;
 using std::ofstream;
@@ -69,6 +69,16 @@ class t_cocoa_generator : public t_oop_generator {
     iter = parsed_options.find("nullability");
     nullability_ = (iter != parsed_options.end());
 
+    iter = parsed_options.find("import_path");
+    if (iter == parsed_options.end()) {
+      import_path_ = "";
+    } else {
+      import_path_ = iter->second;
+      if (import_path_.at(import_path_.length() - 1) != '/') {
+        import_path_ += '/';
+      }
+    }
+
     out_dir_base_ = "gen-cocoa";
   }
 
@@ -91,8 +101,16 @@ class t_cocoa_generator : public t_oop_generator {
   void generate_xception(t_struct* txception) override;
   void generate_service(t_service* tservice) override;
 
-  void print_const_value(std::ofstream& out, std::string name, t_type* type, t_const_value* value, bool defval=false, bool is_property=false);
-  std::string render_const_value(ofstream& out, t_type* type, t_const_value* value, bool containerize_it=false);
+  void print_const_value(
+      std::ofstream& out,
+      std::string name,
+      t_type* type,
+      const t_const_value* value,
+      bool defval=false,
+      bool is_property=false);
+  std::string render_const_value(ofstream& out, t_type* type,
+                                 const t_const_value* value,
+                                 bool containerize_it=false);
 
   void generate_cocoa_struct(t_struct* tstruct, bool is_exception);
   void generate_cocoa_struct_interface(std::ofstream& out, t_struct* tstruct, bool is_xception=false);
@@ -240,6 +258,7 @@ class t_cocoa_generator : public t_oop_generator {
   bool log_unexpected_;
   bool validate_required_;
   bool nullability_;
+  string import_path_;
 };
 
 
@@ -249,7 +268,7 @@ class t_cocoa_generator : public t_oop_generator {
  */
 void t_cocoa_generator::init_generator() {
   // Make output directory
-  MKDIR(get_out_dir().c_str());
+  make_dir(get_out_dir().c_str());
   cocoa_prefix_ = program_->get_namespace("cocoa");
 
   // we have a .h header file...
@@ -315,17 +334,19 @@ std::string t_cocoa_generator::custom_thrift_marker()
  * @return List of imports necessary for thrift runtime
  */
 string t_cocoa_generator::cocoa_thrift_imports() {
-  string result = string() +
-    "#import \"TProtocol.h\"\n" +
-    "#import \"TApplicationException.h\"\n" +
-    "#import \"TProtocolException.h\"\n" +
-    "#import \"TProtocolUtil.h\"\n" +
-    "#import \"TProcessor.h\"\n" +
-    "#import \"TObjective-C.h\"\n" +
-    "#import \"TBase.h\"\n";
+  string systemImports[] = { "TProtocol", "TApplicationException",
+    "TProtocolException", "TProtocolUtil", "TProcessor", "TObjective-C",
+    "TBase", kStructInheritanceRootObjectName,
+  };
 
-  result += "#import \"" + kStructInheritanceRootObjectName + ".h\"";
-  result += "\n";
+  string result = "";
+  for (const auto& systemImport : systemImports) {
+    if (import_path_ == "") {
+      result += "#import \"" + systemImport + ".h\"\n";
+    } else {
+      result += "#import <" + import_path_  + systemImport + ".h>\n";
+    }
+  }
 
   // Include other Thrift includes
   const vector<t_program*>& includes = program_->get_includes();
@@ -1264,8 +1285,9 @@ void t_cocoa_generator::generate_cocoa_struct_field_accessor_implementations(ofs
  *
  * @param tstruct The struct definition
  */
-void t_cocoa_generator::generate_cocoa_struct_description(ofstream& out,
-                                                          t_struct* tstruct) {
+void t_cocoa_generator::generate_cocoa_struct_description(
+    ofstream& out,
+    t_struct* /*tstruct*/) {
   out << indent() << "- (NSString *) description {" << endl;
   indent_up();
   indent(out) << "return [[self toDict] description];" << endl;
@@ -1292,7 +1314,9 @@ void t_cocoa_generator::generate_cocoa_struct_makeImmutable(std::ofstream& out, 
      t_field* field = (*f_iter);
      t_type* ttype = field->get_type();
      string field_name = kFieldPrefix + field->get_name();
-
+     if (ttype->is_typedef()) {
+       ttype = get_true_type(ttype);
+     }
      if (ttype->is_struct()) {
        out << indent() << "if (" << field_name << " && " << "![" << field_name << " isImmutable]" << ") {" << endl;
        indent_up();
@@ -1371,6 +1395,9 @@ void t_cocoa_generator::generate_cocoa_struct_toDict(ofstream& out,
      t_type* ttype = field->get_type();
      string field_name = kFieldPrefix + field->get_name();
      string ret_equals = "ret[@\"" + field->get_name() + "\"] = ";
+     if (ttype->is_typedef()) {
+       ttype = get_true_type(ttype);
+     }
 
      const bool check_for_null = ttype->is_struct() || ttype->is_string() || ttype->is_container();
 
@@ -1446,6 +1473,9 @@ void t_cocoa_generator::generate_cocoa_struct_mutableCopyWithZone(ofstream& out,
      t_field* field = (*f_iter);
      t_type* ttype = field->get_type();
      string field_name = kFieldPrefix + field->get_name();
+     if (ttype->is_typedef()) {
+       ttype = get_true_type(ttype);
+     }
 
      const bool check_for_null = ttype->is_struct() || ttype->is_string() || ttype->is_container();
 
@@ -2024,7 +2054,6 @@ void t_cocoa_generator::generate_deserialize_field(ofstream& out,
       case t_base_type::TYPE_VOID:
         throw "compiler error: cannot serialize void field in a struct: " +
           tfield->get_name();
-        break;
       case t_base_type::TYPE_STRING:
         if (((t_base_type*)type)->is_binary()) {
           out << "readBinary];";
@@ -2290,7 +2319,6 @@ void t_cocoa_generator::generate_serialize_field(ofstream& out,
       case t_base_type::TYPE_VOID:
         throw
           "compiler error: cannot serialize void field in a struct: " + fieldName;
-        break;
       case t_base_type::TYPE_STRING:
         if (((t_base_type*)type)->is_binary()) {
           out << "writeBinary: " << fieldName << "];";
@@ -2499,7 +2527,7 @@ void t_cocoa_generator::generate_serialize_list_element(ofstream& out,
  */
 string t_cocoa_generator::type_name(t_type* ttype, bool class_ref) {
   if (ttype->is_typedef()) {
-    t_program* program = ttype->get_program();
+    const t_program* program = ttype->get_program();
     return program ? (program->get_namespace("cocoa") + ttype->get_name()) : ttype->get_name();
   }
 
@@ -2516,7 +2544,7 @@ string t_cocoa_generator::type_name(t_type* ttype, bool class_ref) {
     result = "TBaseStructArray";
   } else {
     // Check for prefix
-    t_program* program = ttype->get_program();
+    const t_program* program = ttype->get_program();
     if (program != NULL) {
       result = program->get_namespace("cocoa") + ttype->get_name();
     } else {
@@ -2569,7 +2597,13 @@ string t_cocoa_generator::base_type_name(t_base_type* type) {
  * is NOT performed in this function as it is always run beforehand using the
  * validate_types method in main.cc
  */
-void t_cocoa_generator::print_const_value(std::ofstream& out, std::string name, t_type* type, t_const_value* value, bool defval, bool is_property) {
+void t_cocoa_generator::print_const_value(
+    std::ofstream& out,
+    std::string name,
+    t_type* type,
+    const t_const_value* value,
+    bool defval,
+    bool is_property) {
   type = get_true_type(type);
 
   indent(out);
@@ -2585,8 +2619,8 @@ void t_cocoa_generator::print_const_value(std::ofstream& out, std::string name, 
   } else if (type->is_struct() || type->is_xception()) {
     const vector<t_field*>& fields = ((t_struct*)type)->get_members();
     vector<t_field*>::const_iterator f_iter;
-    const map<t_const_value*, t_const_value*>& val = value->get_map();
-    map<t_const_value*, t_const_value*>::const_iterator v_iter;
+    const vector<pair<t_const_value*, t_const_value*>>& val = value->get_map();
+    vector<pair<t_const_value*, t_const_value*>>::const_iterator v_iter;
     if (defval)
       out << type_name(type) << " ";
     if (defval || is_property)
@@ -2611,8 +2645,8 @@ void t_cocoa_generator::print_const_value(std::ofstream& out, std::string name, 
   } else if (type->is_map()) {
     t_type* ktype = ((t_map*)type)->get_key_type();
     t_type* vtype = ((t_map*)type)->get_val_type();
-    const map<t_const_value*, t_const_value*>& val = value->get_map();
-    map<t_const_value*, t_const_value*>::const_iterator v_iter;
+    const vector<pair<t_const_value*, t_const_value*>>& val = value->get_map();
+    vector<pair<t_const_value*, t_const_value*>>::const_iterator v_iter;
     if (defval)
       out << "NSMutableDictionary *";
     if (defval || is_property)
@@ -2660,7 +2694,11 @@ void t_cocoa_generator::print_const_value(std::ofstream& out, std::string name, 
   }
 }
 
-string t_cocoa_generator::render_const_value(ofstream& out, t_type* type, t_const_value* value, bool containerize_it) {
+string t_cocoa_generator::render_const_value(
+    ofstream& out,
+    t_type* type,
+    const t_const_value* value,
+    bool containerize_it) {
   type = get_true_type(type);
   std::ostringstream render;
 
@@ -3017,9 +3055,9 @@ string t_cocoa_generator::call_field_setter(t_field* tfield, string fieldName) {
 
 
 THRIFT_REGISTER_GENERATOR(cocoa, "Cocoa",
+"    import_path=XYZ: Override thrift package import path\n"
 "    log_unexpected:  Log every time an unexpected field ID or type is encountered.\n"
-"    nullability:  Use annotations to ensure required fields are present.\n"
+"    nullability:     Use annotations to ensure required fields are present.\n"
 "    validate_required:\n"
 "                     Throws exception if any required field is not set.\n"
 )
-

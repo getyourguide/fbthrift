@@ -20,8 +20,7 @@
 #include <folly/io/IOBuf.h>
 #include <folly/io/IOBufQueue.h>
 #include <folly/Conv.h>
-#include <folly/MoveWrapper.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
+#include <folly/io/async/EventBase.h>
 #include <thrift/lib/cpp/concurrency/FunctionRunner.h>
 #include <thrift/lib/cpp/concurrency/PosixThreadFactory.h>
 #include <thrift/lib/cpp2/protocol/MessageSerializer.h>
@@ -34,7 +33,6 @@
 
 using folly::IOBuf;
 using folly::IOBufQueue;
-using folly::MoveWrapper;
 using apache::thrift::concurrency::FunctionRunner;
 using apache::thrift::concurrency::Guard;
 using apache::thrift::concurrency::Mutex;
@@ -56,7 +54,7 @@ static const char KRB5_GSS[] = "gss";
 static const char KRB5_GSS_NO_MUTUAL[] = "gssnm";
 
 GssSaslServer::GssSaslServer(
-    apache::thrift::async::TEventBase* evb,
+    folly::EventBase* evb,
     std::shared_ptr<apache::thrift::concurrency::ThreadManager> thread_manager)
     : SaslServer(evb)
     , threadManager_(thread_manager)
@@ -196,7 +194,7 @@ void GssSaslServer::consumeFromClient(
         });
       }
 
-      MoveWrapper<unique_ptr<IOBuf>> outbuf;
+      unique_ptr<IOBuf> outbuf;
       if (!ex) {
         // If there were no exceptions, send a reply. If we're finished, then
         // send a success indicator reply, otherwise send a generic token.
@@ -226,20 +224,20 @@ void GssSaslServer::consumeFromClient(
               SaslAuthService_authFirstRequest_presult resultp;
               resultp.get<0>().value = &reply;
               resultp.setIsSet(0);
-              *outbuf = PargsPresultProtoSerialize(replyWithProto,
-                                                   resultp,
-                                                   "authFirstRequest",
-                                                   T_REPLY,
-                                                   requestSeqId);
+              outbuf = PargsPresultProtoSerialize(replyWithProto,
+                                                  resultp,
+                                                  "authFirstRequest",
+                                                  T_REPLY,
+                                                  requestSeqId);
             } else {
               SaslAuthService_authNextRequest_presult resultp;
               resultp.get<0>().value = &reply;
               resultp.setIsSet(0);
-              *outbuf = PargsPresultProtoSerialize(replyWithProto,
-                                                   resultp,
-                                                   "authNextRequest",
-                                                   T_REPLY,
-                                                   requestSeqId);
+              outbuf = PargsPresultProtoSerialize(replyWithProto,
+                                                  resultp,
+                                                  "authNextRequest",
+                                                  T_REPLY,
+                                                  requestSeqId);
             }
           }
         });
@@ -251,7 +249,7 @@ void GssSaslServer::consumeFromClient(
         return;
       }
 
-      (*evb)->runInEventBaseThread([=]() mutable {
+      (*evb)->runInEventBaseThread([=, outbuf=std::move(outbuf)]() mutable {
           // If the callback has already been destroyed, the request must
           // have terminated, so we don't need to do anything.
           if (!*evb) {
@@ -261,8 +259,8 @@ void GssSaslServer::consumeFromClient(
             cb->saslError(std::move(ex));
             return;
           }
-          if (*outbuf && !(*outbuf)->empty()) {
-            cb->saslSendClient(std::move(*outbuf));
+          if (outbuf && !(outbuf)->empty()) {
+            cb->saslSendClient(std::move(outbuf));
           }
           if (serverHandshake->isContextEstablished()) {
             cb->saslComplete();

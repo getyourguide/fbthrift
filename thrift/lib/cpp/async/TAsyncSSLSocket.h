@@ -48,7 +48,7 @@ class TAsyncSSLSocket : public folly::AsyncSSLSocket, public TAsyncSocket {
       , TAsyncSocket(evb, fd) {}
 
   static std::shared_ptr<TAsyncSSLSocket> newSocket(
-    const std::shared_ptr<folly::SSLContext> &ctx, TEventBase* evb) {
+    const std::shared_ptr<folly::SSLContext> &ctx, folly::EventBase* evb) {
     return std::shared_ptr<TAsyncSSLSocket>(new TAsyncSSLSocket(ctx, evb),
                                            Destructor());
   }
@@ -129,7 +129,8 @@ class TAsyncSSLSocket : public folly::AsyncSSLSocket, public TAsyncSocket {
   virtual void sslConnect(HandshakeCallback *callback, uint64_t timeout = 0,
                   const folly::SSLContext::SSLVerifyPeerEnum& verifyPeer =
                   folly::SSLContext::SSLVerifyPeerEnum::USE_CTX) {
-    AsyncSSLSocket::sslConn(callback, timeout, verifyPeer);
+    AsyncSSLSocket::sslConn(
+        callback, std::chrono::milliseconds(timeout), verifyPeer);
   }
 };
 

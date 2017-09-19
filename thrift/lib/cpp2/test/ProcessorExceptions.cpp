@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -16,8 +18,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-
 // This test checks for an exception when a server receives a struct
 // with a required member missing.
 // We test it by using a fake client (SampleService2) whose arguments
@@ -28,19 +28,19 @@
 #include <thrift/lib/cpp/TApplicationException.h>
 #include <thrift/lib/cpp2/test/gen-cpp2/SampleService.h>
 #include <thrift/lib/cpp2/test/gen-cpp2/SampleService2.h>
+#include <thrift/lib/cpp2/test/gen-cpp2/SampleService3.h>
 #include <thrift/lib/cpp2/server/ThriftServer.h>
 #include <thrift/lib/cpp2/async/HeaderClientChannel.h>
 #include <thrift/lib/cpp2/async/RequestChannel.h>
 
 #include <thrift/lib/cpp/util/ScopedServerThread.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
+#include <folly/io/async/EventBase.h>
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
 
 #include <thrift/lib/cpp2/async/StubSaslClient.h>
 #include <thrift/lib/cpp2/async/StubSaslServer.h>
-#include <thrift/lib/cpp2/TestServer.h>
+#include <thrift/lib/cpp2/test/util/TestThriftServerFactory.h>
 
-#include <boost/cast.hpp>
 #include <memory>
 
 using namespace apache::thrift;
@@ -51,7 +51,9 @@ using apache::thrift::TApplicationException;
 
 class SampleServiceHandler : public SampleServiceSvIf {
 public:
- int32_t return42(const MyArgs& unused, int32_t i) override { return 42; }
+ int32_t return42(const MyArgs&, int32_t) override {
+   return 42;
+ }
 };
 
 bool Inner::operator <(const Inner& r) const {
@@ -73,14 +75,10 @@ std::shared_ptr<ThriftServer> getServer() {
 int32_t call_return42(std::function<void(MyArgs2&)> isset_cb) {
   apache::thrift::TestThriftServerFactory<SampleServiceHandler> factory;
   ScopedServerThread sst(factory.create());
-  TEventBase base;
-  std::shared_ptr<TAsyncSocket> socket(
-    TAsyncSocket::newSocket(&base, *sst.getAddress()));
+  folly::EventBase base;
+  auto socket(TAsyncSocket::newSocket(&base, *sst.getAddress()));
 
-  SampleService2AsyncClient client(
-    std::unique_ptr<HeaderClientChannel,
-                    apache::thrift::async::TDelayedDestruction::Destructor>(
-                      new HeaderClientChannel(socket)));
+  SampleService2AsyncClient client(HeaderClientChannel::newChannel(socket));
 
   Inner2 inner;
   inner.i = 7;
@@ -112,7 +110,7 @@ int32_t call_return42(std::function<void(MyArgs2&)> isset_cb) {
 }
 
 TEST(ProcessorExceptionTest, ok_if_required_set) {
-  EXPECT_EQ(42, call_return42([] (MyArgs2& a) {}));
+  EXPECT_EQ(42, call_return42([](MyArgs2&) {}));
 }
 
 TEST(ProcessorExceptionTest, throw_if_scalar_required_missing) {
@@ -165,6 +163,29 @@ TEST(ProcessorExceptionTest, throw_if_map_key_required_missing) {
     TApplicationException);
 }
 
+TEST(ProcessorExceptionTest, throw_if_method_missing) {
+  apache::thrift::TestThriftServerFactory<SampleServiceHandler> factory;
+  ScopedServerThread sst(factory.create());
+  folly::EventBase base;
+  auto socket(TAsyncSocket::newSocket(&base, *sst.getAddress()));
+  SampleService3AsyncClient client(HeaderClientChannel::newChannel(socket));
+
+  try {
+    // call a method that doesn't exist on the server but exists on the client
+    client.sync_doNothing();
+    ADD_FAILURE() << "Expected call_doNothing to throw";
+  } catch (TApplicationException& t) {
+    EXPECT_STREQ("Method name doNothing not found", t.what());
+    EXPECT_EQ(
+        TApplicationException::TApplicationExceptionType::UNKNOWN_METHOD,
+        t.getType());
+  } catch (std::exception& e) {
+    ADD_FAILURE()
+        << "Wrong exception thrown, expected TApplicationException, got "
+        << e.what();
+  }
+}
+
 TEST(ProcessorExceptionTest, throw_if_map_key_inner_required_missing) {
   EXPECT_THROW(call_return42([] (MyArgs2& a) {
       std::pair<Inner2,int> elem = *a.complex_key.cbegin();
@@ -173,11 +194,4 @@ TEST(ProcessorExceptionTest, throw_if_map_key_inner_required_missing) {
       a.complex_key.insert(elem);
     }),
     TApplicationException);
-}
-
-int main(int argc, char* argv[]) {
-  ::testing::InitGoogleTest(&argc, argv);
-  google::InitGoogleLogging(argv[0]);
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  return RUN_ALL_TESTS();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@
 #include <folly/io/IOBuf.h>
 #include <folly/io/IOBufQueue.h>
 #include <folly/io/Cursor.h>
+#include <folly/portability/GFlags.h>
+
 #include <thrift/lib/cpp/protocol/TProtocol.h>
 #include <thrift/lib/cpp2/protocol/Protocol.h>
 
@@ -54,7 +56,7 @@ class BinaryProtocolWriter {
     : out_(nullptr, 0)
     , sharing_(sharing) {}
 
-  static inline ProtocolType protocolType() {
+  static constexpr ProtocolType protocolType() {
     return ProtocolType::T_BINARY_PROTOCOL;
   }
 
@@ -99,10 +101,9 @@ class BinaryProtocolWriter {
   inline uint32_t writeI64(int64_t i64);
   inline uint32_t writeDouble(double dub);
   inline uint32_t writeFloat(float flt);
-  template <typename StrType>
-  inline uint32_t writeString(const StrType& str);
-  template <typename StrType>
-  inline uint32_t writeBinary(const StrType& str);
+  inline uint32_t writeString(folly::StringPiece str);
+  inline uint32_t writeBinary(folly::StringPiece str);
+  inline uint32_t writeBinary(folly::ByteRange str);
   inline uint32_t writeBinary(const std::unique_ptr<folly::IOBuf>& str);
   inline uint32_t writeBinary(const folly::IOBuf& str);
   inline uint32_t writeSerializedData(
@@ -112,51 +113,42 @@ class BinaryProtocolWriter {
    * Functions that return the serialized size
    */
 
-  inline uint32_t serializedMessageSize(const std::string& name);
+  inline uint32_t serializedMessageSize(const std::string& name) const;
   inline uint32_t serializedFieldSize(const char* name,
                                       TType fieldType,
-                                      int16_t fieldId);
-  inline uint32_t serializedStructSize(const char* name);
+                                      int16_t fieldId) const;
+  inline uint32_t serializedStructSize(const char* name) const;
   inline uint32_t serializedSizeMapBegin(TType keyType,
                                          TType valType,
-                                         uint32_t size);
-  inline uint32_t serializedSizeMapEnd();
+                                         uint32_t size) const;
+  inline uint32_t serializedSizeMapEnd() const;
   inline uint32_t serializedSizeListBegin(TType elemType,
-                                            uint32_t size);
-  inline uint32_t serializedSizeListEnd();
+                                            uint32_t size) const;
+  inline uint32_t serializedSizeListEnd() const;
   inline uint32_t serializedSizeSetBegin(TType elemType,
-                                           uint32_t size);
-  inline uint32_t serializedSizeSetEnd();
-  inline uint32_t serializedSizeStop();
-  inline uint32_t serializedSizeBool(bool = false);
-  inline uint32_t serializedSizeByte(int8_t = 0);
-  inline uint32_t serializedSizeI16(int16_t = 0);
-  inline uint32_t serializedSizeI32(int32_t = 0);
-  inline uint32_t serializedSizeI64(int64_t = 0);
-  inline uint32_t serializedSizeDouble(double = 0.0);
-  inline uint32_t serializedSizeFloat(float = 0);
-  template <typename StrType>
-  inline uint32_t serializedSizeString(const StrType&);
-  template <typename StrType>
-  uint32_t serializedSizeBinary(const StrType& v) {
-    return serializedSizeString(v);
-  }
-  inline uint32_t serializedSizeBinary(const std::unique_ptr<folly::IOBuf>& v);
-  inline uint32_t serializedSizeBinary(const folly::IOBuf& v);
-  template <typename StrType>
-  uint32_t serializedSizeZCBinary(const StrType& v) {
-    return serializedSizeBinary(v);
-  }
-  uint32_t serializedSizeZCBinary(const std::unique_ptr<folly::IOBuf>& /*v*/) {
-    // size only
-    return serializedSizeI32();
-  }
-  uint32_t serializedSizeZCBinary(const folly::IOBuf& /*v*/) {
-    // size only
-    return serializedSizeI32();
-  }
+                                           uint32_t size) const;
+  inline uint32_t serializedSizeSetEnd() const;
+  inline uint32_t serializedSizeStop() const;
+  inline uint32_t serializedSizeBool(bool = false) const;
+  inline uint32_t serializedSizeByte(int8_t = 0) const;
+  inline uint32_t serializedSizeI16(int16_t = 0) const;
+  inline uint32_t serializedSizeI32(int32_t = 0) const;
+  inline uint32_t serializedSizeI64(int64_t = 0) const;
+  inline uint32_t serializedSizeDouble(double = 0.0) const;
+  inline uint32_t serializedSizeFloat(float = 0) const;
+  inline uint32_t serializedSizeString(folly::StringPiece str) const;
+  inline uint32_t serializedSizeBinary(folly::StringPiece str) const;
+  inline uint32_t serializedSizeBinary(folly::ByteRange) const;
+  inline uint32_t serializedSizeBinary(
+    std::unique_ptr<folly::IOBuf> const& v) const;
+  inline uint32_t serializedSizeBinary(folly::IOBuf const& v) const;
+  inline uint32_t serializedSizeZCBinary(folly::StringPiece str) const;
+  inline uint32_t serializedSizeZCBinary(folly::ByteRange v) const;
+  inline uint32_t serializedSizeZCBinary(
+    std::unique_ptr<folly::IOBuf> const&) const;
+  inline uint32_t serializedSizeZCBinary(folly::IOBuf const& /*v*/) const;
   inline uint32_t serializedSizeSerializedData(
-      const std::unique_ptr<folly::IOBuf>& data);
+      std::unique_ptr<folly::IOBuf> const& data) const;
 
  protected:
   /**
@@ -191,7 +183,7 @@ class BinaryProtocolReader {
     , strict_read_(true)
     , in_(nullptr) {}
 
-  static inline ProtocolType protocolType() {
+  static constexpr ProtocolType protocolType() {
     return ProtocolType::T_BINARY_PROTOCOL;
   }
 
@@ -213,9 +205,8 @@ class BinaryProtocolReader {
    * or until the output is reset with setOutput/Input(NULL), or
    * set to some other buffer.
    */
-  inline void setInput(const IOBuf* buf) {
-    in_.reset(buf);
-  }
+  void setInput(const Cursor& cursor) { in_ = cursor; }
+  void setInput(const IOBuf* buf) { setInput(Cursor(buf)); }
 
   /**
    * Reading functions
@@ -266,18 +257,15 @@ class BinaryProtocolReader {
   inline uint32_t readFromPositionAndAppend(Cursor& cursor,
                                             std::unique_ptr<folly::IOBuf>& ser);
 
-  // Returns the last read sequence ID.  Used in servers
-  // for backwards compatibility with thrift1.
-  int32_t getSeqId() {
-    return seqid_;
-  }
-
  protected:
   template<typename StrType>
   inline uint32_t readStringBody(StrType& str, int32_t sz);
 
   inline void checkStringSize(int32_t size);
   inline void checkContainerSize(int32_t size);
+
+  [[noreturn]] static void throwBadVersionIdentifier(int32_t sz);
+  [[noreturn]] static void throwMissingVersionIdentifier(int32_t sz);
 
   int32_t string_limit_;
   int32_t container_limit_;
@@ -292,14 +280,12 @@ class BinaryProtocolReader {
    */
   Cursor in_;
 
-  int32_t seqid_;
-
   template<typename T> friend class ProtocolReaderWithRefill;
   friend class BinaryProtocolReaderWithRefill;
 };
 
 }} // apache::thrift
 
-#include "BinaryProtocol.tcc"
+#include <thrift/lib/cpp2/protocol/BinaryProtocol.tcc>
 
 #endif // #ifndef CPP2_PROTOCOL_TBINARYPROTOCOL_H_

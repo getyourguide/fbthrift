@@ -24,23 +24,19 @@
 
 #include <folly/stats/BucketedTimeSeries-defs.h>
 #include <folly/Memory.h>
-#include <folly/ScopeGuard.h>
 #include <folly/String.h>
+#include <folly/ThreadName.h>
+#include <folly/portability/GFlags.h>
 
 // DO NOT modify this flag from your application
-#ifndef NO_LIB_GFLAGS
 DEFINE_string(
   thrift_cc_manager_kill_switch_file,
   "/var/thrift_security/disable_cc_manager",
   "A file, which when present, acts as a kill switch for and disables the cc "
   " manager thread running on the host.");
-#else
-namespace apache { namespace thrift { namespace krb5 {
-const std::string FLAGS_thrift_cc_manager_kill_switch_file(
-  "/var/thrift_security/disable_cc_manager");
-}}} // namespace apache::thrift::krb5
-#endif
-
+DEFINE_bool(thrift_cc_manager_renew_user_creds,
+            false,
+            "If true will try to renew *@REALM and */admin@REALM creds");
 
 // Time in seconds after which cc manager kill switch expires
 static const time_t kCcManagerKillSwitchExpired = 86400;
@@ -48,26 +44,28 @@ static const time_t kCcManagerKillSwitchExpired = 86400;
 // Don't log more than once about cc manager kill switch in this time (seconds)
 static const time_t kCcManagerKillSwitchLoggingTimeout = 300;
 
+static const std::string kCcThreadName = "Krb5CcManager";
+
 namespace apache { namespace thrift { namespace krb5 {
 using namespace std;
 
 const int Krb5CredentialsCacheManager::MANAGE_THREAD_SLEEP_PERIOD = 10*60*1000;
 const int Krb5CredentialsCacheManager::ABOUT_TO_EXPIRE_THRESHOLD = 600;
 const int Krb5CredentialsCacheManager::NUM_ELEMENTS_TO_PERSIST_TO_FILE = 10000;
+const int Krb5CredentialsCacheManager::NUM_ELEMENTS_TO_LOG = 10;
 
 Krb5CredentialsCacheManager::Krb5CredentialsCacheManager(
-  const std::shared_ptr<SecurityLogger>& logger,
-  int maxCacheSize)
-    : stopManageThread_(false)
-    , logger_(logger)
-    , ccacheTypeIsMemory_(false)
-    , updateFileCacheEnabled_(true) {
-
+    const std::shared_ptr<Krb5CredentialsCacheManagerLogger>& logger,
+    int maxCacheSize)
+    : stopManageThread_(false),
+      logger_(logger),
+      ccacheTypeIsMemory_(false),
+      updateFileCacheEnabled_(true) {
   try {
     // These calls can throw if the context cannot be initialized for some
     // reason, e.g. bad config format, etc.
-    ctx_ = folly::make_unique<Krb5Context>();
-    store_ = folly::make_unique<Krb5CCacheStore>(logger, maxCacheSize);
+    ctx_ = std::make_unique<Krb5Context>();
+    store_ = std::make_unique<Krb5CCacheStore>(logger, maxCacheSize);
   } catch (const std::runtime_error& e) {
     // Caught exception while trying to initialize the context / store.
     // The ccache manager thread will detect this and attempt to initialize them
@@ -81,11 +79,12 @@ Krb5CredentialsCacheManager::Krb5CredentialsCacheManager(
   // is chosen, we keep using that one and it never changes.
 
   manageThread_ = std::thread([=] {
+    folly::setThreadName(kCcThreadName);
     logger->log("manager_started");
     logger->log("max_cache_size", folly::to<string>(maxCacheSize));
 
     string oldError = "";
-    while(true) {
+    while (true) {
       MutexGuard l(manageThreadMutex_);
       if (stopManageThread_) {
         break;
@@ -111,10 +110,10 @@ Krb5CredentialsCacheManager::Krb5CredentialsCacheManager(
       try {
         // If the context or store are not initialized, try to initialize them.
         if (!ctx_) {
-          ctx_ = folly::make_unique<Krb5Context>();
+          ctx_ = std::make_unique<Krb5Context>();
         }
         if (!store_) {
-          store_ = folly::make_unique<Krb5CCacheStore>(
+          store_ = std::make_unique<Krb5CCacheStore>(
             logger, maxCacheSize);
         }
 
@@ -124,30 +123,37 @@ Krb5CredentialsCacheManager::Krb5CredentialsCacheManager(
           logger->logStart("init_cache_store");
           initCacheStore();
           logger->logEnd("init_cache_store");
+          logTopCredentials(logger, "init_cache_store");
         } else if (aboutToExpire(store_->getLifetime())) {
           logger->logStart("init_cache_store", "expired");
           initCacheStore();
           logger->logEnd("init_cache_store");
+          logTopCredentials(logger, "init_expired_cache_store");
         }
 
-        // If the cache store needs to be renewed, renew it
-        auto lifetime = store_->getLifetime();
-        bool reached_renew_time = reachedRenewTime(
-          lifetime, folly::to<string>(store_->getClientPrincipal()));
-        if (reached_renew_time) {
-          logger->logStart("build_renewed_cache");
-          uint64_t renewCount = store_->renewCreds();
-          logger->logEnd(
-            "build_renewed_cache", folly::to<std::string>(renewCount));
-        }
+        // If not a user credential and the cache store needs to be renewed,
+        // renew it
+        Krb5Principal clientPrinc = store_->getClientPrincipal();
+        if (!clientPrinc.isUser() || FLAGS_thrift_cc_manager_renew_user_creds) {
+          auto lifetime = store_->getLifetime();
+          bool reached_renew_time = reachedRenewTime(
+            lifetime, folly::to<string>(clientPrinc));
+          if (reached_renew_time) {
+            logger->logStart("build_renewed_cache");
+            uint64_t renewCount = store_->renewCreds();
+            logger->logEnd(
+              "build_renewed_cache", folly::to<std::string>(renewCount));
+            logTopCredentials(logger, "build_renewed_cache");
+          }
 
-        if (updateFileCacheEnabled_) {
-          // Persist cache store to a file
-          logger->logStart("persist_ccache");
-          int outSize = writeOutCache(
-            Krb5CredentialsCacheManager::NUM_ELEMENTS_TO_PERSIST_TO_FILE);
-          logger->logEnd(
-            "persist_ccache", folly::to<std::string>(outSize));
+          if (updateFileCacheEnabled_) {
+            // Persist cache store to a file
+            logger->logStart("persist_ccache");
+            int outSize = writeOutCache(
+              Krb5CredentialsCacheManager::NUM_ELEMENTS_TO_PERSIST_TO_FILE);
+            logger->logEnd(
+              "persist_ccache", folly::to<std::string>(outSize));
+          }
         }
       } catch (const std::runtime_error& e) {
         // Notify the waitForCache functions that an error happened.
@@ -170,22 +176,25 @@ Krb5CredentialsCacheManager::Krb5CredentialsCacheManager(
         }
       }
 
-      if (!stopManageThread_) {
-        int wait_time =
-          Krb5CredentialsCacheManager::MANAGE_THREAD_SLEEP_PERIOD;
-        if (store_ && !store_->isInitialized()) {
-          // Shorten loop time to 1 second if first iteration didn't initialize
-          // the client successfully
-          wait_time = 1000;
-        }
-        manageThreadCondVar_.wait_for(l, std::chrono::milliseconds(wait_time));
+      auto waitTime =
+        std::chrono::milliseconds(
+            Krb5CredentialsCacheManager::MANAGE_THREAD_SLEEP_PERIOD);
+      if (store_ && !store_->isInitialized()) {
+        // Shorten loop time to 1 second if first iteration didn't initialize
+        // the client successfully
+        waitTime = std::chrono::milliseconds(1000);
       }
+      manageThreadCondVar_.wait_for(l, waitTime);
     }
   });
 }
 
 Krb5CredentialsCacheManager::~Krb5CredentialsCacheManager() {
-  stopThread();
+  MutexGuard l(manageThreadMutex_);
+  stopManageThread_ = true;
+  l.unlock();
+  manageThreadCondVar_.notify_one();
+  manageThread_.join();
   logger_->log("manager_destroyed");
 }
 
@@ -217,20 +226,9 @@ bool Krb5CredentialsCacheManager::waitUntilCacheStoreInitialized(
   return true;
 }
 
-void Krb5CredentialsCacheManager::stopThread() {
-  // Kill the manage thread
-  MutexGuard l(manageThreadMutex_);
-  if (!stopManageThread_) {
-    stopManageThread_ = true;
-    manageThreadCondVar_.notify_one();
-    l.unlock();
-    manageThread_.join();
-  }
-}
-
 std::unique_ptr<Krb5CCache> Krb5CredentialsCacheManager::readInCache() {
   auto default_cache =
-      folly::make_unique<Krb5CCache>(Krb5CCache::makeDefault());
+      std::make_unique<Krb5CCache>(Krb5CCache::makeDefault());
   std::unique_ptr<Krb5CCache> file_cache;
   std::unique_ptr<Krb5Principal> client;
 
@@ -244,7 +242,7 @@ std::unique_ptr<Krb5CCache> Krb5CredentialsCacheManager::readInCache() {
 
   }
   if (store_->isInitialized()) {
-    client = folly::make_unique<Krb5Principal>(store_->getClientPrincipal());
+    client = std::make_unique<Krb5Principal>(store_->getClientPrincipal());
   }
 
   if (default_type == "FILE") {
@@ -259,7 +257,7 @@ std::unique_ptr<Krb5CCache> Krb5CredentialsCacheManager::readInCache() {
     }
     file_cache.swap(default_cache);
     client =
-        folly::make_unique<Krb5Principal>(file_cache->getClientPrincipal());
+        std::make_unique<Krb5Principal>(file_cache->getClientPrincipal());
   }
   else if (default_type == "DIR") {
     if(default_path[0] == ':') {
@@ -291,7 +289,7 @@ std::unique_ptr<Krb5CCache> Krb5CredentialsCacheManager::readInCache() {
     const std::string ccache_path =
         folly::to<string>(default_dir, "/tkt_", client_princ_str);
 
-    file_cache = folly::make_unique<Krb5CCache>(Krb5CCache::makeResolve(
+    file_cache = std::make_unique<Krb5CCache>(Krb5CCache::makeResolve(
           folly::to<string>("DIR::", ccache_path)));
     if (*client != file_cache->getClientPrincipal()) {
       throw std::runtime_error(
@@ -300,7 +298,7 @@ std::unique_ptr<Krb5CCache> Krb5CredentialsCacheManager::readInCache() {
                           " but ", *client, " was required"));
     }
   }
-  auto mem = folly::make_unique<Krb5CCache>(
+  auto mem = std::make_unique<Krb5CCache>(
     Krb5CCache::makeNewUnique("MEMORY"));
   mem->setDestroyOnClose();
   mem->initialize(client->get());
@@ -319,7 +317,7 @@ int Krb5CredentialsCacheManager::writeOutCache(size_t limit) {
   }
 
   auto default_cache =
-      folly::make_unique<Krb5CCache>(Krb5CCache::makeDefault());
+      std::make_unique<Krb5CCache>(Krb5CCache::makeDefault());
   std::string default_type, default_path;
   default_cache->getCacheTypeAndName(default_type, default_path);
   if (default_type == "MEMORY") {
@@ -369,7 +367,7 @@ int Krb5CredentialsCacheManager::writeOutCache(size_t limit) {
                            client_princ_str.end());
     file_path =
         folly::to<string>(default_dir, "/tkt_", client_princ_str);
-    file_cache = folly::make_unique<Krb5CCache>(Krb5CCache::makeResolve(
+    file_cache = std::make_unique<Krb5CCache>(Krb5CCache::makeResolve(
         folly::to<string>("DIR::", file_path)));
   }
   // Check if client matches.
@@ -417,9 +415,9 @@ int Krb5CredentialsCacheManager::writeOutCache(size_t limit) {
     LOG(ERROR) << "Could not open a temporary cache file with template: "
                << tmp_template << " error: " << strerror(errno);
     logger_->log(
-      "persist_ccache_fail_tmp_file_create_fail",
-      {tmp_template, strerror(errno)},
-      SecurityLogger::TracingOptions::NONE);
+        "persist_ccache_fail_tmp_file_create_fail",
+        {tmp_template, strerror(errno)},
+        Krb5CredentialsCacheManagerLogger::TracingOptions::NONE);
     return -1;
   }
   ret = close(fd);
@@ -439,7 +437,7 @@ int Krb5CredentialsCacheManager::writeOutCache(size_t limit) {
   temp_cache->setDestroyOnClose();
 
   // Move the in-memory temp_cache to a temporary file
-  auto tmp_file_cache = folly::make_unique<Krb5CCache>(Krb5CCache::makeResolve(
+  auto tmp_file_cache = std::make_unique<Krb5CCache>(Krb5CCache::makeResolve(
       folly::to<string>("FILE:", str_buf)));
   tmp_file_cache->initialize(client.get());
   krb5_error_code code = krb5_cc_copy_creds(
@@ -538,6 +536,11 @@ void Krb5CredentialsCacheManager::initCacheStore() {
     logger_->logEnd(
       "renew_expired_princ", folly::to<std::string>(renewCount));
   }
+
+  if(!store_->isInitialized()) {
+    throw std::runtime_error("Ccache store initialization failed: " +
+        err_string);
+  }
 }
 
 unique_ptr<Krb5Principal>
@@ -560,8 +563,7 @@ bool Krb5CredentialsCacheManager::isPrincipalInKeytab(
   return false;
 }
 
-bool Krb5CredentialsCacheManager::aboutToExpire(
-    const std::pair<uint64_t, uint64_t>& lifetime) {
+bool Krb5CredentialsCacheManager::aboutToExpire(const Krb5Lifetime& lifetime) {
   time_t now;
   time(&now);
   return ((uint64_t) now +
@@ -570,7 +572,8 @@ bool Krb5CredentialsCacheManager::aboutToExpire(
 }
 
 bool Krb5CredentialsCacheManager::reachedRenewTime(
-    const std::pair<uint64_t, uint64_t>& lifetime, const std::string& client) {
+    const Krb5Lifetime& lifetime,
+    const std::string& client) {
   time_t now;
   time(&now);
   size_t sname_hash = std::hash<std::string>()(client);
@@ -585,4 +588,17 @@ bool Krb5CredentialsCacheManager::reachedRenewTime(
   return (uint64_t) now > (half_life_time + renew_offset);
 }
 
+void Krb5CredentialsCacheManager::logTopCredentials(
+    const std::shared_ptr<Krb5CredentialsCacheManagerLogger>& logger,
+    const std::string& key) {
+  Krb5Keytab keytab(ctx_->get());
+  logger->logCredentialsCache(
+      key,
+      keytab,
+      store_->getClientPrincipal(),
+      store_->getLifetime(),
+      store_->getServicePrincipalLifetimes(
+          Krb5CredentialsCacheManager::NUM_ELEMENTS_TO_LOG),
+      store_->getTgtLifetimes());
+}
 }}}

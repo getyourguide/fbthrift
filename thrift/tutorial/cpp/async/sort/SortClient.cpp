@@ -23,8 +23,8 @@
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
 #include <thrift/lib/cpp2/async/HeaderClientChannel.h>
 
-#include "thrift/tutorial/cpp/async/sort/util.h"
-#include "thrift/tutorial/cpp/async/sort/gen-cpp2/Sorter.h"
+#include <thrift/tutorial/cpp/async/sort/util.h>
+#include <thrift/tutorial/cpp/async/sort/gen-cpp2/Sorter.h>
 
 using namespace std;
 using namespace folly;
@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
   try {
     cout << "Connecting to " << host << ":" << port << "..." << endl;
     EventBase eb;
-    auto client = folly::make_unique<SorterAsyncClient>(
+    auto client = std::make_unique<SorterAsyncClient>(
         HeaderClientChannel::newChannel(
           async::TAsyncSocket::newSocket(
             &eb, {host, port})));

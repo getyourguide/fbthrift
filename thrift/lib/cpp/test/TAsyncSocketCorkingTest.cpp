@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,15 +21,15 @@
 
 #include <folly/io/IOBuf.h>
 #include <folly/Conv.h>
-#include <thrift/lib/cpp/async/TAsyncServerSocket.h>
+#include <folly/io/async/AsyncServerSocket.h>
 #include <thrift/lib/cpp/async/TAsyncSSLSocket.h>
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
+#include <folly/io/async/EventBase.h>
 
-using apache::thrift::async::TAsyncServerSocket;
+using folly::AsyncServerSocket;
 using apache::thrift::async::TAsyncSocket;
 using apache::thrift::async::TAsyncSSLSocket;
-using apache::thrift::async::TEventBase;
+using folly::EventBase;
 using apache::thrift::async::WriteFlags;
 using folly::SSLContext;
 using folly::SocketAddress;
@@ -40,12 +40,13 @@ using std::string;
 using std::vector;
 using std::unique_ptr;
 
-class AcceptCallback : public TAsyncServerSocket::AcceptCallback {
+class AcceptCallback : public AsyncServerSocket::AcceptCallback {
  public:
   explicit AcceptCallback(const std::function<void(int)>& fn) : fn_(fn) {}
 
-  void connectionAccepted(int fd,
-                          const folly::SocketAddress& addr) noexcept override {
+  void connectionAccepted(
+      int fd,
+      const folly::SocketAddress&) noexcept override {
     fn_(fd);
   }
   void acceptError(const std::exception& ex) noexcept override {
@@ -73,9 +74,12 @@ class HandshakeCallback : public TAsyncSSLSocket::HandshakeCallback {
  public:
   explicit HandshakeCallback(const std::function<void()>& fn) : fn_(fn) {}
 
-  void handshakeSuccess(TAsyncSSLSocket* sock) noexcept override { fn_(); }
-  void handshakeError(TAsyncSSLSocket* sock,
-                      const TTransportException& ex) noexcept override {
+  void handshakeSuccess(TAsyncSSLSocket*) noexcept override {
+    fn_();
+  }
+  void handshakeError(
+      TAsyncSSLSocket*,
+      const TTransportException& ex) noexcept override {
     LOG(FATAL) << "handshakeError(): " << ex.what();
   }
 
@@ -83,11 +87,11 @@ class HandshakeCallback : public TAsyncSSLSocket::HandshakeCallback {
   std::function<void()> fn_;
 };
 
-void createTCPSocketPair(TEventBase* eventBase,
+void createTCPSocketPair(EventBase* eventBase,
                          shared_ptr<TAsyncSocket>* client,
                          shared_ptr<TAsyncSocket>* server) {
-  TAsyncServerSocket::UniquePtr acceptSocket(
-      new TAsyncServerSocket(eventBase));
+  AsyncServerSocket::UniquePtr acceptSocket(
+      new AsyncServerSocket(eventBase));
 
   AcceptCallback acceptCallback([&] (int fd) {
     VLOG(4) << "socket accepted";
@@ -115,11 +119,11 @@ void createTCPSocketPair(TEventBase* eventBase,
   eventBase->loop();
 }
 
-void createSSLSocketPair(TEventBase* eventBase,
+void createSSLSocketPair(EventBase* eventBase,
                          shared_ptr<TAsyncSSLSocket>* client,
                          shared_ptr<TAsyncSSLSocket>* server) {
-  TAsyncServerSocket::UniquePtr acceptSocket(
-      new TAsyncServerSocket(eventBase));
+  AsyncServerSocket::UniquePtr acceptSocket(
+      new AsyncServerSocket(eventBase));
 
   shared_ptr<SSLContext> ctx(new SSLContext);
   ctx->loadCertificate("thrift/lib/cpp/test/ssl/tests-cert.pem");
@@ -138,7 +142,8 @@ void createSSLSocketPair(TEventBase* eventBase,
     acceptSocket.reset();
 
     *server = TAsyncSSLSocket::newSocket(ctx, eventBase, fd);
-    (*server)->sslAccept(&serverHandshakeCallback, 5);
+    (*server)->sslAccept(&serverHandshakeCallback,
+        std::chrono::milliseconds(5));
   });
 
   acceptSocket->addAcceptCallback(&acceptCallback, nullptr);
@@ -319,10 +324,11 @@ class Capturer {
   pcap_t* pcap_;
 };
 
-void ensureNPackets(const shared_ptr<TAsyncSocket>& sender,
-                    const shared_ptr<TAsyncSocket>& receiver,
-                    size_t expectedNumPackets,
-                    const std::function<void()>& fn) {
+void ensureNPackets(
+    const shared_ptr<TAsyncSocket>& sender,
+    const shared_ptr<TAsyncSocket>& /* receiver */,
+    size_t expectedNumPackets,
+    const std::function<void()>& fn) {
   folly::SocketAddress senderAddr;
   folly::SocketAddress receiverAddr;
   sender->getLocalAddress(&senderAddr);
@@ -340,7 +346,7 @@ void ensureNPackets(const shared_ptr<TAsyncSocket>& sender,
   EXPECT_EQ(expectedNumPackets, packets.size());
 }
 
-void testWriteFlushing(TEventBase* eventBase,
+void testWriteFlushing(EventBase* eventBase,
                        const shared_ptr<TAsyncSocket>& client,
                        const shared_ptr<TAsyncSocket>& server) {
   char buf[] = "foobar";
@@ -401,7 +407,7 @@ void testWriteFlushing(TEventBase* eventBase,
 }
 
 TEST(WriteFlushTest, TAsyncSocket) {
-  TEventBase eventBase;
+  EventBase eventBase;
 
   shared_ptr<TAsyncSocket> client;
   shared_ptr<TAsyncSocket> server;
@@ -411,7 +417,7 @@ TEST(WriteFlushTest, TAsyncSocket) {
 }
 
 TEST(WriteFlushTest, TAsyncSSLSocket) {
-  TEventBase eventBase;
+  EventBase eventBase;
 
   shared_ptr<TAsyncSSLSocket> client;
   shared_ptr<TAsyncSSLSocket> server;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <thrift/lib/cpp/concurrency/Mutex.h>
 
 #include <thrift/lib/cpp/concurrency/Exception.h>
@@ -21,10 +20,7 @@
 #include <thrift/lib/cpp/concurrency/ProfiledMutex.h>
 #include <thrift/lib/cpp/concurrency/Util.h>
 
-#include <assert.h>
-#include <pthread.h>
-#include <signal.h>
-#include <errno.h>
+#include <folly/portability/PThread.h>
 
 using std::shared_ptr;
 
@@ -52,8 +48,8 @@ void Mutex::lock() const { impl_->lock(); }
 
 bool Mutex::trylock() const { return impl_->try_lock(); }
 
-bool Mutex::timedlock(int64_t ms) const {
-  return impl_->try_lock_for(std::chrono::milliseconds {ms});
+bool Mutex::timedlock(std::chrono::milliseconds ms) const {
+  return impl_->try_lock_for(ms);
 }
 
 void Mutex::unlock() const { impl_->unlock(); }
@@ -67,12 +63,12 @@ void ReadWriteMutex::acquireRead() const { impl_->lock_shared(); }
 
 void ReadWriteMutex::acquireWrite() const { impl_->lock(); }
 
-bool ReadWriteMutex::timedRead(int64_t milliseconds) const {
-  return impl_->try_lock_shared_for(std::chrono::milliseconds {milliseconds});
+bool ReadWriteMutex::timedRead(std::chrono::milliseconds milliseconds) const {
+  return impl_->try_lock_shared_for(milliseconds);
 }
 
-bool ReadWriteMutex::timedWrite(int64_t milliseconds) const {
-  return impl_->try_lock_for(std::chrono::milliseconds {milliseconds});
+bool ReadWriteMutex::timedWrite(std::chrono::milliseconds milliseconds) const {
+  return impl_->try_lock_for(milliseconds);
 }
 
 bool ReadWriteMutex::attemptRead() const { return impl_->try_lock_shared(); }
@@ -111,8 +107,8 @@ void NoStarveReadWriteMutex::acquireWrite() const
   mutex_.unlock();
 }
 
-bool NoStarveReadWriteMutex::timedRead(int64_t milliseconds) const
-{
+bool NoStarveReadWriteMutex::timedRead(std::chrono::milliseconds milliseconds)
+ const {
   if (writerWaiting_) {
     // writer is waiting, block on the writer's mutex until he's done with it
     if (!mutex_.timedlock(milliseconds)) {
@@ -124,8 +120,8 @@ bool NoStarveReadWriteMutex::timedRead(int64_t milliseconds) const
   return ReadWriteMutex::timedRead(milliseconds);
 }
 
-bool NoStarveReadWriteMutex::timedWrite(int64_t milliseconds) const
-{
+bool NoStarveReadWriteMutex::timedWrite(std::chrono::milliseconds milliseconds)
+ const {
   // if we can acquire the rwlock the easy way, we're done
   if (attemptWrite()) {
     return true;

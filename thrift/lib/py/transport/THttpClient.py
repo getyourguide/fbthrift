@@ -145,17 +145,23 @@ class THttpClient(TTransportBase):
             self.__http.putheader('User-Agent', user_agent)
 
         if self.__custom_headers:
-            if sys.version_info[0] > 3:
+            if sys.version_info[0] >= 3:
                 custom_headers_iter = self.__custom_headers.items()
             else:
                 custom_headers_iter = self.__custom_headers.iteritems()
             for key, val in custom_headers_iter:
                 self.__http.putheader(key, val)
 
-        self.__http.endheaders()
+        try:
+            self.__http.endheaders()
 
-        # Write payload
-        self.__http.send(data)
+            # Write payload
+            self.__http.send(data)
+        except socket.gaierror as e:
+            raise TTransportException(TTransportException.NOT_OPEN, str(e))
+        except Exception as e:
+            raise TTransportException(TTransportException.UNKNOWN, str(e))
+
 
         # Get reply to flush the request
         self.response = self.__http.getresponse()

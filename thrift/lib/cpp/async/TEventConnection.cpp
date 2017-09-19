@@ -39,12 +39,12 @@ using namespace apache::thrift::transport;
 using namespace apache::thrift::async;
 using namespace std;
 using namespace std::placeholders;
-using std::shared_ptr;
+using namespace folly;
 
 
   // Constructor
 TEventConnection::TEventConnection(shared_ptr<TAsyncSocket> asyncSocket,
-                                   const folly::SocketAddress* address,
+                                   const SocketAddress* address,
                                    TEventWorker* worker,
                                    TEventServer::TransportType transport)
   : worker_(nullptr),
@@ -76,7 +76,7 @@ TEventConnection::~TEventConnection() {
 }
 
 void TEventConnection::init(shared_ptr<TAsyncSocket> asyncSocket,
-                            const folly::SocketAddress* address,
+                            const SocketAddress* address,
                             TEventWorker* worker,
                             TEventServer::TransportType transport) {
   T_DEBUG_T("fd=%d; TEventConnection::init()", asyncSocket->getFd());
@@ -99,11 +99,11 @@ void TEventConnection::init(shared_ptr<TAsyncSocket> asyncSocket,
   // If we're using a non-async processor, construct a task queue adaptor
   if (server->queuingMode()) {
     processor_ = server->getProcessor(&context_);
-    asyncProcessor_.reset(new TQueuingAsyncProcessor(
-                                                processor_,
-                                                server->getThreadManager(),
-                                                server->getTaskExpireTime(),
-                                                this));
+    asyncProcessor_.reset(
+      new TQueuingAsyncProcessor(processor_,
+                                 server->getThreadManager(),
+                                 server->getTaskExpireTime().count(),
+                                 this));
   } else {
     asyncProcessor_ = worker_->getAsyncProcessorFactory()->getProcessor(
       &context_);
@@ -140,7 +140,7 @@ void TEventConnection::init(shared_ptr<TAsyncSocket> asyncSocket,
     default:
       assert(false);
   }
-  asyncChannel_->setRecvTimeout(worker_->getServer()->getRecvTimeout());
+  asyncChannel_->setRecvTimeout(worker_->getServer()->getRecvTimeout().count());
 
   serverEventHandler_ = server->getEventHandler();
   if (serverEventHandler_ != nullptr) {
@@ -178,7 +178,7 @@ void TEventConnection::readNextRequest() {
     return;
   }
 
-  if (readersActive_ >= kMaxReadsPerLoop) {
+  if (readersActive_ >= static_cast<int32_t>(kMaxReadsPerLoop)) {
     worker_->getEventBase()->runInLoop(this);
     return;
   }
@@ -298,7 +298,7 @@ void TEventConnection::handleAsyncTaskComplete(bool success) {
     readNextRequest();
     return;
   }
-  if (responseBytes > largestWriteBufferSize_) {
+  if (static_cast<size_t>(responseBytes) > largestWriteBufferSize_) {
     largestWriteBufferSize_ = responseBytes;
   }
 
@@ -391,4 +391,4 @@ void TEventConnection::checkBufferMemoryUsage() {
   }
 }
 
-}}} // apache::thrift::async
+}}} // apache::thrift

@@ -1,15 +1,14 @@
-# @lint-avoid-pyflakes2
-# @lint-avoid-python-3-compatibility-imports
+#!/usr/bin/env python3
 
 import asyncio
 import time
 
 from thrift.server.TAsyncioServer import ThriftAsyncServerFactory
-from thrift.util.asyncio import run_on_thread
+from thrift.util.Decorators import run_on_thread
 
-from shared.ttypes import SharedStruct
-from tutorial import Calculator
-from tutorial.ttypes import Operation, InvalidOperation
+from thrift_asyncio.shared.ttypes import SharedStruct
+from thrift_asyncio.tutorial import Calculator
+from thrift_asyncio.tutorial.ttypes import Operation, InvalidOperation
 
 
 class CalculatorHandler(Calculator.Iface):
@@ -20,12 +19,11 @@ class CalculatorHandler(Calculator.Iface):
         """This method runs in the server's event loop directly."""
         print('ping()')
 
-    @asyncio.coroutine
-    def add(self, n1, n2):
+    async def add(self, n1, n2):
         """This method is a coroutine and the server will yield from it."""
         print('add(%d,%d)' % (n1, n2))
         # Calling some other services asynchronously, it takes 1 second.
-        yield from asyncio.sleep(1)
+        await asyncio.sleep(1)
         return n1 + n2
 
     @run_on_thread

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@
     typedef Layout LayoutSelf;                                               \
     Layout();                                                                \
     typedef TYPE T;                                                          \
+    FieldPosition maximize();                                                \
     FieldPosition layout(LayoutRoot& root, const T& x, LayoutPosition self); \
     void freeze(FreezeRoot& root, const T& x, FreezePosition self) const;    \
     void thaw(ViewPosition self, T& out) const;                              \
@@ -63,7 +64,16 @@
 #define FROZEN_CTOR_FIELD_OPT(NAME, ID) , NAME##Field(ID, #NAME)
 #define FROZEN_CTOR_FIELD_REQ FROZEN_CTOR_FIELD
 #define FROZEN_CTOR(TYPE, ...) \
-  inline Layout<TYPE>::Layout() : LayoutBase(typeid(TYPE)) __VA_ARGS__ {}
+  Layout<TYPE>::Layout() : LayoutBase(typeid(TYPE)) __VA_ARGS__ {}
+
+#define FROZEN_MAXIMIZE_FIELD(NAME) pos = maximizeField(pos, this->NAME##Field);
+
+#define FROZEN_MAXIMIZE(TYPE, ...)                \
+  FieldPosition Layout<TYPE>::maximize() {        \
+    FieldPosition pos = startFieldPosition();     \
+    __VA_ARGS__;                                  \
+    return pos;                                   \
+  }
 
 #define FROZEN_LAYOUT_FIELD(NAME) \
   pos = root.layoutField(self, pos, this->NAME##Field, x.NAME);
@@ -73,7 +83,7 @@
 #define FROZEN_LAYOUT_FIELD_REQ FROZEN_LAYOUT_FIELD
 
 #define FROZEN_LAYOUT(TYPE, ...)                           \
-  inline FieldPosition Layout<TYPE>::layout(                      \
+  FieldPosition Layout<TYPE>::layout(                      \
       LayoutRoot& root, const T& x, LayoutPosition self) { \
     FieldPosition pos = startFieldPosition();              \
     __VA_ARGS__;                                           \
@@ -87,7 +97,7 @@
 #define FROZEN_FREEZE_FIELD_REQ FROZEN_FREEZE_FIELD
 
 #define FROZEN_FREEZE(TYPE, ...)                                 \
-  inline void Layout<TYPE>::freeze(                                     \
+  void Layout<TYPE>::freeze(                                     \
       FreezeRoot& root, const T& x, FreezePosition self) const { \
     __VA_ARGS__;                                                 \
   }
@@ -100,36 +110,37 @@
 #define FROZEN_THAW_FIELD_REQ(NAME) \
   thawField(self, this->NAME##Field, out.NAME);
 #define FROZEN_THAW(TYPE, ...)                                      \
-  inline void Layout<TYPE>::thaw(ViewPosition self, T& out) const { \
+  void Layout<TYPE>::thaw(ViewPosition self, T& out) const {        \
     __VA_ARGS__;                                                    \
   }
 #define FROZEN_DEBUG_FIELD(NAME) this->NAME##Field.print(os, level + 1);
 #define FROZEN_DEBUG(TYPE, ...)                                 \
-  inline void Layout<TYPE>::print(std::ostream& os, int level) const { \
+  void Layout<TYPE>::print(std::ostream& os, int level) const { \
     LayoutBase::print(os, level);                               \
     os << #TYPE;                                                \
     __VA_ARGS__                                                 \
   }
 #define FROZEN_CLEAR_FIELD(NAME) this->NAME##Field.clear();
 #define FROZEN_CLEAR(TYPE, ...) \
-  inline void Layout<TYPE>::clear() {  \
+  void Layout<TYPE>::clear() {  \
     LayoutBase::clear();        \
     __VA_ARGS__                 \
   }
 
 #define FROZEN_SAVE_FIELD(NAME) \
-  this->NAME##Field.template save<SchemaInfo>(schema, layout, helper);
+  this->NAME##Field.template save<SchemaInfo>(schema, _layout, helper);
 
-#define FROZEN_SAVE_BODY(...)                              \
-  Base::template save<SchemaInfo>(schema, layout, helper); \
+#define FROZEN_SAVE_BODY(...)                               \
+  Base::template save<SchemaInfo>(schema, _layout, helper); \
   __VA_ARGS__
 
-#define FROZEN_SAVE_INLINE(...)                                 \
-  template <typename SchemaInfo>                                \
-  inline void save(typename SchemaInfo::Schema& schema,         \
-                   typename SchemaInfo::Layout& layout,         \
-                   typename SchemaInfo::Helper& helper) const { \
-    FROZEN_SAVE_BODY(__VA_ARGS__)                               \
+#define FROZEN_SAVE_INLINE(...)                    \
+  template <typename SchemaInfo>                   \
+  inline void save(                                \
+      typename SchemaInfo::Schema& schema,         \
+      typename SchemaInfo::Layout& _layout,        \
+      typename SchemaInfo::Helper& helper) const { \
+    FROZEN_SAVE_BODY(__VA_ARGS__)                  \
   }
 
 #define FROZEN_LOAD_FIELD(NAME, ID)                             \
@@ -137,15 +148,16 @@
     this->NAME##Field.template load<SchemaInfo>(schema, field); \
     break;
 
-#define FROZEN_LOAD_BODY(...)                      \
-  Base::template load<SchemaInfo>(schema, layout); \
-  for (const auto& field : layout.getFields()) {   \
-    switch (field.getId()) { __VA_ARGS__ }         \
+#define FROZEN_LOAD_BODY(...)                       \
+  Base::template load<SchemaInfo>(schema, _layout); \
+  for (const auto& field : _layout.getFields()) {   \
+    switch (field.getId()) { __VA_ARGS__ }          \
   }
 
-#define FROZEN_LOAD_INLINE(...)                                 \
-  template <typename SchemaInfo>                                \
-  inline void load(const typename SchemaInfo::Schema& schema,   \
-                   const typename SchemaInfo::Layout& layout) { \
-    FROZEN_LOAD_BODY(__VA_ARGS__)                               \
+#define FROZEN_LOAD_INLINE(...)                     \
+  template <typename SchemaInfo>                    \
+  inline void load(                                 \
+      const typename SchemaInfo::Schema& schema,    \
+      const typename SchemaInfo::Layout& _layout) { \
+    FROZEN_LOAD_BODY(__VA_ARGS__)                   \
   }

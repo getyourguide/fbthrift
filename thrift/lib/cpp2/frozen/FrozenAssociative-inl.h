@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,33 @@ namespace detail {
 
 template <class K, class V>
 struct KeyExtractor {
+  using KeyType = K;
+  // deleted functions used to avoid returning references to temporary values
+  static const K& getKey(const std::pair<const K, V>&&) = delete;
   static const K& getKey(const std::pair<const K, V>& pair) {
     return pair.first;
   }
+
+  // To support VectorAsHashMap
+  static const K& getKey(const std::pair<K, V>&& pair) = delete;
+  static const K& getKey(const std::pair<K, V>& pair) {
+    return pair.first;
+  }
+
+  static const std::pair<const K, V>* getPointer(
+      const std::pair<const K, V>&&) = delete;
+  static const std::pair<const K, V>* getPointer(
+      const std::pair<const K, V>& pair) {
+    return &pair;
+  }
+
+  static const std::pair<const K, V>* getPointer(const std::pair<K, V>&&) =
+      delete;
+  static const std::pair<const K, V>* getPointer(const std::pair<K, V>& pair) {
+    // To allow freezing from VectorAsHashMap
+    return reinterpret_cast<const std::pair<const K, V>*>(&pair);
+  }
+
   static typename Layout<K>::View getViewKey(
       const typename Layout<std::pair<const K, V>>::View& pair) {
     return pair.first();
@@ -30,7 +54,15 @@ struct KeyExtractor {
 
 template <class K>
 struct SelfKey {
-  static const K& getKey(const K& item) { return item; }
+  using KeyType = K;
+  static const K& getKey(const K& item) {
+    return item;
+  }
+
+  static const K* getPointer(const K& item) {
+    return &item;
+  }
+
   static typename Layout<K>::View getViewKey(
       typename Layout<K>::View itemView) {
     return itemView;
@@ -56,7 +88,7 @@ struct MapTableLayout
         : Base::View(layout, position) {}
 
     mapped_type getDefault(const key_type& key,
-                           mapped_type def = mapped_type()) {
+                           mapped_type def = mapped_type()) const {
       auto found = this->find(key);
       if (found == this->end()) {
         return std::move(def);
@@ -64,7 +96,16 @@ struct MapTableLayout
       return found->second();
     }
 
-    mapped_type at(const key_type& key) {
+    folly::Optional<mapped_type> getOptional(const key_type& key) const {
+      folly::Optional<mapped_type> rv;
+      auto found = this->find(key);
+      if (found != this->end()) {
+        rv.assign(found->second());
+      }
+      return rv;
+    }
+
+    mapped_type at(const key_type& key) const {
       auto found = this->find(key);
       if (found == this->end()) {
         throw std::out_of_range("Key not found");

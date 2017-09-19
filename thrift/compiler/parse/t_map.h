@@ -20,7 +20,7 @@
 #ifndef T_MAP_H
 #define T_MAP_H
 
-#include "thrift/compiler/parse/t_container.h"
+#include <thrift/compiler/parse/t_container.h>
 
 /**
  * A map is a lightweight container type that just wraps another two data
@@ -58,7 +58,7 @@ class t_map : public t_container {
             val_type_->get_impl_full_name() + ">");
   }
 
-  TypeValue get_type_value() const override { return t_types::TYPE_MAP; }
+  TypeValue get_type_value() const override { return TypeValue::TYPE_MAP; }
 
  private:
   t_type* key_type_;

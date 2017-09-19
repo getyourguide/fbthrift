@@ -4,21 +4,20 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "Raiser.h"
+#include "src/gen-cpp2/Raiser.h"
+#include "src/gen-cpp2/Raiser.tcc"
 
-#include "Raiser.tcc"
-
-#include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
-namespace cpp2 {
+#include <thrift/lib/cpp2/protocol/Protocol.h>
 
+namespace cpp2 {
 std::unique_ptr<apache::thrift::AsyncProcessor> RaiserSvIf::getProcessor() {
-  return folly::make_unique<RaiserAsyncProcessor>(this);
+  return std::make_unique<RaiserAsyncProcessor>(this);
 }
 
 void RaiserSvIf::doBland() {
-  throw apache::thrift::TApplicationException("Function doBland is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("doBland");
 }
 
 folly::Future<folly::Unit> RaiserSvIf::future_doBland() {
@@ -30,7 +29,7 @@ void RaiserSvIf::async_tm_doBland(std::unique_ptr<apache::thrift::HandlerCallbac
 }
 
 void RaiserSvIf::doRaise() {
-  throw apache::thrift::TApplicationException("Function doRaise is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("doRaise");
 }
 
 folly::Future<folly::Unit> RaiserSvIf::future_doRaise() {
@@ -42,7 +41,7 @@ void RaiserSvIf::async_tm_doRaise(std::unique_ptr<apache::thrift::HandlerCallbac
 }
 
 void RaiserSvIf::get200(std::string& /*_return*/) {
-  throw apache::thrift::TApplicationException("Function get200 is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("get200");
 }
 
 folly::Future<std::unique_ptr<std::string>> RaiserSvIf::future_get200() {
@@ -54,7 +53,7 @@ void RaiserSvIf::async_tm_get200(std::unique_ptr<apache::thrift::HandlerCallback
 }
 
 void RaiserSvIf::get500(std::string& /*_return*/) {
-  throw apache::thrift::TApplicationException("Function get500 is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("get500");
 }
 
 folly::Future<std::unique_ptr<std::string>> RaiserSvIf::future_get500() {
@@ -81,7 +80,7 @@ folly::Optional<std::string> RaiserAsyncProcessor::getCacheKey(folly::IOBuf* buf
   return apache::thrift::detail::ap::get_cache_key(buf, protType, cacheKeyMap_);
 }
 
-void RaiserAsyncProcessor::process(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, apache::thrift::protocol::PROTOCOL_TYPES protType, apache::thrift::Cpp2RequestContext* context, apache::thrift::async::TEventBase* eb, apache::thrift::concurrency::ThreadManager* tm) {
+void RaiserAsyncProcessor::process(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, apache::thrift::protocol::PROTOCOL_TYPES protType, apache::thrift::Cpp2RequestContext* context, folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm) {
   apache::thrift::detail::ap::process(this, std::move(req), std::move(buf), protType, context, eb, tm);
 }
 
@@ -95,21 +94,22 @@ const RaiserAsyncProcessor::BinaryProtocolProcessMap& RaiserAsyncProcessor::getB
   return binaryProcessMap_;
 }
 
-RaiserAsyncProcessor::BinaryProtocolProcessMap RaiserAsyncProcessor::binaryProcessMap_ {
+const RaiserAsyncProcessor::BinaryProtocolProcessMap RaiserAsyncProcessor::binaryProcessMap_ {
   {"doBland", &RaiserAsyncProcessor::_processInThread_doBland<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"doRaise", &RaiserAsyncProcessor::_processInThread_doRaise<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"get200", &RaiserAsyncProcessor::_processInThread_get200<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
-  {"get500", &RaiserAsyncProcessor::_processInThread_get500<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>}
+  {"get500", &RaiserAsyncProcessor::_processInThread_get500<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
 };
+
 const RaiserAsyncProcessor::CompactProtocolProcessMap& RaiserAsyncProcessor::getCompactProtocolProcessMap() {
   return compactProcessMap_;
 }
 
-RaiserAsyncProcessor::CompactProtocolProcessMap RaiserAsyncProcessor::compactProcessMap_ {
+const RaiserAsyncProcessor::CompactProtocolProcessMap RaiserAsyncProcessor::compactProcessMap_ {
   {"doBland", &RaiserAsyncProcessor::_processInThread_doBland<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"doRaise", &RaiserAsyncProcessor::_processInThread_doRaise<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"get200", &RaiserAsyncProcessor::_processInThread_get200<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
-  {"get500", &RaiserAsyncProcessor::_processInThread_get500<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>}
+  {"get500", &RaiserAsyncProcessor::_processInThread_get500<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
 };
 
 } // cpp2

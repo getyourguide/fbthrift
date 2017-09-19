@@ -19,6 +19,8 @@
 
 namespace py thrift.test.py.constants
 
+include "constants_include.thrift"
+
 const string apostrophe = "'";
 const string tripleApostrophe = "'''";
 const string quotationMark = '"'; //" //fix syntax highlighting
@@ -39,3 +41,11 @@ const map<string, i32> char2ascii = {
   "\\" : 92,
   "\x61" : 97,
 };
+
+const map<string, constants_include.Foo> str2struct = {
+  "foo": {
+    "bar": {
+      "baz": "qux",
+    },
+  }
+}

@@ -1,4 +1,6 @@
 /*
+ * Copyright 2004-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +25,6 @@
 #include <cctype>
 #include <cstdio>
 #include <stdexcept>
-#include <boost/static_assert.hpp>
 #include <boost/lexical_cast.hpp>
 
 using std::string;
@@ -31,8 +32,9 @@ using std::string;
 
 static string byte_to_hex(const uint8_t byte) {
   char buf[3];
-  int ret = std::sprintf(buf, "%02x", (int)byte);
-  assert(ret == 2);
+  if (std::sprintf(buf, "%02x", (int)byte) != 2) {
+    assert(false);
+  }
   assert(buf[2] == '\0');
   return buf;
 }
@@ -146,9 +148,10 @@ uint32_t TDebugProtocol::writeItem(const std::string& str) {
   return size;
 }
 
-uint32_t TDebugProtocol::writeMessageBegin(const std::string& name,
-                                           const TMessageType messageType,
-                                           const int32_t seqid) {
+uint32_t TDebugProtocol::writeMessageBegin(
+    const std::string& name,
+    const TMessageType messageType,
+    const int32_t /*seqid*/) {
   string mtype;
   switch (messageType) {
     case T_CALL      : mtype = "call"  ; break;

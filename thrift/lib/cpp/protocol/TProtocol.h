@@ -17,15 +17,14 @@
 #ifndef THRIFT_PROTOCOL_TPROTOCOL_H_
 #define THRIFT_PROTOCOL_TPROTOCOL_H_ 1
 
+#include <folly/portability/Sockets.h>
 #include <thrift/lib/cpp/transport/TTransport.h>
 #include <thrift/lib/cpp/protocol/TType.h>
 #include <thrift/lib/cpp/protocol/TProtocolException.h>
 #include <thrift/lib/cpp/util/BitwiseCast.h>
-#include <thrift/lib/cpp/util/shared_ptr_util.h>
 
 #include <memory>
 
-#include <netinet/in.h>
 #include <sys/types.h>
 #include <string>
 #include <map>
@@ -42,6 +41,10 @@
 #  define __BYTE_ORDER BYTE_ORDER
 #  define __LITTLE_ENDIAN LITTLE_ENDIAN
 #  define __BIG_ENDIAN BIG_ENDIAN
+# elif defined(_WIN32)
+#  define __BYTE_ORDER 1
+#  define __LITTLE_ENDIAN 1
+#  define __BIG_ENDIAN 2
 # else
 #  error "Cannot determine endianness"
 # endif
@@ -720,7 +723,7 @@ class TProtocol {
    * valid for the lifetime of the TProtocol object.
    */
   explicit TProtocol(TTransport* ptrans):
-    ptrans_(ptrans, NoopPtrDestructor<TTransport>()) {
+    ptrans_(ptrans, [](TTransport*) {}) {
   }
 
   std::shared_ptr<TTransport> ptrans_;

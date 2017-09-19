@@ -14,27 +14,18 @@
  * limitations under the License.
  */
 
-#include <signal.h>
-#include <pthread.h>
-
+#include <folly/portability/Sockets.h>
 #include <thrift/lib/cpp/server/TServer.h>
 #include <thrift/lib/cpp/util/ScopedServerThread.h>
 #include <thrift/lib/cpp/concurrency/Util.h>
-#include <folly/io/async/test/TimeUtil.h>
 #include <thrift/lib/cpp/transport/TSSLSocket.h>
 #include <thrift/lib/cpp/transport/TSSLServerSocket.h>
 #include <folly/SocketAddress.h>
 #include <thrift/lib/cpp/transport/TRpcTransport.h>
 #include <thrift/lib/cpp/TProcessor.h>
 
-#include <fcntl.h>
 #include <gtest/gtest.h>
 #include <iostream>
-#include <list>
-#include <poll.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 using std::string;
 using std::vector;

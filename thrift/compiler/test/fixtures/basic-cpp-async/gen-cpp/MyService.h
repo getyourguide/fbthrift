@@ -8,14 +8,14 @@
 #define  _MyService_H
 
 #include <functional>
-#include <thrift/lib/cpp/transport/TTransportUtils.h>
+#include <thrift/lib/cpp/transport/TBufferTransports.h>
 namespace apache { namespace thrift { namespace async {
 class TAsyncChannel;
 }}}
 #include <thrift/lib/cpp/TDispatchProcessor.h>
 #include <folly/ExceptionWrapper.h>
 #include <thrift/lib/cpp/async/TAsyncDispatchProcessor.h>
-#include "module_types.h"
+#include "thrift/compiler/test/fixtures/basic-cpp-async/gen-cpp/module_types.h"
 
 
 
@@ -97,7 +97,7 @@ class MyService_ping_args : public apache::thrift::TStructType<MyService_ping_ar
 
   void __clear();
 
-  virtual ~MyService_ping_args() throw() {}
+  virtual ~MyService_ping_args() noexcept {}
 
 
   bool operator == (const MyService_ping_args &) const;
@@ -112,6 +112,10 @@ class MyService_ping_args : public apache::thrift::TStructType<MyService_ping_ar
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_ping_args;
@@ -122,13 +126,18 @@ class MyService_ping_pargs : public apache::thrift::TStructType<MyService_ping_p
 
   static const uint64_t _reflection_id = 16815395149953092012U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_ping_pargs() = default;
 
-  virtual ~MyService_ping_pargs() throw() {}
+  virtual ~MyService_ping_pargs() noexcept {}
 
 
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_ping_pargs;
@@ -139,8 +148,9 @@ class MyService_ping_presult : public apache::thrift::TStructType<MyService_ping
 
   static const uint64_t _reflection_id = 7454426369090387564U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_ping_presult() = default;
 
-  virtual ~MyService_ping_presult() throw() {}
+  virtual ~MyService_ping_presult() noexcept {}
 
 
   template <class Protocol_>
@@ -148,6 +158,10 @@ class MyService_ping_presult : public apache::thrift::TStructType<MyService_ping
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_ping_presult;
@@ -168,7 +182,7 @@ class MyService_getRandomData_args : public apache::thrift::TStructType<MyServic
 
   void __clear();
 
-  virtual ~MyService_getRandomData_args() throw() {}
+  virtual ~MyService_getRandomData_args() noexcept {}
 
 
   bool operator == (const MyService_getRandomData_args &) const;
@@ -183,6 +197,10 @@ class MyService_getRandomData_args : public apache::thrift::TStructType<MyServic
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_getRandomData_args;
@@ -193,13 +211,18 @@ class MyService_getRandomData_pargs : public apache::thrift::TStructType<MyServi
 
   static const uint64_t _reflection_id = 7557343870547663148U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_getRandomData_pargs() = default;
 
-  virtual ~MyService_getRandomData_pargs() throw() {}
+  virtual ~MyService_getRandomData_pargs() noexcept {}
 
 
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_getRandomData_pargs;
@@ -210,8 +233,22 @@ class MyService_getRandomData_presult : public apache::thrift::TStructType<MySer
 
   static const uint64_t _reflection_id = 11335342061983591980U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_getRandomData_presult() = default;
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_getRandomData_presult(
+    ::apache::thrift::detail::argument_wrapper<0, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_getRandomData_presult(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    success = arg.move();
+    __isset.success = true;
+  }
 
-  virtual ~MyService_getRandomData_presult() throw() {}
+  virtual ~MyService_getRandomData_presult() noexcept {}
 
   std::string* success;
 
@@ -228,6 +265,10 @@ class MyService_getRandomData_presult : public apache::thrift::TStructType<MySer
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_getRandomData_presult;
@@ -240,6 +281,19 @@ class MyService_hasDataById_args : public apache::thrift::TStructType<MyService_
   static void _reflection_register(::apache::thrift::reflection::Schema&);
   MyService_hasDataById_args() : id(0) {
   }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_hasDataById_args(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_hasDataById_args(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    id = arg.move();
+    __isset.id = true;
+  }
 
   MyService_hasDataById_args(const MyService_hasDataById_args&) = default;
   MyService_hasDataById_args& operator=(const MyService_hasDataById_args& src)= default;
@@ -248,7 +302,7 @@ class MyService_hasDataById_args : public apache::thrift::TStructType<MyService_
 
   void __clear();
 
-  virtual ~MyService_hasDataById_args() throw() {}
+  virtual ~MyService_hasDataById_args() noexcept {}
 
   int64_t id;
 
@@ -272,6 +326,10 @@ class MyService_hasDataById_args : public apache::thrift::TStructType<MyService_
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_hasDataById_args;
@@ -282,14 +340,31 @@ class MyService_hasDataById_pargs : public apache::thrift::TStructType<MyService
 
   static const uint64_t _reflection_id = 11103477756651294252U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_hasDataById_pargs() = default;
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_hasDataById_pargs(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_hasDataById_pargs(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    id = arg.move();
+  }
 
-  virtual ~MyService_hasDataById_pargs() throw() {}
+  virtual ~MyService_hasDataById_pargs() noexcept {}
 
   const int64_t* id;
 
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_hasDataById_pargs;
@@ -300,8 +375,22 @@ class MyService_hasDataById_presult : public apache::thrift::TStructType<MyServi
 
   static const uint64_t _reflection_id = 7676580259158416684U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_hasDataById_presult() = default;
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_hasDataById_presult(
+    ::apache::thrift::detail::argument_wrapper<0, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_hasDataById_presult(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    success = arg.move();
+    __isset.success = true;
+  }
 
-  virtual ~MyService_hasDataById_presult() throw() {}
+  virtual ~MyService_hasDataById_presult() noexcept {}
 
   bool* success;
 
@@ -318,6 +407,10 @@ class MyService_hasDataById_presult : public apache::thrift::TStructType<MyServi
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_hasDataById_presult;
@@ -330,6 +423,19 @@ class MyService_getDataById_args : public apache::thrift::TStructType<MyService_
   static void _reflection_register(::apache::thrift::reflection::Schema&);
   MyService_getDataById_args() : id(0) {
   }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_getDataById_args(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_getDataById_args(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    id = arg.move();
+    __isset.id = true;
+  }
 
   MyService_getDataById_args(const MyService_getDataById_args&) = default;
   MyService_getDataById_args& operator=(const MyService_getDataById_args& src)= default;
@@ -338,7 +444,7 @@ class MyService_getDataById_args : public apache::thrift::TStructType<MyService_
 
   void __clear();
 
-  virtual ~MyService_getDataById_args() throw() {}
+  virtual ~MyService_getDataById_args() noexcept {}
 
   int64_t id;
 
@@ -362,6 +468,10 @@ class MyService_getDataById_args : public apache::thrift::TStructType<MyService_
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_getDataById_args;
@@ -372,14 +482,31 @@ class MyService_getDataById_pargs : public apache::thrift::TStructType<MyService
 
   static const uint64_t _reflection_id = 10310703131271109740U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_getDataById_pargs() = default;
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_getDataById_pargs(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_getDataById_pargs(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    id = arg.move();
+  }
 
-  virtual ~MyService_getDataById_pargs() throw() {}
+  virtual ~MyService_getDataById_pargs() noexcept {}
 
   const int64_t* id;
 
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_getDataById_pargs;
@@ -390,8 +517,22 @@ class MyService_getDataById_presult : public apache::thrift::TStructType<MyServi
 
   static const uint64_t _reflection_id = 8469747470745394316U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_getDataById_presult() = default;
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_getDataById_presult(
+    ::apache::thrift::detail::argument_wrapper<0, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_getDataById_presult(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    success = arg.move();
+    __isset.success = true;
+  }
 
-  virtual ~MyService_getDataById_presult() throw() {}
+  virtual ~MyService_getDataById_presult() noexcept {}
 
   std::string* success;
 
@@ -408,6 +549,10 @@ class MyService_getDataById_presult : public apache::thrift::TStructType<MyServi
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_getDataById_presult;
@@ -420,6 +565,32 @@ class MyService_putDataById_args : public apache::thrift::TStructType<MyService_
   static void _reflection_register(::apache::thrift::reflection::Schema&);
   MyService_putDataById_args() : id(0) {
   }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_putDataById_args(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_putDataById_args(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    id = arg.move();
+    __isset.id = true;
+  }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_putDataById_args(
+    ::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_putDataById_args(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    data = arg.move();
+    __isset.data = true;
+  }
 
   MyService_putDataById_args(const MyService_putDataById_args&) = default;
   MyService_putDataById_args& operator=(const MyService_putDataById_args& src)= default;
@@ -428,7 +599,7 @@ class MyService_putDataById_args : public apache::thrift::TStructType<MyService_
 
   void __clear();
 
-  virtual ~MyService_putDataById_args() throw() {}
+  virtual ~MyService_putDataById_args() noexcept {}
 
   int64_t id;
   std::string data;
@@ -455,6 +626,10 @@ class MyService_putDataById_args : public apache::thrift::TStructType<MyService_
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_putDataById_args;
@@ -465,8 +640,33 @@ class MyService_putDataById_pargs : public apache::thrift::TStructType<MyService
 
   static const uint64_t _reflection_id = 9284081343717630892U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_putDataById_pargs() = default;
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_putDataById_pargs(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_putDataById_pargs(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    id = arg.move();
+  }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_putDataById_pargs(
+    ::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_putDataById_pargs(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    data = arg.move();
+  }
 
-  virtual ~MyService_putDataById_pargs() throw() {}
+  virtual ~MyService_putDataById_pargs() noexcept {}
 
   const int64_t* id;
   const std::string* data;
@@ -474,6 +674,10 @@ class MyService_putDataById_pargs : public apache::thrift::TStructType<MyService
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_putDataById_pargs;
@@ -484,8 +688,9 @@ class MyService_putDataById_presult : public apache::thrift::TStructType<MyServi
 
   static const uint64_t _reflection_id = 9940143875439151532U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_putDataById_presult() = default;
 
-  virtual ~MyService_putDataById_presult() throw() {}
+  virtual ~MyService_putDataById_presult() noexcept {}
 
 
   template <class Protocol_>
@@ -493,6 +698,10 @@ class MyService_putDataById_presult : public apache::thrift::TStructType<MyServi
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_putDataById_presult;
@@ -505,6 +714,32 @@ class MyService_lobDataById_args : public apache::thrift::TStructType<MyService_
   static void _reflection_register(::apache::thrift::reflection::Schema&);
   MyService_lobDataById_args() : id(0) {
   }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_lobDataById_args(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_lobDataById_args(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    id = arg.move();
+    __isset.id = true;
+  }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_lobDataById_args(
+    ::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_lobDataById_args(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    data = arg.move();
+    __isset.data = true;
+  }
 
   MyService_lobDataById_args(const MyService_lobDataById_args&) = default;
   MyService_lobDataById_args& operator=(const MyService_lobDataById_args& src)= default;
@@ -513,7 +748,7 @@ class MyService_lobDataById_args : public apache::thrift::TStructType<MyService_
 
   void __clear();
 
-  virtual ~MyService_lobDataById_args() throw() {}
+  virtual ~MyService_lobDataById_args() noexcept {}
 
   int64_t id;
   std::string data;
@@ -540,6 +775,10 @@ class MyService_lobDataById_args : public apache::thrift::TStructType<MyService_
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_lobDataById_args;
@@ -550,8 +789,33 @@ class MyService_lobDataById_pargs : public apache::thrift::TStructType<MyService
 
   static const uint64_t _reflection_id = 11737864613387025900U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_lobDataById_pargs() = default;
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_lobDataById_pargs(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_lobDataById_pargs(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    id = arg.move();
+  }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_lobDataById_pargs(
+    ::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_lobDataById_pargs(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    data = arg.move();
+  }
 
-  virtual ~MyService_lobDataById_pargs() throw() {}
+  virtual ~MyService_lobDataById_pargs() noexcept {}
 
   const int64_t* id;
   const std::string* data;
@@ -559,6 +823,10 @@ class MyService_lobDataById_pargs : public apache::thrift::TStructType<MyService
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_lobDataById_pargs;
@@ -571,6 +839,32 @@ class MyService_putStructById_args : public apache::thrift::TStructType<MyServic
   static void _reflection_register(::apache::thrift::reflection::Schema&);
   MyService_putStructById_args() : id(0) {
   }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_putStructById_args(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_putStructById_args(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    id = arg.move();
+    __isset.id = true;
+  }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_putStructById_args(
+    ::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_putStructById_args(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    data = arg.move();
+    __isset.data = true;
+  }
 
   MyService_putStructById_args(const MyService_putStructById_args&) = default;
   MyService_putStructById_args& operator=(const MyService_putStructById_args& src)= default;
@@ -579,7 +873,7 @@ class MyService_putStructById_args : public apache::thrift::TStructType<MyServic
 
   void __clear();
 
-  virtual ~MyService_putStructById_args() throw() {}
+  virtual ~MyService_putStructById_args() noexcept {}
 
   int64_t id;
   MyStruct data;
@@ -606,6 +900,10 @@ class MyService_putStructById_args : public apache::thrift::TStructType<MyServic
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_putStructById_args;
@@ -616,8 +914,33 @@ class MyService_putStructById_pargs : public apache::thrift::TStructType<MyServi
 
   static const uint64_t _reflection_id = 1575852537323546924U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_putStructById_pargs() = default;
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_putStructById_pargs(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_putStructById_pargs(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    id = arg.move();
+  }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyService_putStructById_pargs(
+    ::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyService_putStructById_pargs(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    data = arg.move();
+  }
 
-  virtual ~MyService_putStructById_pargs() throw() {}
+  virtual ~MyService_putStructById_pargs() noexcept {}
 
   const int64_t* id;
   const MyStruct* data;
@@ -625,6 +948,10 @@ class MyService_putStructById_pargs : public apache::thrift::TStructType<MyServi
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_putStructById_pargs;
@@ -635,8 +962,9 @@ class MyService_putStructById_presult : public apache::thrift::TStructType<MySer
 
   static const uint64_t _reflection_id = 4967378470319252300U;
   static void _reflection_register(::apache::thrift::reflection::Schema&);
+  MyService_putStructById_presult() = default;
 
-  virtual ~MyService_putStructById_presult() throw() {}
+  virtual ~MyService_putStructById_presult() noexcept {}
 
 
   template <class Protocol_>
@@ -644,6 +972,10 @@ class MyService_putStructById_presult : public apache::thrift::TStructType<MySer
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyService_putStructById_presult;
@@ -843,59 +1175,59 @@ class MyServiceMultiface : virtual public MyServiceIf {
   }
  public:
   void ping() {
-    uint32_t i;
-    uint32_t sz = ifaces_.size();
-    for (i = 0; i < sz; ++i) {
-      ifaces_[i]->ping();
+    uint32_t thrift_multifaces_index_tmp_;
+    uint32_t thrift_multifaces_size_tmp_ = ifaces_.size();
+    for (thrift_multifaces_index_tmp_ = 0; thrift_multifaces_index_tmp_ < thrift_multifaces_size_tmp_; ++thrift_multifaces_index_tmp_) {
+      ifaces_[thrift_multifaces_index_tmp_]->ping();
     }
   }
 
   void getRandomData(std::string& _return) {
-    uint32_t i;
-    uint32_t sz = ifaces_.size();
-    for (i = 0; i < sz; ++i) {
-      ifaces_[i]->getRandomData(_return);
+    uint32_t thrift_multifaces_index_tmp_;
+    uint32_t thrift_multifaces_size_tmp_ = ifaces_.size();
+    for (thrift_multifaces_index_tmp_ = 0; thrift_multifaces_index_tmp_ < thrift_multifaces_size_tmp_; ++thrift_multifaces_index_tmp_) {
+      ifaces_[thrift_multifaces_index_tmp_]->getRandomData(_return);
     }
   }
 
   bool hasDataById(int64_t id) {
-    uint32_t i;
-    uint32_t sz = ifaces_.size();
-    for (i = 0; i < sz - 1; ++i) {
-      ifaces_[i]->hasDataById(id);
+    uint32_t thrift_multifaces_index_tmp_;
+    uint32_t thrift_multifaces_size_tmp_ = ifaces_.size();
+    for (thrift_multifaces_index_tmp_ = 0; thrift_multifaces_index_tmp_ < thrift_multifaces_size_tmp_ - 1; ++thrift_multifaces_index_tmp_) {
+      ifaces_[thrift_multifaces_index_tmp_]->hasDataById(id);
     }
-    return ifaces_[i]->hasDataById(id);
+    return ifaces_[thrift_multifaces_index_tmp_]->hasDataById(id);
   }
 
   void getDataById(std::string& _return, int64_t id) {
-    uint32_t i;
-    uint32_t sz = ifaces_.size();
-    for (i = 0; i < sz; ++i) {
-      ifaces_[i]->getDataById(_return, id);
+    uint32_t thrift_multifaces_index_tmp_;
+    uint32_t thrift_multifaces_size_tmp_ = ifaces_.size();
+    for (thrift_multifaces_index_tmp_ = 0; thrift_multifaces_index_tmp_ < thrift_multifaces_size_tmp_; ++thrift_multifaces_index_tmp_) {
+      ifaces_[thrift_multifaces_index_tmp_]->getDataById(_return, id);
     }
   }
 
   void putDataById(int64_t id, const std::string& data) {
-    uint32_t i;
-    uint32_t sz = ifaces_.size();
-    for (i = 0; i < sz; ++i) {
-      ifaces_[i]->putDataById(id, data);
+    uint32_t thrift_multifaces_index_tmp_;
+    uint32_t thrift_multifaces_size_tmp_ = ifaces_.size();
+    for (thrift_multifaces_index_tmp_ = 0; thrift_multifaces_index_tmp_ < thrift_multifaces_size_tmp_; ++thrift_multifaces_index_tmp_) {
+      ifaces_[thrift_multifaces_index_tmp_]->putDataById(id, data);
     }
   }
 
   void lobDataById(int64_t id, const std::string& data) {
-    uint32_t i;
-    uint32_t sz = ifaces_.size();
-    for (i = 0; i < sz; ++i) {
-      ifaces_[i]->lobDataById(id, data);
+    uint32_t thrift_multifaces_index_tmp_;
+    uint32_t thrift_multifaces_size_tmp_ = ifaces_.size();
+    for (thrift_multifaces_index_tmp_ = 0; thrift_multifaces_index_tmp_ < thrift_multifaces_size_tmp_; ++thrift_multifaces_index_tmp_) {
+      ifaces_[thrift_multifaces_index_tmp_]->lobDataById(id, data);
     }
   }
 
   void putStructById(int64_t id, const MyStruct& data) {
-    uint32_t i;
-    uint32_t sz = ifaces_.size();
-    for (i = 0; i < sz; ++i) {
-      ifaces_[i]->putStructById(id, data);
+    uint32_t thrift_multifaces_index_tmp_;
+    uint32_t thrift_multifaces_size_tmp_ = ifaces_.size();
+    for (thrift_multifaces_index_tmp_ = 0; thrift_multifaces_index_tmp_ < thrift_multifaces_size_tmp_; ++thrift_multifaces_index_tmp_) {
+      ifaces_[thrift_multifaces_index_tmp_]->putStructById(id, data);
     }
   }
 
@@ -1218,7 +1550,7 @@ typedef MyServiceAsyncProcessorFactoryT< ::apache::thrift::protocol::TDummyProto
 
 
 
-#include "MyService.tcc"
-#include "module_types.tcc"
+#include "thrift/compiler/test/fixtures/basic-cpp-async/gen-cpp/MyService.tcc"
+#include "thrift/compiler/test/fixtures/basic-cpp-async/gen-cpp/module_types.tcc"
 
 #endif

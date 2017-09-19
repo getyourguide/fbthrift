@@ -6,27 +6,26 @@
  */
 #pragma once
 
-#include "MyRoot.h"
-#include <thrift/lib/cpp/TApplicationException.h>
-#include <folly/MoveWrapper.h>
+#include "src/gen-cpp2/MyRoot.h"
+
 #include <folly/io/IOBuf.h>
 #include <folly/io/IOBufQueue.h>
+#include <thrift/lib/cpp/TApplicationException.h>
 #include <thrift/lib/cpp/transport/THeader.h>
-#include <thrift/lib/cpp2/server/Cpp2ConnContext.h>
 #include <thrift/lib/cpp2/GeneratedCodeHelper.h>
+#include <thrift/lib/cpp2/GeneratedSerializationCodeHelper.h>
+#include <thrift/lib/cpp2/server/Cpp2ConnContext.h>
 
 namespace cpp2 {
-
 typedef apache::thrift::ThriftPresult<false> MyRoot_do_root_pargs;
 typedef apache::thrift::ThriftPresult<true> MyRoot_do_root_presult;
 template <typename ProtocolIn_, typename ProtocolOut_>
-void MyRootAsyncProcessor::_processInThread_do_root(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, std::unique_ptr<ProtocolIn_> iprot, apache::thrift::Cpp2RequestContext* ctx, apache::thrift::async::TEventBase* eb, apache::thrift::concurrency::ThreadManager* tm) {
+void MyRootAsyncProcessor::_processInThread_do_root(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, std::unique_ptr<ProtocolIn_> iprot, apache::thrift::Cpp2RequestContext* ctx, folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm) {
   auto pri = iface_->getRequestPriority(ctx, apache::thrift::concurrency::NORMAL);
   processInThread<ProtocolIn_, ProtocolOut_>(std::move(req), std::move(buf),std::move(iprot), ctx, eb, tm, pri, false, &MyRootAsyncProcessor::process_do_root<ProtocolIn_, ProtocolOut_>, this);
 }
-
 template <typename ProtocolIn_, typename ProtocolOut_>
-void MyRootAsyncProcessor::process_do_root(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, std::unique_ptr<ProtocolIn_> iprot,apache::thrift::Cpp2RequestContext* ctx,apache::thrift::async::TEventBase* eb, apache::thrift::concurrency::ThreadManager* tm) {
+void MyRootAsyncProcessor::process_do_root(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, std::unique_ptr<ProtocolIn_> iprot,apache::thrift::Cpp2RequestContext* ctx,folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm) {
   // make sure getConnectionContext is null
   // so async calls don't accidentally use it
   iface_->setConnectionContext(nullptr);
@@ -40,12 +39,10 @@ void MyRootAsyncProcessor::process_do_root(std::unique_ptr<apache::thrift::Respo
     if (req) {
       LOG(ERROR) << ex.what() << " in function do_root";
       apache::thrift::TApplicationException x(apache::thrift::TApplicationException::TApplicationExceptionType::PROTOCOL_ERROR, ex.what());
-      folly::IOBufQueue queue = serializeException("do_root", &prot, iprot->getSeqId(), nullptr, x);
+      folly::IOBufQueue queue = serializeException("do_root", &prot, ctx->getProtoSeqId(), nullptr, x);
       queue.append(apache::thrift::transport::THeader::transform(queue.move(), ctx->getHeader()->getWriteTransforms(), ctx->getHeader()->getMinCompressBytes()));
-      auto queue_mw = folly::makeMoveWrapper(std::move(queue));
-      auto req_mw = folly::makeMoveWrapper(std::move(req));
-      eb->runInEventBaseThread([=]() mutable {
-        (*req_mw)->sendReply(queue_mw->move());
+      eb->runInEventBaseThread([queue = std::move(queue), req = std::move(req)]() mutable {
+        req->sendReply(queue.move());
       }
       );
       return;
@@ -54,7 +51,7 @@ void MyRootAsyncProcessor::process_do_root(std::unique_ptr<apache::thrift::Respo
       LOG(ERROR) << ex.what() << " in oneway function do_root";
     }
   }
-  auto callback = folly::make_unique<apache::thrift::HandlerCallback<void>>(std::move(req), std::move(c), return_do_root<ProtocolIn_,ProtocolOut_>, throw_do_root<ProtocolIn_, ProtocolOut_>, throw_wrapped_do_root<ProtocolIn_, ProtocolOut_>, iprot->getSeqId(), eb, tm, ctx);
+  auto callback = std::make_unique<apache::thrift::HandlerCallback<void>>(std::move(req), std::move(c), return_do_root<ProtocolIn_,ProtocolOut_>, throw_wrapped_do_root<ProtocolIn_, ProtocolOut_>, ctx->getProtoSeqId(), eb, tm, ctx);
   if (!callback->isRequestActive()) {
     callback.release()->deleteInThread();
     return;
@@ -71,41 +68,6 @@ folly::IOBufQueue MyRootAsyncProcessor::return_do_root(int32_t protoSeqId, apach
 }
 
 template <class ProtocolIn_, class ProtocolOut_>
-void MyRootAsyncProcessor::throw_do_root(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,std::exception_ptr ep,apache::thrift::Cpp2RequestContext* reqCtx) {
-  ProtocolOut_ prot;
-  try {
-    std::rethrow_exception(ep);
-  }
-  catch (const std::exception& e) {
-    if (req) {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in function do_root";
-      apache::thrift::TApplicationException x(folly::exceptionStr(e).toStdString());
-      ctx->userException(folly::demangle(typeid(e)).toStdString(), e.what());
-      folly::IOBufQueue queue = serializeException("do_root", &prot, protoSeqId, ctx, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in oneway function do_root";
-    }
-  }
-  catch (...) {
-    if (req) {
-      LOG(ERROR) << "<unknown exception>" << " in function do_root";
-      apache::thrift::TApplicationException x("<unknown exception>");
-      folly::IOBufQueue queue = serializeException("do_root", &prot, protoSeqId, nullptr, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << "<unknown exception>" << " in oneway function do_root";
-    }
-  }
-}
-
-template <class ProtocolIn_, class ProtocolOut_>
 void MyRootAsyncProcessor::throw_wrapped_do_root(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,folly::exception_wrapper ew,apache::thrift::Cpp2RequestContext* reqCtx) {
   if (!ew) {
     return;
@@ -115,7 +77,8 @@ void MyRootAsyncProcessor::throw_wrapped_do_root(std::unique_ptr<apache::thrift:
     if (req) {
       LOG(ERROR) << ew.what().toStdString() << " in function do_root";
       apache::thrift::TApplicationException x(ew.what().toStdString());
-      ctx->userException(ew.class_name().toStdString(), ew.what().toStdString());
+      ctx->userExceptionWrapped(false, ew);
+      ctx->handlerErrorWrapped(ew);
       folly::IOBufQueue queue = serializeException("do_root", &prot, protoSeqId, ctx, x);
       queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
       req->sendReply(queue.move());
@@ -128,33 +91,34 @@ void MyRootAsyncProcessor::throw_wrapped_do_root(std::unique_ptr<apache::thrift:
 }
 
 template <typename Protocol_>
-void MyRootAsyncClient::do_rootT(Protocol_* prot, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
-  auto header = std::make_shared<apache::thrift::transport::THeader>();
+void MyRootAsyncClient::do_rootT(Protocol_* prot, bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
+  auto header = std::make_shared<apache::thrift::transport::THeader>(apache::thrift::transport::THeader::ALLOW_BIG_FRAMES);
   header->setProtocolId(getChannel()->getProtocolId());
   header->setHeaders(rpcOptions.releaseWriteHeaders());
-  getChannel()->flushWriteHeaders(header.get());
   connectionContext_->setRequestHeader(header.get());
   std::unique_ptr<apache::thrift::ContextStack> ctx = this->getContextStack(this->getServiceName(), "MyRoot.do_root", connectionContext_.get());
   MyRoot_do_root_pargs args;
-  apache::thrift::clientSendT<false>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), args, "do_root", [](Protocol_* prot, MyRoot_do_root_pargs& args) { args.write(prot); }, [](Protocol_* prot, MyRoot_do_root_pargs& args) { return args.serializedSizeZC(prot); });
+  auto sizer = [&](Protocol_* p) { return args.serializedSizeZC(p); };
+  auto writer = [&](Protocol_* p) { args.write(p); };
+  apache::thrift::clientSendT<Protocol_>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), "do_root", writer, sizer, false, useSync);
   connectionContext_->setRequestHeader(nullptr);
 }
 
 template <typename Protocol_>
 folly::exception_wrapper MyRootAsyncClient::recv_wrapped_do_rootT(Protocol_* prot, ::apache::thrift::ClientReceiveState& state) {
   if (state.isException()) {
-    return state.exceptionWrapper();
+    return std::move(state.exception());
   }
   prot->setInput(state.buf());
   auto guard = folly::makeGuard([&] {prot->setInput(nullptr);});
   apache::thrift::ContextStack* ctx = state.ctx();
-  std::string fname;
+  std::string _fname;
   int32_t protoSeqId = 0;
   apache::thrift::MessageType mtype;
   ctx->preRead();
   folly::exception_wrapper interior_ew;
-  auto caught_ew = folly::try_and_catch<apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
-    prot->readMessageBegin(fname, mtype, protoSeqId);
+  auto caught_ew = folly::try_and_catch<std::exception, apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
+    prot->readMessageBegin(_fname, mtype, protoSeqId);
     if (mtype == apache::thrift::T_EXCEPTION) {
       apache::thrift::TApplicationException x;
       x.read(prot);
@@ -168,7 +132,7 @@ folly::exception_wrapper MyRootAsyncClient::recv_wrapped_do_rootT(Protocol_* pro
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::INVALID_MESSAGE_TYPE);
       return; // from try_and_catch
     }
-    if (fname.compare("do_root") != 0) {
+    if (_fname.compare("do_root") != 0) {
       prot->skip(apache::thrift::protocol::T_STRUCT);
       prot->readMessageEnd();
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::WRONG_METHOD_NAME);
@@ -184,18 +148,18 @@ folly::exception_wrapper MyRootAsyncClient::recv_wrapped_do_rootT(Protocol_* pro
     ctx->postRead(state.header(), state.buf()->length());
   }
   );
-  if (interior_ew || caught_ew) {
-    ctx->handlerError();
-    return interior_ew ? interior_ew : caught_ew;
+  auto ew = interior_ew ? std::move(interior_ew) : std::move(caught_ew);
+  if (ew) {
+    ctx->handlerErrorWrapped(ew);
   }
-  return folly::exception_wrapper();
+  return ew;
 }
 
 template <typename Protocol_>
 void MyRootAsyncClient::recv_do_rootT(Protocol_* prot, ::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_do_rootT(prot, state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 

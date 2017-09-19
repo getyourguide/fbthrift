@@ -42,9 +42,12 @@ func NewTSocket(hostPort string) (*TSocket, error) {
 // it also accepts a timeout as a time.Duration
 func NewTSocketTimeout(hostPort string, timeout time.Duration) (*TSocket, error) {
 	//conn, err := net.DialTimeout(network, address, timeout)
-	addr, err := net.ResolveTCPAddr("tcp", hostPort)
+	addr, err := net.ResolveTCPAddr("tcp6", hostPort)
 	if err != nil {
-		return nil, err
+		addr, err = net.ResolveTCPAddr("tcp", hostPort)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return NewTSocketFromAddrTimeout(addr, timeout), nil
 }
@@ -157,4 +160,9 @@ func (p *TSocket) Interrupt() error {
 		return nil
 	}
 	return p.conn.Close()
+}
+
+func (p *TSocket) RemainingBytes() (num_bytes uint64) {
+	const maxSize = ^uint64(0)
+	return maxSize // the thruth is, we just don't know unless framed is used
 }

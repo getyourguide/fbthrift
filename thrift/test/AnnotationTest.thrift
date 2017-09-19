@@ -19,6 +19,10 @@
 
 typedef list<i32> ( cpp.template = "std::list" ) int_linked_list
 
+struct bar {
+  1: int_linked_list zar;
+}
+
 struct foo {
   1: i32 bar;
   2: i32 baz;
@@ -28,6 +32,7 @@ struct foo {
   cpp.type = "DenseFoo",
   python.type = "DenseFoo",
   java.final = "",
+  cpp2.methods = "public: void manuallyDefinedDummyMethod() {}",
 )
 
 typedef string ( unicode.encoding = "UTF-16" ) non_latin_string

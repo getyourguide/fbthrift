@@ -20,7 +20,7 @@
 #ifndef T_LIST_H
 #define T_LIST_H
 
-#include "thrift/compiler/parse/t_container.h"
+#include <thrift/compiler/parse/t_container.h>
 
 /**
  * A list is a lightweight container type that just wraps another data type.
@@ -45,11 +45,10 @@ class t_list : public t_container {
     return "list<" + elem_type_->get_impl_full_name() + ">";
   }
 
-  TypeValue get_type_value() const override { return t_types::TYPE_LIST; }
+  TypeValue get_type_value() const override { return TypeValue::TYPE_LIST; }
 
  private:
   t_type* elem_type_;
 };
 
 #endif
-

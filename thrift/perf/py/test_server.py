@@ -27,11 +27,10 @@ from apache.thrift.test.sync_load_handler import LoadHandler
 from thrift.protocol.TBinaryProtocol import TBinaryProtocolAcceleratedFactory
 from thrift.protocol.THeaderProtocol import THeaderProtocol
 from thrift.protocol.THeaderProtocol import THeaderProtocolFactory
-from thrift.transport.THeaderTransport import THeaderTransport
+from thrift.transport.THeaderTransport import CLIENT_TYPE
 from thrift.transport import TSocket, TSSLSocket
 from thrift.transport import TTransport
-from thrift.server import TServer, TNonblockingServer, \
-    TProcessPoolServer, THttpServer, TCppServer
+from thrift.server import TServer, TNonblockingServer, TCppServer
 
 def main():
     op = optparse.OptionParser(usage='%prog [options]', add_help_option=False)
@@ -69,10 +68,10 @@ def main():
 
     if options.header:
         pfactory = THeaderProtocolFactory(True, \
-                                          [THeaderTransport.HEADERS_CLIENT_TYPE,
-                                           THeaderTransport.FRAMED_DEPRECATED,
-                                           THeaderTransport.UNFRAMED_DEPRECATED,
-                                           THeaderTransport.HTTP_CLIENT_TYPE])
+                                          [CLIENT_TYPE.HEADER,
+                                           CLIENT_TYPE.FRAMED_DEPRECATED,
+                                           CLIENT_TYPE.UNFRAMED_DEPRECATED,
+                                           CLIENT_TYPE.HTTP_SERVER])
         if options.servertype == 'TCppServer':
             print 'C++ ThriftServer, Header transport, backwards compatible ' \
                   'with all other types'
@@ -95,19 +94,13 @@ def main():
         server = TCppServer.TCppServer(processor)
         server.setPort(options.port)
         print 'Worker threads: ' + str(options.workers)
-        server.setNWorkerThreads(options.workers)
+        server.setNumIOWorkerThreads(options.workers)
     else:
         transport = TSocket.TServerSocket(options.port)
         tfactory = TTransport.TBufferedTransportFactory()
         if options.servertype == "TNonblockingServer":
             server = TNonblockingServer.TNonblockingServer(processor, transport,
                                 pfactory, maxQueueSize=options.max_queue_size)
-        elif options.servertype == "TProcessPoolServer":
-            server = TProcessPoolServer.TProcessPoolServer(processor, transport,
-                                                           tfactory,
-                                                           pfactory)
-            print 'Worker processes: ' + str(options.workers)
-            server.setNumWorkers(options.workers)
         elif options.servertype == "TGeventServer":
             print 'Worker processes: ' + str(options.workers)
             # Gevent makes its own server transport.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 
 #include <thrift/lib/cpp/concurrency/ThreadManager.h>
 #include <thrift/lib/cpp2/async/SaslClient.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
+#include <folly/io/async/EventBase.h>
 #include <thrift/lib/cpp2/security/SecurityLogger.h>
 
 namespace apache { namespace thrift {
@@ -31,7 +31,7 @@ namespace apache { namespace thrift {
 
 class StubSaslClient : public SaslClient {
 public:
-  explicit StubSaslClient(apache::thrift::async::TEventBase*,
+  explicit StubSaslClient(folly::EventBase*,
     const std::shared_ptr<SecurityLogger>& logger = nullptr,
     int forceMsSpentPerRTT = 0);
   void start(Callback* cb) override;
@@ -40,8 +40,8 @@ public:
   virtual std::unique_ptr<folly::IOBuf> wrap(std::unique_ptr<folly::IOBuf>&&);
   virtual std::unique_ptr<folly::IOBuf> unwrap(
     folly::IOBufQueue* q, size_t* remaining);
-  void setClientIdentity(const std::string& identity) override {}
-  void setServiceIdentity(const std::string& identity) override {}
+  void setClientIdentity(const std::string& /* identity */) override {}
+  void setServiceIdentity(const std::string& /* identity */) override {}
   std::string getClientIdentity() const override;
   std::string getServerIdentity() const override;
   std::unique_ptr<folly::IOBuf> encrypt(
@@ -60,9 +60,9 @@ public:
 
   const std::string* getErrorString() const override { return nullptr; }
 
-  void setErrorString(const std::string& str) override {}
+  void setErrorString(const std::string& /* str */) override {}
 
-private:
+ private:
   std::shared_ptr<apache::thrift::concurrency::ThreadManager> threadManager_;
   int phase_;
   bool forceFallback_;

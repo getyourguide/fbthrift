@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,28 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #ifndef THRIFT_CONCURRENCY_POSIXTHREADFACTORY_H_
 #define THRIFT_CONCURRENCY_POSIXTHREADFACTORY_H_ 1
 
+#include <memory>
 #include <set>
 #include <string>
 
+#include <folly/portability/PThread.h>
+
 #include <thrift/lib/cpp/concurrency/Mutex.h>
 #include <thrift/lib/cpp/concurrency/Thread.h>
-#include <folly/ThreadName.h>
 
-#include <memory>
 
 namespace apache { namespace thrift { namespace concurrency {
-
-/**
- * Wrapper around pthread_setname_np that handles older glibc versions
- * -> moved to folly.
- */
-inline bool setPosixThreadName(pthread_t id, const std::string& name) {
-  return folly::setThreadName(id, name);
-}
 
 class PthreadThread : public Thread {
  public:
@@ -111,8 +103,9 @@ class PosixThreadFactory : public ThreadFactory {
     HIGH = 4,
     HIGHER = 5,
     HIGHEST = 6,
-    INCREMENT = 7,
-    DECREMENT = 8
+
+    // Inherit priority of caller thread (supported only for POLICY::OTHER).
+    INHERITED = 9,
   };
 
   static const POLICY kDefaultPolicy = OTHER;

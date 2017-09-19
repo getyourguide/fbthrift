@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,33 +13,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <thrift/lib/cpp2/server/ThriftServer.h>
 
 #include <folly/Conv.h>
 #include <folly/Memory.h>
-#include <folly/Random.h>
 #include <folly/Logging.h>
 #include <folly/ScopeGuard.h>
+#include <folly/portability/Sockets.h>
 #include <thrift/lib/cpp2/async/GssSaslServer.h>
 #include <thrift/lib/cpp2/server/Cpp2Connection.h>
 #include <thrift/lib/cpp2/server/Cpp2Worker.h>
 #include <thrift/lib/cpp/concurrency/PosixThreadFactory.h>
 #include <thrift/lib/cpp/concurrency/ThreadManager.h>
 
+#include <wangle/ssl/SSLContextManager.h>
+
 #include <iostream>
 #include <random>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <netdb.h>
 #include <fcntl.h>
-#include <errno.h>
-#include <assert.h>
 #include <signal.h>
 
 DEFINE_string(sasl_policy, "permitted",
              "SASL handshake required / permitted / disabled");
+
+DEFINE_string(thrift_ssl_policy, "disabled",
+  "SSL required / permitted / disabled");
 
 DEFINE_string(
   service_identity,
@@ -59,22 +57,24 @@ using namespace apache::thrift::transport;
 using namespace apache::thrift::async;
 using namespace std;
 using std::shared_ptr;
-using apache::thrift::async::TEventBaseManager;
 using apache::thrift::concurrency::PosixThreadFactory;
 using apache::thrift::concurrency::ThreadFactory;
 using apache::thrift::concurrency::ThreadManager;
 using apache::thrift::concurrency::PriorityThreadManager;
 using wangle::IOThreadPoolExecutor;
 using wangle::NamedThreadFactory;
+using wangle::TLSCredProcessor;
 
-const int ThriftServer::T_ASYNC_DEFAULT_WORKER_THREADS =
-  sysconf(_SC_NPROCESSORS_ONLN);
-
-const std::chrono::milliseconds ThriftServer::DEFAULT_TASK_EXPIRE_TIME =
-    std::chrono::milliseconds(5000);
-
-const std::chrono::milliseconds ThriftServer::DEFAULT_TIMEOUT =
-    std::chrono::milliseconds(60000);
+namespace {
+struct DisableKerberosReplayCacheSingleton {
+  DisableKerberosReplayCacheSingleton() {
+    // Disable replay caching since we're doing mutual auth. Enabling
+    // this will significantly degrade perf. Force this to overwrite
+    // existing env variables to avoid performance regressions.
+    setenv("KRB5RCACHETYPE", "none", 1);
+  }
+} kDisableKerberosReplayCacheSingleton;
+}
 
 class ThriftAcceptorFactory : public wangle::AcceptorFactory {
  public:
@@ -83,7 +83,7 @@ class ThriftAcceptorFactory : public wangle::AcceptorFactory {
 
   std::shared_ptr<wangle::Acceptor> newAcceptor(
       folly::EventBase* eventBase) override {
-    return std::make_shared<Cpp2Worker>(server_, nullptr, eventBase);
+    return Cpp2Worker::create(server_, nullptr, eventBase);
   }
  private:
   ThriftServer* server_;
@@ -93,41 +93,12 @@ ThriftServer::ThriftServer() :
   ThriftServer("", false) {}
 
 ThriftServer::ThriftServer(const std::string& saslPolicy,
-                           bool allowInsecureLoopback) :
-  apache::thrift::server::TServer(
-    std::shared_ptr<apache::thrift::server::TProcessor>()),
-  port_(-1),
-  saslEnabled_(false),
-  nonSaslEnabled_(true),
-  saslPolicy_(saslPolicy.empty() ? FLAGS_sasl_policy : saslPolicy),
-  allowInsecureLoopback_(allowInsecureLoopback),
-  nSaslPoolThreads_(0),
-  shutdownSocketSet_(
-    folly::make_unique<folly::ShutdownSocketSet>()),
-  serveEventBase_(nullptr),
-  nWorkers_(T_ASYNC_DEFAULT_WORKER_THREADS),
-  nPoolThreads_(0),
-  threadStackSizeMB_(1),
-  timeout_(DEFAULT_TIMEOUT),
-  eventBaseManager_(nullptr),
-  ioThreadPool_(std::make_shared<IOThreadPoolExecutor>(0)),
-  taskExpireTime_(DEFAULT_TASK_EXPIRE_TIME),
-  listenBacklog_(DEFAULT_LISTEN_BACKLOG),
-  acceptRateAdjustSpeed_(0),
-  maxNumMsgsInQueue_(T_MAX_NUM_MESSAGES_IN_QUEUE),
-  maxConnections_(0),
-  maxRequests_(
-    apache::thrift::concurrency::ThreadManager::DEFAULT_MAX_QUEUE_SIZE),
-  isUnevenLoad_(true),
-  useClientTimeout_(true),
-  activeRequests_(0),
-  minCompressBytes_(0),
-  isOverloaded_([](const THeader* header) { return false; }),
-  queueSends_(true),
-  enableCodel_(false),
-  stopWorkersOnStopListening_(true),
-  isDuplex_(false) {
-
+                           bool allowInsecureLoopback)
+  : BaseThriftServer()
+  , saslPolicy_(saslPolicy.empty() ? FLAGS_sasl_policy : saslPolicy)
+  , allowInsecureLoopback_(allowInsecureLoopback)
+  , lastRequestTime_(monotonic_clock::now().time_since_epoch().count())
+{
   // SASL setup
   if (saslPolicy_ == "required") {
     setSaslEnabled(true);
@@ -136,10 +107,12 @@ ThriftServer::ThriftServer(const std::string& saslPolicy,
     setSaslEnabled(true);
     setNonSaslEnabled(true);
   }
-  // Disable replay caching since we're doing mutual auth. Enabling
-  // this will significantly degrade perf. Force this to overwrite
-  // existing env variables to avoid performance regressions.
-  setenv("KRB5RCACHETYPE", "none", 1);
+
+  if (FLAGS_thrift_ssl_policy == "required") {
+    sslPolicy_ = SSLPolicy::REQUIRED;
+  } else if (FLAGS_thrift_ssl_policy == "permitted") {
+    sslPolicy_ = SSLPolicy::PERMITTED;
+  }
 }
 
 ThriftServer::ThriftServer(
@@ -156,6 +129,16 @@ ThriftServer::~ThriftServer() {
     saslThreadManager_->stop();
   }
 
+  if (duplexWorker_) {
+    // usually ServerBootstrap::stop drains the workers, but ServerBootstrap
+    // doesn't know about duplexWorker_
+    duplexWorker_->drainAllConnections();
+
+    LOG_IF(ERROR, !duplexWorker_.unique())
+        << activeRequests_ << " active Requests while in destructing"
+        << " duplex ThriftServer. Consider using startDuplex & stopDuplex";
+  }
+
   if (stopWorkersOnStopListening_) {
     // Everything is already taken care of.
     return;
@@ -166,13 +149,13 @@ ThriftServer::~ThriftServer() {
   stopWorkers();
 }
 
-void ThriftServer::useExistingSocket(TAsyncServerSocket::UniquePtr socket)
+void ThriftServer::useExistingSocket(folly::AsyncServerSocket::UniquePtr socket)
 {
   socket_ = std::move(socket);
 }
 
 void ThriftServer::useExistingSockets(const std::vector<int>& sockets) {
-  TAsyncServerSocket::UniquePtr socket(new TAsyncServerSocket);
+  folly::AsyncServerSocket::UniquePtr socket(new folly::AsyncServerSocket);
   socket->useExistingSockets(sockets);
   useExistingSocket(std::move(socket));
 }
@@ -200,11 +183,65 @@ int ThriftServer::getListenSocket() const {
   return sockets[0];
 }
 
-TEventBaseManager* ThriftServer::getEventBaseManager() {
-  if (!eventBaseManager_) {
-    eventBaseManager_ = TEventBaseManager::get();
-  }
+folly::EventBaseManager* ThriftServer::getEventBaseManager() {
   return eventBaseManager_;
+}
+
+ThriftServer::IdleServerAction::IdleServerAction(
+  ThriftServer &server,
+  folly::HHWheelTimer &timer,
+  std::chrono::milliseconds timeout
+):
+  server_(server),
+  timer_(timer),
+  timeout_(timeout)
+{
+  timer_.scheduleTimeout(this, timeout_);
+}
+
+void ThriftServer::IdleServerAction::timeoutExpired() noexcept {
+  try {
+    auto const lastRequestTime = server_.lastRequestTime();
+    if (lastRequestTime.time_since_epoch()
+        != monotonic_clock::duration::zero()) {
+      auto const elapsed = monotonic_clock::now() - lastRequestTime;
+      if (elapsed >= timeout_) {
+        LOG(INFO) << "shutting down server due to inactivity after "
+          << std::chrono::duration_cast<std::chrono::milliseconds>(
+            elapsed).count() << "ms";
+        server_.stop();
+        return;
+      }
+    }
+
+    timer_.scheduleTimeout(this, timeout_);
+  } catch (std::exception const &e) {
+    LOG(ERROR) << e.what();
+  }
+}
+
+ThriftServer::monotonic_clock::time_point
+ThriftServer::lastRequestTime() const noexcept {
+  return monotonic_clock::time_point(
+    monotonic_clock::duration(
+      lastRequestTime_.load(std::memory_order_acquire)
+    )
+  );
+}
+
+void ThriftServer::touchRequestTimestamp() noexcept {
+  if (idleServer_.hasValue()) {
+    lastRequestTime_.store(
+      monotonic_clock::now().time_since_epoch().count(),
+      std::memory_order_release
+    );
+  }
+}
+
+size_t ThriftServer::getNumSaslThreadsToRun() const {
+  return nSaslPoolThreads_ > 0
+      ? nSaslPoolThreads_
+      : (nPoolThreads_ > 0 ? nPoolThreads_ : nWorkers_);
 }
 
 void ThriftServer::setup() {
@@ -213,19 +250,33 @@ void ThriftServer::setup() {
 
   uint32_t threadsStarted = 0;
 
-  // Make sure EBM exists if we haven't set one explicitly
-  getEventBaseManager();
-
   // Initialize event base for this thread, ensure event_init() is called
   serveEventBase_ = eventBaseManager_->getEventBase();
+  if (idleServerTimeout_.count() > 0) {
+    serverTimer_ = folly::HHWheelTimer::newTimer(serveEventBase_);
+    idleServer_.emplace(*this, *serverTimer_, idleServerTimeout_);
+  }
   // Print some libevent stats
   VLOG(1) << "libevent " <<
-    TEventBase::getLibeventVersion() << " method " <<
-    TEventBase::getLibeventMethod();
+    folly::EventBase::getLibeventVersion() << " method " <<
+    folly::EventBase::getLibeventMethod();
 
   try {
-    // We check for write success so we don't need or want SIGPIPEs.
-    signal(SIGPIPE, SIG_IGN);
+    // OpenSSL might try to write to a closed socket if the peer disconnects
+    // abruptly, raising a SIGPIPE signal. By default this will terminate the
+    // process, which we don't want. Hence we need to handle SIGPIPE specially.
+    //
+    // We don't use SIG_IGN here as child processes will inherit that handler.
+    // Instead, we swallow the signal to enable SIGPIPE in children to behave
+    // normally.
+    // Furthermore, setting flags to 0 and using sigaction prevents SA_RESTART
+    // from restarting syscalls after the handler completed. This is important
+    // for code using SIGPIPE to interrupt syscalls in other threads.
+    struct sigaction sa = {};
+    sa.sa_handler = [](int) {};
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGPIPE, &sa, nullptr);
 
     if (!observer_ && apache::thrift::observerFactory_) {
       observer_ = apache::thrift::observerFactory_->getObserver();
@@ -244,15 +295,13 @@ void ThriftServer::setup() {
 
     if (saslPolicy_ == "required" || saslPolicy_ == "permitted") {
       if (!saslThreadManager_) {
-        auto numThreads = nSaslPoolThreads_ > 0
-                              ? nSaslPoolThreads_
-                              : (nPoolThreads_ > 0 ? nPoolThreads_ : nWorkers_);
+        auto numThreads = getNumSaslThreadsToRun();
         saslThreadManager_ = ThreadManager::newSimpleThreadManager(
             numThreads,
             0, /* pendingTaskCountMax -- no limit */
             false, /* enableTaskStats */
             0 /* maxQueueLen -- large default */);
-        saslThreadManager_->setNamePrefix("thrift-sasl");
+        saslThreadManager_->setNamePrefix(saslThreadsNamePrefix_);
         saslThreadManager_->threadFactory(threadFactory_);
         saslThreadManager_->start();
       }
@@ -268,16 +317,16 @@ void ThriftServer::setup() {
         if (gethostname(hostname, 255)) {
           LOG(FATAL) << "Failed getting hostname";
         }
-        setSaslServerFactory([=] (TEventBase* evb) {
+        setSaslServerFactory([=] (folly::EventBase* evb) {
           auto saslServer = std::unique_ptr<SaslServer>(
             new GssSaslServer(evb, saslThreadManager));
           saslServer->setServiceIdentity(
             FLAGS_service_identity + "/" + hostname);
-          return std::move(saslServer);
+          return saslServer;
         });
       } else {
         // Allow the server to accept anything in the keytab.
-        setSaslServerFactory([=] (TEventBase* evb) {
+        setSaslServerFactory([=] (folly::EventBase* evb) {
           return std::unique_ptr<SaslServer>(
             new GssSaslServer(evb, saslThreadManager));
         });
@@ -304,22 +353,47 @@ void ThriftServer::setup() {
           task->expired();
         }
     });
-    threadManager_->setCodelCallback([&](std::shared_ptr<Runnable> r) {
-        auto observer = getObserver();
-        if (observer) {
+    threadManager_->setCodelCallback([&](std::shared_ptr<Runnable>) {
+      auto observer = getObserver();
+      if (observer) {
+        if (getEnableCodel()) {
           observer->queueTimeout();
+        } else {
+          observer->shadowQueueTimeout();
         }
+      }
     });
+    if (thriftProcessor_) {
+      thriftProcessor_->setThreadManager(threadManager_.get());
+    }
 
     if (!serverChannel_) {
 
       ServerBootstrap::socketConfig.acceptBacklog = listenBacklog_;
+      if (reusePort_) {
+        ServerBootstrap::setReusePort(true);
+      }
+      if (enableTFO_) {
+        ServerBootstrap::socketConfig.enableTCPFastOpen = *enableTFO_;
+        ServerBootstrap::socketConfig.fastOpenQueueSize = fastOpenQueueSize_;
+      }
 
       // Resize the IO pool
       ioThreadPool_->setNumThreads(nWorkers_);
+      if (!acceptPool_) {
+        acceptPool_ = std::make_shared<wangle::IOThreadPoolExecutor>(
+            nAcceptors_,
+            std::make_shared<wangle::NamedThreadFactory>("Acceptor Thread"));
+      }
+
+      // Resize the SSL handshake pool
+      VLOG(1) << "Using " << nSSLHandshakeWorkers_ << " SSL handshake threads";
+      sslHandshakePool_->setNumThreads(nSSLHandshakeWorkers_);
 
       ServerBootstrap::childHandler(
-        std::make_shared<ThriftAcceptorFactory>(this));
+          acceptorFactory_ ? acceptorFactory_
+                           : std::make_shared<ThriftAcceptorFactory>(this));
+
       {
         std::lock_guard<std::mutex> lock(ioGroupMutex_);
         ServerBootstrap::group(acceptPool_, ioThreadPool_);
@@ -339,7 +413,7 @@ void ThriftServer::setup() {
 
       for (auto& socket : getSockets()) {
         socket->setShutdownSocketSet(shutdownSocketSet_.get());
-        socket->setMaxNumMessagesInQueue(maxNumMsgsInQueue_);
+        socket->setMaxNumMessagesInQueue(maxNumPendingConnectionsPerWorker_);
         socket->setAcceptRateAdjustSpeed(acceptRateAdjustSpeed_);
       }
 
@@ -349,8 +423,7 @@ void ThriftServer::setup() {
       }
 
     } else {
-      CHECK(configMutable());
-      duplexWorker_ = folly::make_unique<Cpp2Worker>(this, serverChannel_);
+      startDuplex();
     }
 
     // Do not allow setters to be called past this point until the IO worker
@@ -369,6 +442,37 @@ void ThriftServer::setup() {
 }
 
 /**
+ * Preferably use this method in order to start ThriftServer created for
+ * DuplexChannel instead of the serve() method.
+ */
+void ThriftServer::startDuplex() {
+  CHECK(configMutable());
+  duplexWorker_ = Cpp2Worker::create(this, serverChannel_);
+  // we don't control the EventBase for the duplexWorker, so when we shut
+  // it down, we need to ensure there's no delay
+  duplexWorker_->setGracefulShutdownTimeout(std::chrono::milliseconds(0));
+}
+
+/**
+ * This method should be used to cleanly stop a ThriftServer created for
+ * DuplexChannel before disposing the ThriftServer. The caller should pass in
+ * a shared_ptr to this ThriftServer since the ThriftServer does not have a
+ * way of getting that (does not inherit from enable_shared_from_this)
+ */
+void ThriftServer::stopDuplex(std::shared_ptr<ThriftServer> thisServer) {
+  DCHECK(this == thisServer.get());
+  DCHECK(duplexWorker_ != nullptr);
+
+  // Try to stop our Worker but this cannot stop in flight requests
+  // Instead, it will capture a shared_ptr back to us, keeping us alive
+  // until it really goes away (when in-flight requests are gone)
+  duplexWorker_->stopDuplex(thisServer);
+
+  // Get rid of our reference to the worker to avoid forming a cycle
+  duplexWorker_ = nullptr;
+}
+
+/**
  * Loop and accept incoming connections.
  */
 void ThriftServer::serve() {
@@ -383,10 +487,15 @@ void ThriftServer::serve() {
 }
 
 void ThriftServer::cleanUp() {
+  DCHECK(!serverChannel_);
+
   // It is users duty to make sure that setup() call
   // should have returned before doing this cleanup
   serveEventBase_ = nullptr;
   stopListening();
+
+  // Get rid of the handlers.
+  routingHandlers_.clear();
 
   if (stopWorkersOnStopListening_) {
     // Wait on the i/o worker threads to actually stop
@@ -403,7 +512,7 @@ uint64_t ThriftServer::getNumDroppedConnections() const {
 }
 
 void ThriftServer::stop() {
-  TEventBase* eventBase = serveEventBase_;
+  folly::EventBase* eventBase = serveEventBase_;
   if (eventBase) {
     eventBase->terminateLoopSoon();
   }
@@ -433,8 +542,10 @@ void ThriftServer::stopWorkers() {
   if (serverChannel_) {
     return;
   }
+  DCHECK(!duplexWorker_);
   ServerBootstrap::stop();
   ServerBootstrap::join();
+  sslHandshakePool_->join();
   configMutable_ = true;
 }
 
@@ -450,47 +561,11 @@ void ThriftServer::immediateShutdown(bool abortConnections) {
   shutdownSocketSet_->shutdownAll(abortConnections);
 }
 
-void ThriftServer::CumulativeFailureInjection::set(
-    const FailureInjection& fi) {
-  CHECK_GE(fi.errorFraction, 0);
-  CHECK_GE(fi.dropFraction, 0);
-  CHECK_GE(fi.disconnectFraction, 0);
-  CHECK_LE(fi.errorFraction + fi.dropFraction + fi.disconnectFraction, 1);
-
-  std::lock_guard<std::mutex> lock(mutex_);
-  errorThreshold_ = fi.errorFraction;
-  dropThreshold_ = errorThreshold_ + fi.dropFraction;
-  disconnectThreshold_ = dropThreshold_ + fi.disconnectFraction;
-  empty_.store((disconnectThreshold_ == 0), std::memory_order_relaxed);
-}
-
-ThriftServer::InjectedFailure
-ThriftServer::CumulativeFailureInjection::test() const {
-  if (empty_.load(std::memory_order_relaxed)) {
-    return InjectedFailure::NONE;
-  }
-
-  static folly::ThreadLocalPtr<std::mt19937> rng;
-  if (!rng) {
-    rng.reset(new std::mt19937(folly::randomNumberSeed()));
-  }
-
-  std::uniform_real_distribution<float> dist(0, 1);
-  float val = dist(*rng);
-
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (val <= errorThreshold_) {
-    return InjectedFailure::ERROR;
-  } else if (val <= dropThreshold_) {
-    return InjectedFailure::DROP;
-  } else if (val <= disconnectThreshold_) {
-    return InjectedFailure::DISCONNECT;
-  }
-  return InjectedFailure::NONE;
-}
-
 int32_t ThriftServer::getPendingCount() const {
   int32_t count = 0;
+  if (!trackPendingIO_) { // Ignore pending
+    return 0;
+  }
   if (!getIOGroupSafe()) { // Not enabled in duplex mode
     return 0;
   }
@@ -502,100 +577,107 @@ int32_t ThriftServer::getPendingCount() const {
   return count;
 }
 
-bool ThriftServer::isOverloaded(uint32_t workerActiveRequests,
-                                const THeader* header) {
+void ThriftServer::updateTicketSeeds(wangle::TLSTicketKeySeeds seeds) {
+  forEachWorker([&](wangle::Acceptor* acceptor) {
+    if (!acceptor) {
+      return;
+    }
+    auto evb = acceptor->getEventBase();
+    if (!evb) {
+      return;
+    }
+    evb->runInEventBaseThread([acceptor, seeds] {
+      acceptor->setTLSTicketSecrets(
+          seeds.oldSeeds, seeds.currentSeeds, seeds.newSeeds);
+    });
+  });
+}
+
+void ThriftServer::updateTLSCert() {
+  forEachWorker([&](wangle::Acceptor* acceptor) {
+    if (!acceptor) {
+      return;
+    }
+    auto evb = acceptor->getEventBase();
+    if (!evb) {
+      return;
+    }
+    evb->runInEventBaseThread([acceptor] {
+      acceptor->resetSSLContextConfigs();
+    });
+  });
+}
+
+void ThriftServer::watchCertForChanges(const std::string& certPath) {
+  auto& processor = getCredProcessor();
+  processor.setCertPathToWatch(certPath);
+}
+
+void ThriftServer::watchTicketPathForChanges(
+    const std::string& ticketPath,
+    bool initializeTickets) {
+  if (initializeTickets) {
+    auto seeds = TLSCredProcessor::processTLSTickets(ticketPath);
+    if (seeds) {
+      setTicketSeeds(std::move(*seeds));
+    }
+  }
+  auto& processor = getCredProcessor();
+  processor.setTicketPathToWatch(ticketPath);
+}
+
+TLSCredProcessor& ThriftServer::getCredProcessor() {
+  if (!tlsCredProcessor_) {
+    tlsCredProcessor_ = std::make_unique<TLSCredProcessor>();
+    // setup callbacks once.  These will not be fired unless files are being
+    // watched and modified.
+    tlsCredProcessor_->addTicketCallback(
+        [this](wangle::TLSTicketKeySeeds seeds) {
+      updateTicketSeeds(std::move(seeds));
+    });
+    tlsCredProcessor_->addCertCallback([this] {
+      updateTLSCert();
+    });
+  }
+  return *tlsCredProcessor_;
+}
+
+bool ThriftServer::isOverloaded(const THeader* header) {
   if (UNLIKELY(isOverloaded_(header))) {
     return true;
   }
 
   if (maxRequests_ > 0) {
-    if (isUnevenLoad_) {
-      return activeRequests_ + getPendingCount() >= maxRequests_;
-    } else {
-      return workerActiveRequests >= maxRequests_ / nWorkers_;
-    }
+    return static_cast<uint32_t>(activeRequests_ + getPendingCount()) >=
+        maxRequests_;
   }
 
   return false;
 }
 
-bool ThriftServer::getTaskExpireTimeForRequest(
-  const apache::thrift::transport::THeader& requestHeader,
-  std::chrono::milliseconds& softTimeout,
-  std::chrono::milliseconds& hardTimeout
-) const {
-  softTimeout = getTaskExpireTime();
-  if (softTimeout == std::chrono::milliseconds(0)) {
-    hardTimeout = softTimeout;
-    return false;
-  }
-  if (getUseClientTimeout()) {
-    // we add 10% to the client timeout so that the request is much more likely
-    // to timeout on the client side than to read the timeout from the server
-    // as a TApplicationException (which can be confusing)
-    hardTimeout = std::chrono::milliseconds(
-      (uint32_t)(requestHeader.getClientTimeout().count() * 1.1));
-    if (hardTimeout > std::chrono::milliseconds(0)) {
-      if (hardTimeout < softTimeout ||
-          softTimeout == std::chrono::milliseconds(0)) {
-        softTimeout = hardTimeout;
-        return false;
-      } else {
-        return true;
-      }
-    }
-  }
-  hardTimeout = softTimeout;
-  return false;
+int64_t ThriftServer::getRequestLoad() {
+  return activeRequests_ + getPendingCount();
 }
 
-int64_t ThriftServer::getLoad(const std::string& counter, bool check_custom) {
-  if (check_custom && getLoad_) {
-    return getLoad_(counter);
-  }
-
-  int reqload = 0;
-  int connload = 0;
-  int queueload = 0;
-  if (maxRequests_ > 0) {
-    reqload = (100*(activeRequests_ + getPendingCount()))
-      / ((float)maxRequests_);
-  }
+std::string ThriftServer::getLoadInfo(int64_t load) {
   auto ioGroup = getIOGroupSafe();
   auto workerFactory = ioGroup != nullptr ?
     std::dynamic_pointer_cast<wangle::NamedThreadFactory>(
       ioGroup->getThreadFactory()) : nullptr;
 
-  if (maxConnections_ > 0) {
-    int32_t connections = 0;
-    forEachWorker([&](wangle::Acceptor* acceptor) mutable {
-      auto worker = dynamic_cast<Cpp2Worker*>(acceptor);
-      connections += worker->getPendingCount();
-    });
-
-    connload = (100*connections) / (float)maxConnections_;
+  if (!workerFactory) {
+    return "";
   }
 
-  auto tm = getThreadManager();
-  if (tm) {
-    auto codel = tm->getCodel();
-    if (codel) {
-      queueload = codel->getLoad();
-    }
-  }
+  std::stringstream stream;
 
-  if (VLOG_IS_ON(1) && workerFactory) {
-    FB_LOG_EVERY_MS(INFO, 1000 * 10)
-      << workerFactory->getNamePrefix() << " load is: "
-      << reqload << "% requests, "
-      << connload << "% connections, "
-      << queueload << "% queue time, "
-      << activeRequests_ << " active reqs, "
-      << getPendingCount() << " pending reqs";
-  }
+  stream
+    << workerFactory->getNamePrefix() << " load is: "
+    << load << "% requests, "
+    << activeRequests_ << " active reqs, "
+    << getPendingCount() << " pending reqs";
 
-  int load = std::max({reqload, connload, queueload});
-  return load;
+  return stream.str();
 }
 
 }} // apache::thrift

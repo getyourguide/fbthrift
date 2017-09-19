@@ -18,13 +18,13 @@
  */
 
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/time.h>
+
+#include <folly/init/Init.h>
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
 #include <thrift/lib/cpp2/async/HeaderClientChannel.h>
 
-#include "thrift/tutorial/gen-cpp2/shared_types.h"
-#include "thrift/tutorial/gen-cpp2/Calculator.h"
+#include <thrift/tutorial/gen-cpp2/shared_types.h>
+#include <thrift/tutorial/gen-cpp2/Calculator.h>
 
 using namespace std;
 using namespace folly;
@@ -32,8 +32,10 @@ using namespace apache::thrift;
 using namespace apache::thrift::tutorial;
 
 int main(int argc, char** argv) {
+  folly::init(&argc, &argv, true);
+
   EventBase eb;
-  auto client = folly::make_unique<CalculatorAsyncClient>(
+  auto client = std::make_unique<CalculatorAsyncClient>(
       HeaderClientChannel::newChannel(
         async::TAsyncSocket::newSocket(
           &eb, {"localhost", 9090})));

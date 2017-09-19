@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #ifndef THRIFT_EVENTHANDLERBASE_H_
 #define THRIFT_EVENTHANDLERBASE_H_ 1
 
@@ -25,6 +24,7 @@
 #include <thrift/lib/cpp/server/TConnectionContext.h>
 #include <thrift/lib/cpp/server/TServerObserver.h>
 #include <thrift/lib/cpp/transport/THeader.h>
+#include <folly/ExceptionWrapper.h>
 #include <folly/SocketAddress.h>
 
 namespace folly {
@@ -141,9 +141,14 @@ class TProcessorEventHandler {
    * Called if the handler throws an undeclared exception.
    */
   virtual void handlerError(void* /*ctx*/, const char* /*fn_name*/) {}
+  virtual void handlerErrorWrapped(void* ctx,
+                                   const char* fn_name,
+                                   const folly::exception_wrapper& /*ew*/) {
+    handlerError(ctx, fn_name);
+  }
 
   /**
-   * Called if the handler throws a declared exception
+   * Called if the handler throws an exception.
    *
    * Only called for Cpp2
    */
@@ -151,6 +156,20 @@ class TProcessorEventHandler {
                              const char* /*fn_name*/,
                              const std::string& /*ex*/,
                              const std::string& /*ex_what*/) {}
+  virtual void userExceptionWrapped(void* ctx,
+                                    const char* fn_name,
+                                    bool declared,
+                                    const folly::exception_wrapper& ew_) {
+    auto ew = ew_; // make a local, mutable copy
+    const auto type = ew.class_name();
+    const auto what = ew.what();
+    folly::StringPiece whatsp(what);
+    if (declared) {
+      CHECK(whatsp.removePrefix(type)) << "weird format: '" << what << "'";
+      CHECK(whatsp.removePrefix(": ")) << "weird format: '" << what << "'";
+    }
+    return userException(ctx, fn_name, type.toStdString(), whatsp.str());
+  }
 
  protected:
   TProcessorEventHandler() {}
@@ -197,6 +216,7 @@ class ContextStack {
       : ctxs_()
       , handlers_(handlers)
       , method_(method) {
+    ctxs_.reserve(handlers->size());
     for (auto handler: *handlers) {
       ctxs_.push_back(handler->getServiceContext(serviceName,
                                                  method, connectionContext));
@@ -220,7 +240,7 @@ class ContextStack {
   ~ContextStack() {
     if (handlers_) {
       for (size_t i = 0; i < handlers_->size(); i++) {
-        (*handlers_)[i]->freeContext(ctxs_[i], method_);
+        (*handlers_)[i]->freeContext(ctxs_[i], getMethod());
       }
     }
   }
@@ -228,7 +248,7 @@ class ContextStack {
   void preWrite() {
     if (handlers_) {
       for (size_t  i = 0; i < handlers_->size(); i++) {
-        (*handlers_)[i]->preWrite(ctxs_[i], method_);
+        (*handlers_)[i]->preWrite(ctxs_[i], getMethod());
       }
     }
   }
@@ -236,7 +256,7 @@ class ContextStack {
   void onWriteData(const SerializedMessage& msg) {
     if (handlers_) {
       for (size_t i = 0; i < handlers_->size(); i++) {
-        (*handlers_)[i]->onWriteData(ctxs_[i], method_, msg);
+        (*handlers_)[i]->onWriteData(ctxs_[i], getMethod(), msg);
       }
     }
   }
@@ -244,7 +264,7 @@ class ContextStack {
   void postWrite(uint32_t bytes) {
     if (handlers_) {
       for (size_t i = 0; i < handlers_->size(); i++) {
-        (*handlers_)[i]->postWrite(ctxs_[i], method_, bytes);
+        (*handlers_)[i]->postWrite(ctxs_[i], getMethod(), bytes);
       }
     }
   }
@@ -252,7 +272,7 @@ class ContextStack {
   void preRead() {
     if (handlers_) {
       for (size_t i = 0; i < handlers_->size(); i++) {
-        (*handlers_)[i]->preRead(ctxs_[i], method_);
+        (*handlers_)[i]->preRead(ctxs_[i], getMethod());
       }
     }
   }
@@ -260,7 +280,7 @@ class ContextStack {
   void onReadData(const SerializedMessage& msg) {
     if (handlers_) {
       for (size_t i = 0; i < handlers_->size(); i++) {
-        (*handlers_)[i]->onReadData(ctxs_[i], method_, msg);
+        (*handlers_)[i]->onReadData(ctxs_[i], getMethod(), msg);
       }
     }
   }
@@ -268,7 +288,7 @@ class ContextStack {
   void postRead(apache::thrift::transport::THeader* header, uint32_t bytes) {
     if (handlers_) {
       for (size_t i = 0; i < handlers_->size(); i++) {
-        (*handlers_)[i]->postRead(ctxs_[i], method_, header, bytes);
+        (*handlers_)[i]->postRead(ctxs_[i], getMethod(), header, bytes);
       }
     }
   }
@@ -276,7 +296,15 @@ class ContextStack {
   void handlerError() {
     if (handlers_) {
       for (size_t i = 0; i < handlers_->size(); i++) {
-        (*handlers_)[i]->handlerError(ctxs_[i], method_);
+        (*handlers_)[i]->handlerError(ctxs_[i], getMethod());
+      }
+    }
+  }
+
+  void handlerErrorWrapped(const folly::exception_wrapper& ew) {
+    if (handlers_) {
+      for (size_t i = 0; i < handlers_->size(); i++) {
+        (*handlers_)[i]->handlerErrorWrapped(ctxs_[i], getMethod(), ew);
       }
     }
   }
@@ -284,21 +312,31 @@ class ContextStack {
   void userException(const std::string& ex, const std::string& ex_what) {
     if (handlers_) {
       for (size_t i = 0; i < handlers_->size(); i++) {
-        (*handlers_)[i]->userException(ctxs_[i], method_, ex, ex_what);
+        (*handlers_)[i]->userException(ctxs_[i], getMethod(), ex, ex_what);
       }
     }
   }
 
+  void userExceptionWrapped(bool declared, const folly::exception_wrapper& ew) {
+    if (handlers_) {
+      for (size_t i = 0; i < handlers_->size(); i++) {
+        (*handlers_)[i]->userExceptionWrapped(
+          ctxs_[i], getMethod(), declared, ew);
+      }
+    }
+  }
+
+
   void asyncComplete() {
     if (handlers_) {
       for (size_t i = 0; i < handlers_->size(); i++) {
-        (*handlers_)[i]->asyncComplete(ctxs_[i], method_);
+        (*handlers_)[i]->asyncComplete(ctxs_[i], getMethod());
       }
     }
   }
 
   const char* getMethod() {
-    return method_;
+    return method_.c_str();
   }
 
  private:
@@ -306,7 +344,7 @@ class ContextStack {
   std::shared_ptr<
     std::vector<std::shared_ptr<TProcessorEventHandler>>
     >handlers_;
-  const char* method_;
+  std::string method_;
 };
 
 class EventHandlerBase {

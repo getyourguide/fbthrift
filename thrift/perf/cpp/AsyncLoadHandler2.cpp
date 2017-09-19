@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include "thrift/perf/cpp/AsyncLoadHandler2.h"
+#include <thrift/perf/cpp/AsyncLoadHandler2.h>
 
-#include <thrift/lib/cpp/async/TEventBase.h>
+#include <folly/io/async/EventBase.h>
+#include <folly/portability/Unistd.h>
 #include <thrift/lib/cpp/concurrency/Util.h>
 
-#include <unistd.h>
-
-using apache::thrift::async::TEventBase;
+using folly::EventBase;
 using apache::thrift::concurrency::Util;
 
 namespace apache { namespace thrift {
@@ -87,11 +86,11 @@ void AsyncLoadHandler2::sync_burn(int64_t microseconds) {
 
 folly::Future<folly::Unit>
 AsyncLoadHandler2::future_burn(int64_t microseconds) {
-  folly::MoveWrapper<folly::Promise<folly::Unit>> promise;
-  auto future = promise->getFuture();
+  folly::Promise<folly::Unit> promise;
+  auto future = promise.getFuture();
 
   sync_burn(microseconds);
-  promise->setValue();
+  promise.setValue();
 
   return future;
 }
@@ -102,11 +101,11 @@ void AsyncLoadHandler2::sync_onewayBurn(int64_t microseconds) {
 
 folly::Future<folly::Unit>
 AsyncLoadHandler2::future_onewayBurn(int64_t microseconds) {
-  folly::MoveWrapper<folly::Promise<folly::Unit>> promise;
-  auto future = promise->getFuture();
+  folly::Promise<folly::Unit> promise;
+  auto future = promise.getFuture();
 
   sync_onewayBurn(microseconds);
-  promise->setValue();
+  promise.setValue();
 
   return future;
 }
@@ -137,12 +136,11 @@ void AsyncLoadHandler2::async_eb_throwError(
 }
 
 void AsyncLoadHandler2::async_eb_throwUnexpected(
-  std::unique_ptr<HandlerCallback<void>> callback,
-  int32_t code) {
-
+    std::unique_ptr<HandlerCallback<void>> callback,
+    int32_t /* code */) {
   // FIXME: it isn't possible to implement this behavior with the async code
   //
-  // Actually throwing an exception from the handler is bad, and TEventBase
+  // Actually throwing an exception from the handler is bad, and EventBase
   // should probably be changed to fatal the entire program if that happens.
   decltype(callback)::element_type::doneInThread(std::move(callback));
 }
@@ -158,14 +156,14 @@ void AsyncLoadHandler2::async_eb_onewayThrow(
 }
 
 void AsyncLoadHandler2::async_eb_send(
-  std::unique_ptr<HandlerCallback<void>> callback,
-  std::unique_ptr<std::string> data) {
+    std::unique_ptr<HandlerCallback<void>> callback,
+    std::unique_ptr<std::string> /* data */) {
   decltype(callback)::element_type::doneInThread(std::move(callback));
 }
 
 void AsyncLoadHandler2::async_eb_onewaySend(
-  std::unique_ptr<HandlerCallbackBase> callback,
-  std::unique_ptr<std::string> data) {
+    std::unique_ptr<HandlerCallbackBase> callback,
+    std::unique_ptr<std::string> /* data */) {
   callback.release()->deleteInThread();
 }
 
@@ -178,8 +176,9 @@ void AsyncLoadHandler2::async_eb_recv(
 }
 
 void AsyncLoadHandler2::async_eb_sendrecv(
-  std::unique_ptr<HandlerCallback<std::unique_ptr<std::string>>> callback,
-  std::unique_ptr<std::string> data, int64_t recvBytes) {
+    std::unique_ptr<HandlerCallback<std::unique_ptr<std::string>>> callback,
+    std::unique_ptr<std::string> /* data */,
+    int64_t recvBytes) {
   std::unique_ptr<std::string> ret(new std::string(recvBytes, 'a'));
   decltype(callback)::element_type::resultInThread(std::move(callback),
                                                    std::move(ret));
@@ -196,20 +195,37 @@ void AsyncLoadHandler2::sync_echo(
 folly::Future<std::unique_ptr<std::string>>
 AsyncLoadHandler2::future_echo(
     std::unique_ptr<std::string> data) {
-  folly::MoveWrapper<
-    folly::Promise<std::unique_ptr<std::string>>> promise;
-  auto future = promise->getFuture();
-  auto wrapped_data =
-    folly::MoveWrapper<std::unique_ptr<std::string>>(std::move(data));
+  folly::Promise<std::unique_ptr<std::string>> promise;
+  auto future = promise.getFuture();
 
   folly::via(folly::RequestEventBase::get()).then(
-    [this, promise, wrapped_data]() mutable {
+    [this, promise = std::move(promise), data = std::move(data)]() mutable {
       std::string output;
-      sync_echo(output, std::move(*wrapped_data));
-      promise->setValue(folly::make_unique<std::string>(std::move(output)));
+      sync_echo(output, std::move(data));
+      promise.setValue(std::make_unique<std::string>(std::move(output)));
     });
 
   return future;
+}
+
+void AsyncLoadHandler2::async_eb_largeContainer(
+    std::unique_ptr<HandlerCallback<void>> callback,
+    std::unique_ptr<std::vector<BigStruct>>) {
+  callback->done();
+}
+
+void AsyncLoadHandler2::async_eb_iterAllFields(
+    std::unique_ptr<HandlerCallback<std::unique_ptr<std::vector<BigStruct>>>>
+    callback,
+    std::unique_ptr<std::vector<BigStruct>> items) {
+  std::string x;
+  for (auto& item : *items) {
+    x = item.stringField;
+    for (auto& i : item.stringList) {
+      x = i;
+    }
+  }
+  callback->result(std::move(items));
 }
 
 void AsyncLoadHandler2::async_eb_add(

@@ -1,4 +1,6 @@
 /*
+ * Copyright 2004-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -19,12 +21,12 @@
 
 // Extra functions required for DebugProtoTest_types to work
 
-#include "thrift/test/gen-cpp/DebugProtoTest_types.h"
+#include <thrift/test/gen-cpp/DebugProtoTest_types.h>
 
 
 namespace thrift { namespace test { namespace debug {
 
-bool Empty::operator<(Empty const& other) const {
+bool Empty::operator<(Empty const& /* other */) const {
   // It is empty, so all are equal.
   return false;
 }

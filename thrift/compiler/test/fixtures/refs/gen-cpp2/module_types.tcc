@@ -6,75 +6,89 @@
  */
 #pragma once
 
-#include "module_types.h"
-#include <thrift/lib/cpp/TApplicationException.h>
-#include <folly/MoveWrapper.h>
+#include "src/gen-cpp2/module_types.h"
+
 #include <folly/io/IOBuf.h>
 #include <folly/io/IOBufQueue.h>
+#include <thrift/lib/cpp/TApplicationException.h>
 #include <thrift/lib/cpp/transport/THeader.h>
-#include <thrift/lib/cpp2/server/Cpp2ConnContext.h>
 #include <thrift/lib/cpp2/GeneratedCodeHelper.h>
+#include <thrift/lib/cpp2/GeneratedSerializationCodeHelper.h>
+#include <thrift/lib/cpp2/server/Cpp2ConnContext.h>
 
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
+
+namespace cpp2 {
+
+} // cpp2
+namespace std {
+
+} // std
+namespace apache { namespace thrift {
+
+}} // apache::thrift
 namespace cpp2 {
 
 template <class Protocol_>
 uint32_t MyUnion::read(Protocol_* iprot) {
   uint32_t xfer = 0;
-  std::string fname;
-  apache::thrift::protocol::TType ftype;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
   int16_t fid;
 
-  xfer += iprot->readStructBegin(fname);
+  xfer += iprot->readStructBegin(_fname);
 
   using apache::thrift::TProtocolException;
 
 
-  xfer += iprot->readFieldBegin(fname, ftype, fid);
-  if (ftype == apache::thrift::protocol::T_STOP) {
+  xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+  if (_ftype == apache::thrift::protocol::T_STOP) {
     this->__clear();
   } else {
     if (fid == std::numeric_limits<int16_t>::min()) {
-      if (fname == "anInteger") {
+      if (_fname == "anInteger") {
         fid = 1;
-        ftype = apache::thrift::protocol::T_I32;
+        _ftype = apache::thrift::protocol::T_I32;
       }
-      else if (fname == "aString") {
+      else if (_fname == "aString") {
         fid = 2;
-        ftype = apache::thrift::protocol::T_STRING;
+        _ftype = apache::thrift::protocol::T_STRING;
       }
     }
     switch (fid) {
       case 1:
       {
-        if (ftype == apache::thrift::protocol::T_I32) {
+        if (_ftype == apache::thrift::protocol::T_I32) {
           this->set_anInteger();
           xfer += iprot->readI32(this->mutable_anInteger());
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       case 2:
       {
-        if (ftype == apache::thrift::protocol::T_STRING) {
+        if (_ftype == apache::thrift::protocol::T_STRING) {
           this->set_aString();
           xfer += iprot->readString(this->mutable_aString());
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       default:
       {
-        xfer += iprot->skip(ftype);
+        xfer += iprot->skip(_ftype);
         break;
       }
     }
     xfer += iprot->readFieldEnd();
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    xfer += iprot->readFieldEnd();
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (UNLIKELY(_ftype != apache::thrift::protocol::T_STOP)) {
+      using apache::thrift::protocol::TProtocolException;
+      TProtocolException::throwUnionMissingStop();
+    }
   }
   xfer += iprot->readStructEnd();
 
@@ -82,7 +96,7 @@ uint32_t MyUnion::read(Protocol_* iprot) {
 }
 
 template <class Protocol_>
-uint32_t MyUnion::serializedSize(Protocol_* prot_) const {
+uint32_t MyUnion::serializedSize(Protocol_ const* prot_) const {
   uint32_t xfer = 0;
   xfer += prot_->serializedStructSize("MyUnion");
   switch(this->getType()) {
@@ -105,7 +119,7 @@ uint32_t MyUnion::serializedSize(Protocol_* prot_) const {
 }
 
 template <class Protocol_>
-uint32_t MyUnion::serializedSizeZC(Protocol_* prot_) const {
+uint32_t MyUnion::serializedSizeZC(Protocol_ const* prot_) const {
   uint32_t xfer = 0;
   xfer += prot_->serializedStructSize("MyUnion");
   switch(this->getType()) {
@@ -154,77 +168,63 @@ uint32_t MyUnion::write(Protocol_* prot_) const {
 }
 
 } // cpp2
-namespace apache { namespace thrift {
-
-}} // apache::thrift
 namespace cpp2 {
 
 template <class Protocol_>
 uint32_t MyField::read(Protocol_* iprot) {
   uint32_t xfer = 0;
-  std::string fname;
-  apache::thrift::protocol::TType ftype;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
   int16_t fid;
 
-  xfer += iprot->readStructBegin(fname);
+  xfer += iprot->readStructBegin(_fname);
 
   using apache::thrift::TProtocolException;
 
   bool isset_req_value = false;
 
   while (true) {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == apache::thrift::protocol::T_STOP) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
       break;
     }
     if (fid == std::numeric_limits<int16_t>::min()) {
-      if (fname == "opt_value") {
-        fid = 1;
-        ftype = apache::thrift::protocol::T_I64;
-      }
-      else if (fname == "value") {
-        fid = 2;
-        ftype = apache::thrift::protocol::T_I64;
-      }
-      else if (fname == "req_value") {
-        fid = 3;
-        ftype = apache::thrift::protocol::T_I64;
-      }
+      this->translateFieldName(_fname, fid, _ftype);
     }
     switch (fid) {
       case 1:
       {
-        if (ftype == apache::thrift::protocol::T_I64) {
+        if (_ftype == apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->opt_value);
           this->__isset.opt_value = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       case 2:
       {
-        if (ftype == apache::thrift::protocol::T_I64) {
+        if (_ftype == apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->value);
           this->__isset.value = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       case 3:
       {
-        if (ftype == apache::thrift::protocol::T_I64) {
+        if (_ftype == apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->req_value);
           isset_req_value = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       default:
       {
-        xfer += iprot->skip(ftype);
+        xfer += iprot->skip(_ftype);
         break;
       }
     }
@@ -233,13 +233,13 @@ uint32_t MyField::read(Protocol_* iprot) {
   xfer += iprot->readStructEnd();
 
   if (!isset_req_value) {
-    throw TProtocolException(TProtocolException::MISSING_REQUIRED_FIELD, "Required field 'req_value' was not foundin serialized data! Struct: MyField");
+    TProtocolException::throwMissingRequiredField("req_value", "MyField");
   }
   return xfer;
 }
 
 template <class Protocol_>
-uint32_t MyField::serializedSize(Protocol_* prot_) const {
+uint32_t MyField::serializedSize(Protocol_ const* prot_) const {
   uint32_t xfer = 0;
   xfer += prot_->serializedStructSize("MyField");
   if (this->__isset.opt_value) {
@@ -255,7 +255,7 @@ uint32_t MyField::serializedSize(Protocol_* prot_) const {
 }
 
 template <class Protocol_>
-uint32_t MyField::serializedSizeZC(Protocol_* prot_) const {
+uint32_t MyField::serializedSizeZC(Protocol_ const* prot_) const {
   uint32_t xfer = 0;
   xfer += prot_->serializedStructSize("MyField");
   if (this->__isset.opt_value) {
@@ -291,78 +291,67 @@ uint32_t MyField::write(Protocol_* prot_) const {
 }
 
 } // cpp2
-namespace apache { namespace thrift {
-
-}} // apache::thrift
 namespace cpp2 {
 
 template <class Protocol_>
 uint32_t MyStruct::read(Protocol_* iprot) {
   uint32_t xfer = 0;
-  std::string fname;
-  apache::thrift::protocol::TType ftype;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
   int16_t fid;
 
-  xfer += iprot->readStructBegin(fname);
+  xfer += iprot->readStructBegin(_fname);
 
   using apache::thrift::TProtocolException;
 
   bool isset_req_ref = false;
 
   while (true) {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == apache::thrift::protocol::T_STOP) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
       break;
     }
     if (fid == std::numeric_limits<int16_t>::min()) {
-      if (fname == "opt_ref") {
-        fid = 1;
-        ftype = apache::thrift::protocol::T_STRUCT;
-      }
-      else if (fname == "ref") {
-        fid = 2;
-        ftype = apache::thrift::protocol::T_STRUCT;
-      }
-      else if (fname == "req_ref") {
-        fid = 3;
-        ftype = apache::thrift::protocol::T_STRUCT;
-      }
+      this->translateFieldName(_fname, fid, _ftype);
     }
     switch (fid) {
       case 1:
       {
-        if (ftype == apache::thrift::protocol::T_STRUCT) {
-          this->opt_ref = std::unique_ptr< ::cpp2::MyField>(new  ::cpp2::MyField);
-          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::read(iprot, this->opt_ref.get());
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::MyField> ptr = std::make_unique< ::cpp2::MyField>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::read(iprot, ptr.get());
+          this->opt_ref = std::move(ptr);
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       case 2:
       {
-        if (ftype == apache::thrift::protocol::T_STRUCT) {
-          this->ref = std::unique_ptr< ::cpp2::MyField>(new  ::cpp2::MyField);
-          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::read(iprot, this->ref.get());
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::MyField> ptr = std::make_unique< ::cpp2::MyField>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::read(iprot, ptr.get());
+          this->ref = std::move(ptr);
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       case 3:
       {
-        if (ftype == apache::thrift::protocol::T_STRUCT) {
-          this->req_ref = std::unique_ptr< ::cpp2::MyField>(new  ::cpp2::MyField);
-          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::read(iprot, this->req_ref.get());
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::MyField> ptr = std::make_unique< ::cpp2::MyField>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::read(iprot, ptr.get());
+          this->req_ref = std::move(ptr);
           isset_req_ref = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       default:
       {
-        xfer += iprot->skip(ftype);
+        xfer += iprot->skip(_ftype);
         break;
       }
     }
@@ -371,13 +360,13 @@ uint32_t MyStruct::read(Protocol_* iprot) {
   xfer += iprot->readStructEnd();
 
   if (!isset_req_ref) {
-    throw TProtocolException(TProtocolException::MISSING_REQUIRED_FIELD, "Required field 'req_ref' was not foundin serialized data! Struct: MyStruct");
+    TProtocolException::throwMissingRequiredField("req_ref", "MyStruct");
   }
   return xfer;
 }
 
 template <class Protocol_>
-uint32_t MyStruct::serializedSize(Protocol_* prot_) const {
+uint32_t MyStruct::serializedSize(Protocol_ const* prot_) const {
   uint32_t xfer = 0;
   xfer += prot_->serializedStructSize("MyStruct");
   if (this->opt_ref) {
@@ -386,9 +375,8 @@ uint32_t MyStruct::serializedSize(Protocol_* prot_) const {
       xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSize(prot_, this->opt_ref.get());
     }
     else {
-      prot_->writeStructBegin("MyField");
-      prot_->writeStructEnd();
-      prot_->writeFieldStop();
+      xfer += prot_->serializedStructSize("MyField");
+      xfer += prot_->serializedSizeStop();
     }
   }
   xfer += prot_->serializedFieldSize("ref", apache::thrift::protocol::T_STRUCT, 2);
@@ -396,25 +384,23 @@ uint32_t MyStruct::serializedSize(Protocol_* prot_) const {
     xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSize(prot_, this->ref.get());
   }
   else {
-    prot_->writeStructBegin("MyField");
-    prot_->writeStructEnd();
-    prot_->writeFieldStop();
+    xfer += prot_->serializedStructSize("MyField");
+    xfer += prot_->serializedSizeStop();
   }
   xfer += prot_->serializedFieldSize("req_ref", apache::thrift::protocol::T_STRUCT, 3);
   if (this->req_ref) {
     xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSize(prot_, this->req_ref.get());
   }
   else {
-    prot_->writeStructBegin("MyField");
-    prot_->writeStructEnd();
-    prot_->writeFieldStop();
+    xfer += prot_->serializedStructSize("MyField");
+    xfer += prot_->serializedSizeStop();
   }
   xfer += prot_->serializedSizeStop();
   return xfer;
 }
 
 template <class Protocol_>
-uint32_t MyStruct::serializedSizeZC(Protocol_* prot_) const {
+uint32_t MyStruct::serializedSizeZC(Protocol_ const* prot_) const {
   uint32_t xfer = 0;
   xfer += prot_->serializedStructSize("MyStruct");
   if (this->opt_ref) {
@@ -423,9 +409,8 @@ uint32_t MyStruct::serializedSizeZC(Protocol_* prot_) const {
       xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSizeZC(prot_, this->opt_ref.get());
     }
     else {
-      prot_->writeStructBegin("MyField");
-      prot_->writeStructEnd();
-      prot_->writeFieldStop();
+      xfer += prot_->serializedStructSize("MyField");
+      xfer += prot_->serializedSizeStop();
     }
   }
   xfer += prot_->serializedFieldSize("ref", apache::thrift::protocol::T_STRUCT, 2);
@@ -433,18 +418,16 @@ uint32_t MyStruct::serializedSizeZC(Protocol_* prot_) const {
     xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSizeZC(prot_, this->ref.get());
   }
   else {
-    prot_->writeStructBegin("MyField");
-    prot_->writeStructEnd();
-    prot_->writeFieldStop();
+    xfer += prot_->serializedStructSize("MyField");
+    xfer += prot_->serializedSizeStop();
   }
   xfer += prot_->serializedFieldSize("req_ref", apache::thrift::protocol::T_STRUCT, 3);
   if (this->req_ref) {
     xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSizeZC(prot_, this->req_ref.get());
   }
   else {
-    prot_->writeStructBegin("MyField");
-    prot_->writeStructEnd();
-    prot_->writeFieldStop();
+    xfer += prot_->serializedStructSize("MyField");
+    xfer += prot_->serializedSizeStop();
   }
   xfer += prot_->serializedSizeStop();
   return xfer;
@@ -460,9 +443,9 @@ uint32_t MyStruct::write(Protocol_* prot_) const {
       xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::write(prot_, this->opt_ref.get());
     }
     else {
-      prot_->writeStructBegin("MyField");
-      prot_->writeStructEnd();
-      prot_->writeFieldStop();
+      xfer += prot_->writeStructBegin("MyField");
+      xfer += prot_->writeStructEnd();
+      xfer += prot_->writeFieldStop();
     }
     xfer += prot_->writeFieldEnd();
   }
@@ -471,9 +454,9 @@ uint32_t MyStruct::write(Protocol_* prot_) const {
     xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::write(prot_, this->ref.get());
   }
   else {
-    prot_->writeStructBegin("MyField");
-    prot_->writeStructEnd();
-    prot_->writeFieldStop();
+    xfer += prot_->writeStructBegin("MyField");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
   }
   xfer += prot_->writeFieldEnd();
   xfer += prot_->writeFieldBegin("req_ref", apache::thrift::protocol::T_STRUCT, 3);
@@ -481,9 +464,9 @@ uint32_t MyStruct::write(Protocol_* prot_) const {
     xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::write(prot_, this->req_ref.get());
   }
   else {
-    prot_->writeStructBegin("MyField");
-    prot_->writeStructEnd();
-    prot_->writeFieldStop();
+    xfer += prot_->writeStructBegin("MyField");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
   }
   xfer += prot_->writeFieldEnd();
   xfer += prot_->writeFieldStop();
@@ -492,76 +475,63 @@ uint32_t MyStruct::write(Protocol_* prot_) const {
 }
 
 } // cpp2
-namespace apache { namespace thrift {
-
-}} // apache::thrift
 namespace cpp2 {
 
 template <class Protocol_>
 uint32_t StructWithUnion::read(Protocol_* iprot) {
   uint32_t xfer = 0;
-  std::string fname;
-  apache::thrift::protocol::TType ftype;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
   int16_t fid;
 
-  xfer += iprot->readStructBegin(fname);
+  xfer += iprot->readStructBegin(_fname);
 
   using apache::thrift::TProtocolException;
 
 
   while (true) {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == apache::thrift::protocol::T_STOP) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
       break;
     }
     if (fid == std::numeric_limits<int16_t>::min()) {
-      if (fname == "u") {
-        fid = 1;
-        ftype = apache::thrift::protocol::T_STRUCT;
-      }
-      else if (fname == "aDouble") {
-        fid = 2;
-        ftype = apache::thrift::protocol::T_DOUBLE;
-      }
-      else if (fname == "f") {
-        fid = 3;
-        ftype = apache::thrift::protocol::T_STRUCT;
-      }
+      this->translateFieldName(_fname, fid, _ftype);
     }
     switch (fid) {
       case 1:
       {
-        if (ftype == apache::thrift::protocol::T_STRUCT) {
-          this->u = std::unique_ptr< ::cpp2::MyUnion>(new  ::cpp2::MyUnion);
-          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyUnion>::read(iprot, this->u.get());
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::MyUnion> ptr = std::make_unique< ::cpp2::MyUnion>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyUnion>::read(iprot, ptr.get());
+          this->u = std::move(ptr);
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       case 2:
       {
-        if (ftype == apache::thrift::protocol::T_DOUBLE) {
+        if (_ftype == apache::thrift::protocol::T_DOUBLE) {
           xfer += iprot->readDouble(this->aDouble);
           this->__isset.aDouble = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       case 3:
       {
-        if (ftype == apache::thrift::protocol::T_STRUCT) {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
           xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::read(iprot, &this->f);
           this->__isset.f = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       default:
       {
-        xfer += iprot->skip(ftype);
+        xfer += iprot->skip(_ftype);
         break;
       }
     }
@@ -573,7 +543,7 @@ uint32_t StructWithUnion::read(Protocol_* iprot) {
 }
 
 template <class Protocol_>
-uint32_t StructWithUnion::serializedSize(Protocol_* prot_) const {
+uint32_t StructWithUnion::serializedSize(Protocol_ const* prot_) const {
   uint32_t xfer = 0;
   xfer += prot_->serializedStructSize("StructWithUnion");
   xfer += prot_->serializedFieldSize("u", apache::thrift::protocol::T_STRUCT, 1);
@@ -581,9 +551,8 @@ uint32_t StructWithUnion::serializedSize(Protocol_* prot_) const {
     xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyUnion>::serializedSize(prot_, this->u.get());
   }
   else {
-    prot_->writeStructBegin("MyUnion");
-    prot_->writeStructEnd();
-    prot_->writeFieldStop();
+    xfer += prot_->serializedStructSize("MyUnion");
+    xfer += prot_->serializedSizeStop();
   }
   xfer += prot_->serializedFieldSize("aDouble", apache::thrift::protocol::T_DOUBLE, 2);
   xfer += prot_->serializedSizeDouble(this->aDouble);
@@ -594,7 +563,7 @@ uint32_t StructWithUnion::serializedSize(Protocol_* prot_) const {
 }
 
 template <class Protocol_>
-uint32_t StructWithUnion::serializedSizeZC(Protocol_* prot_) const {
+uint32_t StructWithUnion::serializedSizeZC(Protocol_ const* prot_) const {
   uint32_t xfer = 0;
   xfer += prot_->serializedStructSize("StructWithUnion");
   xfer += prot_->serializedFieldSize("u", apache::thrift::protocol::T_STRUCT, 1);
@@ -602,9 +571,8 @@ uint32_t StructWithUnion::serializedSizeZC(Protocol_* prot_) const {
     xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyUnion>::serializedSizeZC(prot_, this->u.get());
   }
   else {
-    prot_->writeStructBegin("MyUnion");
-    prot_->writeStructEnd();
-    prot_->writeFieldStop();
+    xfer += prot_->serializedStructSize("MyUnion");
+    xfer += prot_->serializedSizeStop();
   }
   xfer += prot_->serializedFieldSize("aDouble", apache::thrift::protocol::T_DOUBLE, 2);
   xfer += prot_->serializedSizeDouble(this->aDouble);
@@ -623,9 +591,9 @@ uint32_t StructWithUnion::write(Protocol_* prot_) const {
     xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyUnion>::write(prot_, this->u.get());
   }
   else {
-    prot_->writeStructBegin("MyUnion");
-    prot_->writeStructEnd();
-    prot_->writeFieldStop();
+    xfer += prot_->writeStructBegin("MyUnion");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
   }
   xfer += prot_->writeFieldEnd();
   xfer += prot_->writeFieldBegin("aDouble", apache::thrift::protocol::T_DOUBLE, 2);
@@ -640,65 +608,43 @@ uint32_t StructWithUnion::write(Protocol_* prot_) const {
 }
 
 } // cpp2
-namespace apache { namespace thrift {
-
-}} // apache::thrift
 namespace cpp2 {
 
 template <class Protocol_>
 uint32_t RecursiveStruct::read(Protocol_* iprot) {
   uint32_t xfer = 0;
-  std::string fname;
-  apache::thrift::protocol::TType ftype;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
   int16_t fid;
 
-  xfer += iprot->readStructBegin(fname);
+  xfer += iprot->readStructBegin(_fname);
 
   using apache::thrift::TProtocolException;
 
 
   while (true) {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == apache::thrift::protocol::T_STOP) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
       break;
     }
     if (fid == std::numeric_limits<int16_t>::min()) {
-      if (fname == "mes") {
-        fid = 1;
-        ftype = apache::thrift::protocol::T_LIST;
-      }
+      this->translateFieldName(_fname, fid, _ftype);
     }
     switch (fid) {
       case 1:
       {
-        if (ftype == apache::thrift::protocol::T_LIST) {
-          this->mes = std::move(std::vector< ::cpp2::RecursiveStruct>());
-          uint32_t _size6;
-          apache::thrift::protocol::TType _etype9;
-          xfer += iprot->readListBegin(_etype9, _size6);
-          uint32_t _i10;
-          if (_size6 == std::numeric_limits<uint32_t>::max()) {
-            for (_i10 = 0; iprot->peekList(); _i10++) {
-              this->mes.resize(_i10 + 1);
-              xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::RecursiveStruct>::read(iprot, &this->mes[_i10]);
-            }
-          }
-          else {
-            this->mes.resize(_size6);
-            for (_i10 = 0; _i10 < _size6; ++_i10) {
-              xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::RecursiveStruct>::read(iprot, &this->mes[_i10]);
-            }
-          }
-          xfer += iprot->readListEnd();
+        if (_ftype == apache::thrift::protocol::T_LIST) {
+          this->mes = std::vector< ::cpp2::RecursiveStruct>();
+          xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>, std::vector< ::cpp2::RecursiveStruct>>::read(*iprot, this->mes);
           this->__isset.mes = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       }
       default:
       {
-        xfer += iprot->skip(ftype);
+        xfer += iprot->skip(_ftype);
         break;
       }
     }
@@ -710,32 +656,24 @@ uint32_t RecursiveStruct::read(Protocol_* iprot) {
 }
 
 template <class Protocol_>
-uint32_t RecursiveStruct::serializedSize(Protocol_* prot_) const {
+uint32_t RecursiveStruct::serializedSize(Protocol_ const* prot_) const {
   uint32_t xfer = 0;
   xfer += prot_->serializedStructSize("RecursiveStruct");
   if (this->__isset.mes) {
     xfer += prot_->serializedFieldSize("mes", apache::thrift::protocol::T_LIST, 1);
-    xfer += prot_->serializedSizeListBegin(apache::thrift::protocol::T_STRUCT, this->mes.size());
-    for (auto _iter11 = this->mes.begin(); _iter11 != this->mes.end(); ++_iter11) {
-      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::RecursiveStruct>::serializedSize(prot_, &(*_iter11));
-    }
-    xfer += prot_->serializedSizeListEnd();
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>, std::vector< ::cpp2::RecursiveStruct>>::serializedSize<false>(*prot_, this->mes);
   }
   xfer += prot_->serializedSizeStop();
   return xfer;
 }
 
 template <class Protocol_>
-uint32_t RecursiveStruct::serializedSizeZC(Protocol_* prot_) const {
+uint32_t RecursiveStruct::serializedSizeZC(Protocol_ const* prot_) const {
   uint32_t xfer = 0;
   xfer += prot_->serializedStructSize("RecursiveStruct");
   if (this->__isset.mes) {
     xfer += prot_->serializedFieldSize("mes", apache::thrift::protocol::T_LIST, 1);
-    xfer += prot_->serializedSizeListBegin(apache::thrift::protocol::T_STRUCT, this->mes.size());
-    for (auto _iter12 = this->mes.begin(); _iter12 != this->mes.end(); ++_iter12) {
-      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::RecursiveStruct>::serializedSizeZC(prot_, &(*_iter12));
-    }
-    xfer += prot_->serializedSizeListEnd();
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>, std::vector< ::cpp2::RecursiveStruct>>::serializedSize<false>(*prot_, this->mes);
   }
   xfer += prot_->serializedSizeStop();
   return xfer;
@@ -747,11 +685,7 @@ uint32_t RecursiveStruct::write(Protocol_* prot_) const {
   xfer += prot_->writeStructBegin("RecursiveStruct");
   if (this->__isset.mes) {
     xfer += prot_->writeFieldBegin("mes", apache::thrift::protocol::T_LIST, 1);
-    xfer += prot_->writeListBegin(apache::thrift::protocol::T_STRUCT, this->mes.size());
-    for (auto _iter13 = this->mes.begin(); _iter13 != this->mes.end(); ++_iter13) {
-      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::RecursiveStruct>::write(prot_, &(*_iter13));
-    }
-    xfer += prot_->writeListEnd();
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::structure>, std::vector< ::cpp2::RecursiveStruct>>::write(*prot_, this->mes);
     xfer += prot_->writeFieldEnd();
   }
   xfer += prot_->writeFieldStop();
@@ -760,9 +694,1263 @@ uint32_t RecursiveStruct::write(Protocol_* prot_) const {
 }
 
 } // cpp2
-namespace apache { namespace thrift {
-
-}} // apache::thrift
 namespace cpp2 {
+
+template <class Protocol_>
+uint32_t StructWithContainers::read(Protocol_* iprot) {
+  uint32_t xfer = 0;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
+  int16_t fid;
+
+  xfer += iprot->readStructBegin(_fname);
+
+  using apache::thrift::TProtocolException;
+
+
+  while (true) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
+      break;
+    }
+    if (fid == std::numeric_limits<int16_t>::min()) {
+      this->translateFieldName(_fname, fid, _ftype);
+    }
+    switch (fid) {
+      case 1:
+      {
+        if (_ftype == apache::thrift::protocol::T_LIST) {
+          std::unique_ptr<std::vector<int32_t>> ptr = std::make_unique<std::vector<int32_t>>();
+          xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::read(*iprot, *ptr);
+          this->list_ref = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 2:
+      {
+        if (_ftype == apache::thrift::protocol::T_SET) {
+          std::unique_ptr<std::set<int32_t>> ptr = std::make_unique<std::set<int32_t>>();
+          xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::set<::apache::thrift::type_class::integral>, std::set<int32_t>>::read(*iprot, *ptr);
+          this->set_ref = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 3:
+      {
+        if (_ftype == apache::thrift::protocol::T_MAP) {
+          std::unique_ptr<std::map<int32_t, int32_t>> ptr = std::make_unique<std::map<int32_t, int32_t>>();
+          xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::integral>, std::map<int32_t, int32_t>>::read(*iprot, *ptr);
+          this->map_ref = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 4:
+      {
+        if (_ftype == apache::thrift::protocol::T_LIST) {
+          std::unique_ptr<std::vector<int32_t>> ptr = std::make_unique<std::vector<int32_t>>();
+          xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::read(*iprot, *ptr);
+          this->list_ref_unique = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 5:
+      {
+        if (_ftype == apache::thrift::protocol::T_SET) {
+          std::unique_ptr<std::set<int32_t>> ptr = std::make_unique<std::set<int32_t>>();
+          xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::set<::apache::thrift::type_class::integral>, std::set<int32_t>>::read(*iprot, *ptr);
+          this->set_ref_shared = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 6:
+      {
+        if (_ftype == apache::thrift::protocol::T_LIST) {
+          std::unique_ptr<std::vector<int32_t>> ptr = std::make_unique<std::vector<int32_t>>();
+          xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::read(*iprot, *ptr);
+          this->list_ref_shared_const = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      default:
+      {
+        xfer += iprot->skip(_ftype);
+        break;
+      }
+    }
+    xfer += iprot->readFieldEnd();
+  }
+  xfer += iprot->readStructEnd();
+
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithContainers::serializedSize(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithContainers");
+  xfer += prot_->serializedFieldSize("list_ref", apache::thrift::protocol::T_LIST, 1);
+  if (this->list_ref) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::serializedSize<false>(*prot_, *this->list_ref);
+  }
+  else {
+    xfer += prot_->serializedSizeListBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeListEnd();
+  }
+  xfer += prot_->serializedFieldSize("set_ref", apache::thrift::protocol::T_SET, 2);
+  if (this->set_ref) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::set<::apache::thrift::type_class::integral>, std::set<int32_t>>::serializedSize<false>(*prot_, *this->set_ref);
+  }
+  else {
+    xfer += prot_->serializedSizeSetBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeSetEnd();
+  }
+  xfer += prot_->serializedFieldSize("map_ref", apache::thrift::protocol::T_MAP, 3);
+  if (this->map_ref) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::integral>, std::map<int32_t, int32_t>>::serializedSize<false>(*prot_, *this->map_ref);
+  }
+  else {
+    xfer += prot_->serializedSizeMapBegin(apache::thrift::protocol::T_I32, apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeMapEnd();
+  }
+  xfer += prot_->serializedFieldSize("list_ref_unique", apache::thrift::protocol::T_LIST, 4);
+  if (this->list_ref_unique) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::serializedSize<false>(*prot_, *this->list_ref_unique);
+  }
+  else {
+    xfer += prot_->serializedSizeListBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeListEnd();
+  }
+  xfer += prot_->serializedFieldSize("set_ref_shared", apache::thrift::protocol::T_SET, 5);
+  if (this->set_ref_shared) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::set<::apache::thrift::type_class::integral>, std::set<int32_t>>::serializedSize<false>(*prot_, *this->set_ref_shared);
+  }
+  else {
+    xfer += prot_->serializedSizeSetBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeSetEnd();
+  }
+  xfer += prot_->serializedFieldSize("list_ref_shared_const", apache::thrift::protocol::T_LIST, 6);
+  if (this->list_ref_shared_const) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::serializedSize<false>(*prot_, *this->list_ref_shared_const);
+  }
+  else {
+    xfer += prot_->serializedSizeListBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeListEnd();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithContainers::serializedSizeZC(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithContainers");
+  xfer += prot_->serializedFieldSize("list_ref", apache::thrift::protocol::T_LIST, 1);
+  if (this->list_ref) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::serializedSize<false>(*prot_, *this->list_ref);
+  }
+  else {
+    xfer += prot_->serializedSizeListBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeListEnd();
+  }
+  xfer += prot_->serializedFieldSize("set_ref", apache::thrift::protocol::T_SET, 2);
+  if (this->set_ref) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::set<::apache::thrift::type_class::integral>, std::set<int32_t>>::serializedSize<false>(*prot_, *this->set_ref);
+  }
+  else {
+    xfer += prot_->serializedSizeSetBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeSetEnd();
+  }
+  xfer += prot_->serializedFieldSize("map_ref", apache::thrift::protocol::T_MAP, 3);
+  if (this->map_ref) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::integral>, std::map<int32_t, int32_t>>::serializedSize<false>(*prot_, *this->map_ref);
+  }
+  else {
+    xfer += prot_->serializedSizeMapBegin(apache::thrift::protocol::T_I32, apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeMapEnd();
+  }
+  xfer += prot_->serializedFieldSize("list_ref_unique", apache::thrift::protocol::T_LIST, 4);
+  if (this->list_ref_unique) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::serializedSize<false>(*prot_, *this->list_ref_unique);
+  }
+  else {
+    xfer += prot_->serializedSizeListBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeListEnd();
+  }
+  xfer += prot_->serializedFieldSize("set_ref_shared", apache::thrift::protocol::T_SET, 5);
+  if (this->set_ref_shared) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::set<::apache::thrift::type_class::integral>, std::set<int32_t>>::serializedSize<false>(*prot_, *this->set_ref_shared);
+  }
+  else {
+    xfer += prot_->serializedSizeSetBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeSetEnd();
+  }
+  xfer += prot_->serializedFieldSize("list_ref_shared_const", apache::thrift::protocol::T_LIST, 6);
+  if (this->list_ref_shared_const) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::serializedSize<false>(*prot_, *this->list_ref_shared_const);
+  }
+  else {
+    xfer += prot_->serializedSizeListBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->serializedSizeListEnd();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithContainers::write(Protocol_* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->writeStructBegin("StructWithContainers");
+  xfer += prot_->writeFieldBegin("list_ref", apache::thrift::protocol::T_LIST, 1);
+  if (this->list_ref) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::write(*prot_, *this->list_ref);
+  }
+  else {
+    xfer += prot_->writeListBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->writeListEnd();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldBegin("set_ref", apache::thrift::protocol::T_SET, 2);
+  if (this->set_ref) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::set<::apache::thrift::type_class::integral>, std::set<int32_t>>::write(*prot_, *this->set_ref);
+  }
+  else {
+    xfer += prot_->writeSetBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->writeSetEnd();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldBegin("map_ref", apache::thrift::protocol::T_MAP, 3);
+  if (this->map_ref) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::integral>, std::map<int32_t, int32_t>>::write(*prot_, *this->map_ref);
+  }
+  else {
+    xfer += prot_->writeMapBegin(apache::thrift::protocol::T_I32, apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->writeMapEnd();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldBegin("list_ref_unique", apache::thrift::protocol::T_LIST, 4);
+  if (this->list_ref_unique) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::write(*prot_, *this->list_ref_unique);
+  }
+  else {
+    xfer += prot_->writeListBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->writeListEnd();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldBegin("set_ref_shared", apache::thrift::protocol::T_SET, 5);
+  if (this->set_ref_shared) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::set<::apache::thrift::type_class::integral>, std::set<int32_t>>::write(*prot_, *this->set_ref_shared);
+  }
+  else {
+    xfer += prot_->writeSetBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->writeSetEnd();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldBegin("list_ref_shared_const", apache::thrift::protocol::T_LIST, 6);
+  if (this->list_ref_shared_const) {
+    xfer += ::apache::thrift::detail::pm::protocol_methods< ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, std::vector<int32_t>>::write(*prot_, *this->list_ref_shared_const);
+  }
+  else {
+    xfer += prot_->writeListBegin(apache::thrift::protocol::T_I32, 0);
+    xfer += prot_->writeListEnd();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldStop();
+  xfer += prot_->writeStructEnd();
+  return xfer;
+}
+
+} // cpp2
+namespace cpp2 {
+
+template <class Protocol_>
+uint32_t StructWithSharedConst::read(Protocol_* iprot) {
+  uint32_t xfer = 0;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
+  int16_t fid;
+
+  xfer += iprot->readStructBegin(_fname);
+
+  using apache::thrift::TProtocolException;
+
+  bool isset_req_shared_const = false;
+
+  while (true) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
+      break;
+    }
+    if (fid == std::numeric_limits<int16_t>::min()) {
+      this->translateFieldName(_fname, fid, _ftype);
+    }
+    switch (fid) {
+      case 1:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::MyField> ptr = std::make_unique< ::cpp2::MyField>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::read(iprot, ptr.get());
+          this->opt_shared_const = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 2:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::MyField> ptr = std::make_unique< ::cpp2::MyField>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::read(iprot, ptr.get());
+          this->shared_const = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 3:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::MyField> ptr = std::make_unique< ::cpp2::MyField>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::read(iprot, ptr.get());
+          this->req_shared_const = std::move(ptr);
+          isset_req_shared_const = true;
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      default:
+      {
+        xfer += iprot->skip(_ftype);
+        break;
+      }
+    }
+    xfer += iprot->readFieldEnd();
+  }
+  xfer += iprot->readStructEnd();
+
+  if (!isset_req_shared_const) {
+    TProtocolException::throwMissingRequiredField("req_shared_const", "StructWithSharedConst");
+  }
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithSharedConst::serializedSize(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithSharedConst");
+  if (this->opt_shared_const) {
+    xfer += prot_->serializedFieldSize("opt_shared_const", apache::thrift::protocol::T_STRUCT, 1);
+    if (this->opt_shared_const) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSize(prot_, this->opt_shared_const.get());
+    }
+    else {
+      xfer += prot_->serializedStructSize("MyField");
+      xfer += prot_->serializedSizeStop();
+    }
+  }
+  xfer += prot_->serializedFieldSize("shared_const", apache::thrift::protocol::T_STRUCT, 2);
+  if (this->shared_const) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSize(prot_, this->shared_const.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("MyField");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedFieldSize("req_shared_const", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_shared_const) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSize(prot_, this->req_shared_const.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("MyField");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithSharedConst::serializedSizeZC(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithSharedConst");
+  if (this->opt_shared_const) {
+    xfer += prot_->serializedFieldSize("opt_shared_const", apache::thrift::protocol::T_STRUCT, 1);
+    if (this->opt_shared_const) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSizeZC(prot_, this->opt_shared_const.get());
+    }
+    else {
+      xfer += prot_->serializedStructSize("MyField");
+      xfer += prot_->serializedSizeStop();
+    }
+  }
+  xfer += prot_->serializedFieldSize("shared_const", apache::thrift::protocol::T_STRUCT, 2);
+  if (this->shared_const) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSizeZC(prot_, this->shared_const.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("MyField");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedFieldSize("req_shared_const", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_shared_const) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::serializedSizeZC(prot_, this->req_shared_const.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("MyField");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithSharedConst::write(Protocol_* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->writeStructBegin("StructWithSharedConst");
+  if (this->opt_shared_const) {
+    xfer += prot_->writeFieldBegin("opt_shared_const", apache::thrift::protocol::T_STRUCT, 1);
+    if (this->opt_shared_const) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::write(prot_, this->opt_shared_const.get());
+    }
+    else {
+      xfer += prot_->writeStructBegin("MyField");
+      xfer += prot_->writeStructEnd();
+      xfer += prot_->writeFieldStop();
+    }
+    xfer += prot_->writeFieldEnd();
+  }
+  xfer += prot_->writeFieldBegin("shared_const", apache::thrift::protocol::T_STRUCT, 2);
+  if (this->shared_const) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::write(prot_, this->shared_const.get());
+  }
+  else {
+    xfer += prot_->writeStructBegin("MyField");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldBegin("req_shared_const", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_shared_const) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::MyField>::write(prot_, this->req_shared_const.get());
+  }
+  else {
+    xfer += prot_->writeStructBegin("MyField");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldStop();
+  xfer += prot_->writeStructEnd();
+  return xfer;
+}
+
+} // cpp2
+namespace cpp2 {
+
+template <class Protocol_>
+uint32_t Empty::read(Protocol_* iprot) {
+  uint32_t xfer = 0;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
+  int16_t fid;
+
+  xfer += iprot->readStructBegin(_fname);
+
+  using apache::thrift::TProtocolException;
+
+
+  while (true) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
+      break;
+    }
+    if (fid == std::numeric_limits<int16_t>::min()) {
+      this->translateFieldName(_fname, fid, _ftype);
+    }
+    switch (fid) {
+      default:
+      {
+        xfer += iprot->skip(_ftype);
+        break;
+      }
+    }
+    xfer += iprot->readFieldEnd();
+  }
+  xfer += iprot->readStructEnd();
+
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t Empty::serializedSize(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("Empty");
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t Empty::serializedSizeZC(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("Empty");
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t Empty::write(Protocol_* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->writeStructBegin("Empty");
+  xfer += prot_->writeFieldStop();
+  xfer += prot_->writeStructEnd();
+  return xfer;
+}
+
+} // cpp2
+namespace cpp2 {
+
+template <class Protocol_>
+uint32_t StructWithRef::read(Protocol_* iprot) {
+  uint32_t xfer = 0;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
+  int16_t fid;
+
+  xfer += iprot->readStructBegin(_fname);
+
+  using apache::thrift::TProtocolException;
+
+  bool isset_req_field = false;
+
+  while (true) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
+      break;
+    }
+    if (fid == std::numeric_limits<int16_t>::min()) {
+      this->translateFieldName(_fname, fid, _ftype);
+    }
+    switch (fid) {
+      case 1:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->def_field = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 2:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->opt_field = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 3:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->req_field = std::move(ptr);
+          isset_req_field = true;
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      default:
+      {
+        xfer += iprot->skip(_ftype);
+        break;
+      }
+    }
+    xfer += iprot->readFieldEnd();
+  }
+  xfer += iprot->readStructEnd();
+
+  if (!isset_req_field) {
+    TProtocolException::throwMissingRequiredField("req_field", "StructWithRef");
+  }
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRef::serializedSize(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithRef");
+  xfer += prot_->serializedFieldSize("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  if (this->opt_field) {
+    xfer += prot_->serializedFieldSize("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->serializedStructSize("Empty");
+      xfer += prot_->serializedSizeStop();
+    }
+  }
+  xfer += prot_->serializedFieldSize("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRef::serializedSizeZC(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithRef");
+  xfer += prot_->serializedFieldSize("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  if (this->opt_field) {
+    xfer += prot_->serializedFieldSize("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->serializedStructSize("Empty");
+      xfer += prot_->serializedSizeStop();
+    }
+  }
+  xfer += prot_->serializedFieldSize("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRef::write(Protocol_* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->writeStructBegin("StructWithRef");
+  xfer += prot_->writeFieldBegin("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->writeStructBegin("Empty");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
+  }
+  xfer += prot_->writeFieldEnd();
+  if (this->opt_field) {
+    xfer += prot_->writeFieldBegin("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->writeStructBegin("Empty");
+      xfer += prot_->writeStructEnd();
+      xfer += prot_->writeFieldStop();
+    }
+    xfer += prot_->writeFieldEnd();
+  }
+  xfer += prot_->writeFieldBegin("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->writeStructBegin("Empty");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldStop();
+  xfer += prot_->writeStructEnd();
+  return xfer;
+}
+
+} // cpp2
+namespace cpp2 {
+
+template <class Protocol_>
+uint32_t StructWithRefTypeUnique::read(Protocol_* iprot) {
+  uint32_t xfer = 0;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
+  int16_t fid;
+
+  xfer += iprot->readStructBegin(_fname);
+
+  using apache::thrift::TProtocolException;
+
+  bool isset_req_field = false;
+
+  while (true) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
+      break;
+    }
+    if (fid == std::numeric_limits<int16_t>::min()) {
+      this->translateFieldName(_fname, fid, _ftype);
+    }
+    switch (fid) {
+      case 1:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->def_field = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 2:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->opt_field = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 3:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->req_field = std::move(ptr);
+          isset_req_field = true;
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      default:
+      {
+        xfer += iprot->skip(_ftype);
+        break;
+      }
+    }
+    xfer += iprot->readFieldEnd();
+  }
+  xfer += iprot->readStructEnd();
+
+  if (!isset_req_field) {
+    TProtocolException::throwMissingRequiredField("req_field", "StructWithRefTypeUnique");
+  }
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRefTypeUnique::serializedSize(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithRefTypeUnique");
+  xfer += prot_->serializedFieldSize("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  if (this->opt_field) {
+    xfer += prot_->serializedFieldSize("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->serializedStructSize("Empty");
+      xfer += prot_->serializedSizeStop();
+    }
+  }
+  xfer += prot_->serializedFieldSize("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRefTypeUnique::serializedSizeZC(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithRefTypeUnique");
+  xfer += prot_->serializedFieldSize("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  if (this->opt_field) {
+    xfer += prot_->serializedFieldSize("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->serializedStructSize("Empty");
+      xfer += prot_->serializedSizeStop();
+    }
+  }
+  xfer += prot_->serializedFieldSize("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRefTypeUnique::write(Protocol_* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->writeStructBegin("StructWithRefTypeUnique");
+  xfer += prot_->writeFieldBegin("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->writeStructBegin("Empty");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
+  }
+  xfer += prot_->writeFieldEnd();
+  if (this->opt_field) {
+    xfer += prot_->writeFieldBegin("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->writeStructBegin("Empty");
+      xfer += prot_->writeStructEnd();
+      xfer += prot_->writeFieldStop();
+    }
+    xfer += prot_->writeFieldEnd();
+  }
+  xfer += prot_->writeFieldBegin("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->writeStructBegin("Empty");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldStop();
+  xfer += prot_->writeStructEnd();
+  return xfer;
+}
+
+} // cpp2
+namespace cpp2 {
+
+template <class Protocol_>
+uint32_t StructWithRefTypeShared::read(Protocol_* iprot) {
+  uint32_t xfer = 0;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
+  int16_t fid;
+
+  xfer += iprot->readStructBegin(_fname);
+
+  using apache::thrift::TProtocolException;
+
+  bool isset_req_field = false;
+
+  while (true) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
+      break;
+    }
+    if (fid == std::numeric_limits<int16_t>::min()) {
+      this->translateFieldName(_fname, fid, _ftype);
+    }
+    switch (fid) {
+      case 1:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->def_field = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 2:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->opt_field = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 3:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->req_field = std::move(ptr);
+          isset_req_field = true;
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      default:
+      {
+        xfer += iprot->skip(_ftype);
+        break;
+      }
+    }
+    xfer += iprot->readFieldEnd();
+  }
+  xfer += iprot->readStructEnd();
+
+  if (!isset_req_field) {
+    TProtocolException::throwMissingRequiredField("req_field", "StructWithRefTypeShared");
+  }
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRefTypeShared::serializedSize(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithRefTypeShared");
+  xfer += prot_->serializedFieldSize("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  if (this->opt_field) {
+    xfer += prot_->serializedFieldSize("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->serializedStructSize("Empty");
+      xfer += prot_->serializedSizeStop();
+    }
+  }
+  xfer += prot_->serializedFieldSize("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRefTypeShared::serializedSizeZC(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithRefTypeShared");
+  xfer += prot_->serializedFieldSize("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  if (this->opt_field) {
+    xfer += prot_->serializedFieldSize("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->serializedStructSize("Empty");
+      xfer += prot_->serializedSizeStop();
+    }
+  }
+  xfer += prot_->serializedFieldSize("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRefTypeShared::write(Protocol_* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->writeStructBegin("StructWithRefTypeShared");
+  xfer += prot_->writeFieldBegin("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->writeStructBegin("Empty");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
+  }
+  xfer += prot_->writeFieldEnd();
+  if (this->opt_field) {
+    xfer += prot_->writeFieldBegin("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->writeStructBegin("Empty");
+      xfer += prot_->writeStructEnd();
+      xfer += prot_->writeFieldStop();
+    }
+    xfer += prot_->writeFieldEnd();
+  }
+  xfer += prot_->writeFieldBegin("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->writeStructBegin("Empty");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldStop();
+  xfer += prot_->writeStructEnd();
+  return xfer;
+}
+
+} // cpp2
+namespace cpp2 {
+
+template <class Protocol_>
+uint32_t StructWithRefTypeSharedConst::read(Protocol_* iprot) {
+  uint32_t xfer = 0;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
+  int16_t fid;
+
+  xfer += iprot->readStructBegin(_fname);
+
+  using apache::thrift::TProtocolException;
+
+  bool isset_req_field = false;
+
+  while (true) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
+      break;
+    }
+    if (fid == std::numeric_limits<int16_t>::min()) {
+      this->translateFieldName(_fname, fid, _ftype);
+    }
+    switch (fid) {
+      case 1:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->def_field = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 2:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->opt_field = std::move(ptr);
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      case 3:
+      {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
+          std::unique_ptr< ::cpp2::Empty> ptr = std::make_unique< ::cpp2::Empty>();
+          xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::read(iprot, ptr.get());
+          this->req_field = std::move(ptr);
+          isset_req_field = true;
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+      default:
+      {
+        xfer += iprot->skip(_ftype);
+        break;
+      }
+    }
+    xfer += iprot->readFieldEnd();
+  }
+  xfer += iprot->readStructEnd();
+
+  if (!isset_req_field) {
+    TProtocolException::throwMissingRequiredField("req_field", "StructWithRefTypeSharedConst");
+  }
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRefTypeSharedConst::serializedSize(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithRefTypeSharedConst");
+  xfer += prot_->serializedFieldSize("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  if (this->opt_field) {
+    xfer += prot_->serializedFieldSize("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->serializedStructSize("Empty");
+      xfer += prot_->serializedSizeStop();
+    }
+  }
+  xfer += prot_->serializedFieldSize("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSize(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRefTypeSharedConst::serializedSizeZC(Protocol_ const* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->serializedStructSize("StructWithRefTypeSharedConst");
+  xfer += prot_->serializedFieldSize("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  if (this->opt_field) {
+    xfer += prot_->serializedFieldSize("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->serializedStructSize("Empty");
+      xfer += prot_->serializedSizeStop();
+    }
+  }
+  xfer += prot_->serializedFieldSize("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::serializedSizeZC(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->serializedStructSize("Empty");
+    xfer += prot_->serializedSizeStop();
+  }
+  xfer += prot_->serializedSizeStop();
+  return xfer;
+}
+
+template <class Protocol_>
+uint32_t StructWithRefTypeSharedConst::write(Protocol_* prot_) const {
+  uint32_t xfer = 0;
+  xfer += prot_->writeStructBegin("StructWithRefTypeSharedConst");
+  xfer += prot_->writeFieldBegin("def_field", apache::thrift::protocol::T_STRUCT, 1);
+  if (this->def_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->def_field.get());
+  }
+  else {
+    xfer += prot_->writeStructBegin("Empty");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
+  }
+  xfer += prot_->writeFieldEnd();
+  if (this->opt_field) {
+    xfer += prot_->writeFieldBegin("opt_field", apache::thrift::protocol::T_STRUCT, 2);
+    if (this->opt_field) {
+      xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->opt_field.get());
+    }
+    else {
+      xfer += prot_->writeStructBegin("Empty");
+      xfer += prot_->writeStructEnd();
+      xfer += prot_->writeFieldStop();
+    }
+    xfer += prot_->writeFieldEnd();
+  }
+  xfer += prot_->writeFieldBegin("req_field", apache::thrift::protocol::T_STRUCT, 3);
+  if (this->req_field) {
+    xfer += ::apache::thrift::Cpp2Ops<  ::cpp2::Empty>::write(prot_, this->req_field.get());
+  }
+  else {
+    xfer += prot_->writeStructBegin("Empty");
+    xfer += prot_->writeStructEnd();
+    xfer += prot_->writeFieldStop();
+  }
+  xfer += prot_->writeFieldEnd();
+  xfer += prot_->writeFieldStop();
+  xfer += prot_->writeStructEnd();
+  return xfer;
+}
 
 } // cpp2

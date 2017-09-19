@@ -21,10 +21,19 @@
 #include <string>
 #include <vector>
 #include <folly/ScopeGuard.h>
+#include <folly/String.h>
+#include <folly/portability/GFlags.h>
 
 #include <thrift/lib/cpp/util/kerberos/FBKrb5GetCreds.h>
 
+DEFINE_string (thrift_krb5_user_instances, "admin,root,sudo",
+       "List of possible instances(second component) of "
+       "user kerberos credentials. Separated by ','. ");
 static const int kKeytabNameMaxLength = 512;
+
+extern "C" {
+krb5_error_code krb5int_init_context_kdc(krb5_context*);
+}
 
 namespace std {
 
@@ -78,13 +87,27 @@ std::vector<std::string> getHostRealm(krb5_context context,
 }
 
 Krb5Context::Krb5Context(bool thread_local_ctx)
-    : threadLocal_(thread_local_ctx) {
-  krb5_error_code code;
-  if (threadLocal_) {
-    code = krb5_init_thread_local_context(&context_);
-  } else {
+    : Krb5Context(thread_local_ctx ? ContextType::THREAD_LOCAL
+                                   : ContextType::NORMAL) {}
+
+Krb5Context::Krb5Context(ContextType type)
+#ifdef KRB5_HAS_INIT_THREAD_LOCAL_CONTEXT
+    : threadLocal_(ContextType::THREAD_LOCAL == type)
+#endif
+{
+  krb5_error_code code = 0;
+  switch (type) {
+  case ContextType::NORMAL:
     code = krb5_init_context(&context_);
+    break;
+  case ContextType::THREAD_LOCAL:
+    code = krb5_init_thread_local_context(&context_);
+    break;
+  case ContextType::KDC:
+    code = krb5int_init_context_kdc(&context_);
+    break;
   }
+
   if (code) {
     std::string msg = folly::to<std::string>(
       "Error while initialiing kerberos context: ",
@@ -94,17 +117,17 @@ Krb5Context::Krb5Context(bool thread_local_ctx)
 }
 
 Krb5Context::~Krb5Context() {
-#ifndef KRB5_HAS_INIT_THREAD_LOCAL_CONTEXT
+#ifdef KRB5_HAS_INIT_THREAD_LOCAL_CONTEXT
+  if (threadLocal_) {
+    // No need to free thread-local contexts. There is only one per thread,
+    // and they're updated as needed.
+    return;
+  }
+#endif
+
   // If thread-local context is not define, we're using regular context,
   // so we should free to avoid leaks.
   krb5_free_context(context_);
-#else
-  if (!threadLocal_) {
-    // No need to free thread-local contexts. There is only one per thread,
-    // and they're updated as needed.
-    krb5_free_context(context_);
-  }
-#endif
 }
 
 krb5_context Krb5Context::get() const {
@@ -191,6 +214,20 @@ krb5_principal Krb5Principal::release() {
   return ret;
 }
 
+bool Krb5Principal::isUser() const {
+  if (size() == 1) {
+    return true;
+  }
+  if (size() > 2) {
+    return false;
+  }
+  std::vector<std::string> userInstances;
+  folly::split(",", FLAGS_thrift_krb5_user_instances, userInstances, true);
+  return std::find(userInstances.begin(),
+                   userInstances.end(),
+                   getComponent(1)) != userInstances.end();
+}
+
 std::ostream& operator<<(std::ostream& os, const Krb5Principal& obj) {
   os << folly::to<std::string>(obj);
   return os;
@@ -198,7 +235,7 @@ std::ostream& operator<<(std::ostream& os, const Krb5Principal& obj) {
 
 Krb5Credentials::Krb5Credentials(krb5_creds&& creds)
   : context_(true)
-  , creds_(folly::make_unique<krb5_creds>()) {
+  , creds_(std::make_unique<krb5_creds>()) {
   // struct assignment.  About 16 words.
   *creds_ = creds;
   // Zero the struct we copied from.  This can be safely passed to
@@ -300,8 +337,7 @@ void Krb5CCache::getCacheTypeAndName(std::string& cacheType,
   cacheName = std::string(krb5_cc_get_name(ctx, ccache_));
 }
 
-std::pair<uint64_t, uint64_t> Krb5CCache::getLifetime(
-    krb5_principal principal) const {
+Krb5Lifetime Krb5CCache::getLifetime(krb5_principal principal) const {
   const std::string client_realm = getClientPrincipal().getRealm();
   std::string princ_realm;
   krb5_context ctx = context_.get();
@@ -569,9 +605,9 @@ Krb5Credentials Krb5Keytab::getInitCreds(
 }
 
 std::unique_ptr<Krb5Principal> Krb5Keytab::getFirstPrincipalInKeytab() {
-  for (auto& ktentry : *this) {
-    return folly::make_unique<Krb5Principal>(
-       context_, std::move(ktentry.principal));
+  auto it = begin();
+  if (it != end()) {
+    return std::make_unique<Krb5Principal>(context_, std::move(it->principal));
   }
   return nullptr;
 }

@@ -4,9 +4,9 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "MyServiceFast.h"
+#include "thrift/compiler/test/fixtures/basic-stack-arguments/gen-cpp2/MyServiceFast.h"
 
-#include "MyServiceFast.tcc"
+#include "thrift/compiler/test/fixtures/basic-stack-arguments/gen-cpp2/MyServiceFast.tcc"
 
 #include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
@@ -14,11 +14,11 @@
 namespace cpp2 {
 
 std::unique_ptr<apache::thrift::AsyncProcessor> MyServiceFastSvIf::getProcessor() {
-  return folly::make_unique<MyServiceFastAsyncProcessor>(this);
+  return std::make_unique<MyServiceFastAsyncProcessor>(this);
 }
 
 bool MyServiceFastSvIf::hasDataById(int64_t /*id*/) {
-  throw apache::thrift::TApplicationException("Function hasDataById is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("hasDataById");
 }
 
 folly::Future<bool> MyServiceFastSvIf::future_hasDataById(int64_t id) {
@@ -26,11 +26,11 @@ folly::Future<bool> MyServiceFastSvIf::future_hasDataById(int64_t id) {
 }
 
 void MyServiceFastSvIf::async_eb_hasDataById(std::unique_ptr<apache::thrift::HandlerCallback<bool>> callback, int64_t id) {
-  apache::thrift::detail::si::async_eb(this, std::move(callback), [=]() mutable { return future_hasDataById(id); });
+  apache::thrift::detail::si::async_eb(this, std::move(callback), [this, id]() mutable { return future_hasDataById(id); });
 }
 
 void MyServiceFastSvIf::getDataById(std::string& /*_return*/, int64_t /*id*/) {
-  throw apache::thrift::TApplicationException("Function getDataById is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("getDataById");
 }
 
 folly::Future<std::string> MyServiceFastSvIf::future_getDataById(int64_t id) {
@@ -38,11 +38,11 @@ folly::Future<std::string> MyServiceFastSvIf::future_getDataById(int64_t id) {
 }
 
 void MyServiceFastSvIf::async_eb_getDataById(std::unique_ptr<apache::thrift::HandlerCallback<std::string>> callback, int64_t id) {
-  apache::thrift::detail::si::async_eb(this, std::move(callback), [=]() mutable { return future_getDataById(id); });
+  apache::thrift::detail::si::async_eb(this, std::move(callback), [this, id]() mutable { return future_getDataById(id); });
 }
 
 void MyServiceFastSvIf::putDataById(int64_t /*id*/, const std::string& /*data*/) {
-  throw apache::thrift::TApplicationException("Function putDataById is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("putDataById");
 }
 
 folly::Future<folly::Unit> MyServiceFastSvIf::future_putDataById(int64_t id, const std::string& data) {
@@ -50,11 +50,11 @@ folly::Future<folly::Unit> MyServiceFastSvIf::future_putDataById(int64_t id, con
 }
 
 void MyServiceFastSvIf::async_eb_putDataById(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, int64_t id, const std::string& data) {
-  apache::thrift::detail::si::async_eb(this, std::move(callback), [=]() mutable { return future_putDataById(id, data); });
+  apache::thrift::detail::si::async_eb(this, std::move(callback), [this, id, data]() mutable { return future_putDataById(id, data); });
 }
 
 void MyServiceFastSvIf::lobDataById(int64_t /*id*/, const std::string& /*data*/) {
-  throw apache::thrift::TApplicationException("Function lobDataById is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("lobDataById");
 }
 
 folly::Future<folly::Unit> MyServiceFastSvIf::future_lobDataById(int64_t id, const std::string& data) {
@@ -62,7 +62,7 @@ folly::Future<folly::Unit> MyServiceFastSvIf::future_lobDataById(int64_t id, con
 }
 
 void MyServiceFastSvIf::async_eb_lobDataById(std::unique_ptr<apache::thrift::HandlerCallbackBase> callback, int64_t id, const std::string& data) {
-  apache::thrift::detail::si::async_eb_oneway(this, std::move(callback), [=]() mutable { return future_lobDataById(id, data); });
+  apache::thrift::detail::si::async_eb_oneway(this, std::move(callback), [this, id, data]() mutable { return future_lobDataById(id, data); });
 }
 
 const char* MyServiceFastAsyncProcessor::getServiceName() {
@@ -73,7 +73,7 @@ folly::Optional<std::string> MyServiceFastAsyncProcessor::getCacheKey(folly::IOB
   return apache::thrift::detail::ap::get_cache_key(buf, protType, cacheKeyMap_);
 }
 
-void MyServiceFastAsyncProcessor::process(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, apache::thrift::protocol::PROTOCOL_TYPES protType, apache::thrift::Cpp2RequestContext* context, apache::thrift::async::TEventBase* eb, apache::thrift::concurrency::ThreadManager* tm) {
+void MyServiceFastAsyncProcessor::process(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, apache::thrift::protocol::PROTOCOL_TYPES protType, apache::thrift::Cpp2RequestContext* context, folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm) {
   apache::thrift::detail::ap::process(this, std::move(req), std::move(buf), protType, context, eb, tm);
 }
 
@@ -89,21 +89,22 @@ const MyServiceFastAsyncProcessor::BinaryProtocolProcessMap& MyServiceFastAsyncP
   return binaryProcessMap_;
 }
 
-MyServiceFastAsyncProcessor::BinaryProtocolProcessMap MyServiceFastAsyncProcessor::binaryProcessMap_ {
+const MyServiceFastAsyncProcessor::BinaryProtocolProcessMap MyServiceFastAsyncProcessor::binaryProcessMap_ {
   {"hasDataById", &MyServiceFastAsyncProcessor::process_hasDataById<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"getDataById", &MyServiceFastAsyncProcessor::process_getDataById<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"putDataById", &MyServiceFastAsyncProcessor::process_putDataById<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
-  {"lobDataById", &MyServiceFastAsyncProcessor::process_lobDataById<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>}
+  {"lobDataById", &MyServiceFastAsyncProcessor::process_lobDataById<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
 };
+
 const MyServiceFastAsyncProcessor::CompactProtocolProcessMap& MyServiceFastAsyncProcessor::getCompactProtocolProcessMap() {
   return compactProcessMap_;
 }
 
-MyServiceFastAsyncProcessor::CompactProtocolProcessMap MyServiceFastAsyncProcessor::compactProcessMap_ {
+const MyServiceFastAsyncProcessor::CompactProtocolProcessMap MyServiceFastAsyncProcessor::compactProcessMap_ {
   {"hasDataById", &MyServiceFastAsyncProcessor::process_hasDataById<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"getDataById", &MyServiceFastAsyncProcessor::process_getDataById<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"putDataById", &MyServiceFastAsyncProcessor::process_putDataById<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
-  {"lobDataById", &MyServiceFastAsyncProcessor::process_lobDataById<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>}
+  {"lobDataById", &MyServiceFastAsyncProcessor::process_lobDataById<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
 };
 
 } // cpp2

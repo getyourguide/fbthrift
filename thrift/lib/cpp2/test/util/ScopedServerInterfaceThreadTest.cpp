@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2015-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
+
+#include <atomic>
 
 #include <folly/io/async/EventBase.h>
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
@@ -81,8 +82,8 @@ TEST(ScopedServerInterfaceThread, getThriftServer) {
   ScopedServerInterfaceThread ssit(
     make_shared<SimpleServiceImpl>());
   auto& ts = ssit.getThriftServer();
-  EXPECT_EQ(0, ts.getNPoolThreads());
-  EXPECT_EQ(1, ts.getNWorkerThreads());
+  EXPECT_EQ(0, ts.getNumCPUWorkerThreads());
+  EXPECT_EQ(1, ts.getNumIOWorkerThreads());
 }
 
 TEST(ScopedServerInterfaceThread, ctor_with_thriftserver) {
@@ -90,7 +91,7 @@ TEST(ScopedServerInterfaceThread, ctor_with_thriftserver) {
   auto ts = make_shared<ThriftServer>();
   ts->setInterface(si);
   ts->setAddress("::1", 0);
-  ts->setNWorkerThreads(1);
+  ts->setNumIOWorkerThreads(1);
   ScopedServerInterfaceThread ssit(ts);
   EXPECT_EQ(uintptr_t(ts.get()), uintptr_t(&ssit.getThriftServer())); // sanity
 
@@ -101,4 +102,13 @@ TEST(ScopedServerInterfaceThread, ctor_with_thriftserver) {
         &eb, ssit.getAddress())));
 
   EXPECT_EQ(6, cli.sync_add(-3, 9));
+}
+
+TEST(ScopedServerInterfaceThread, configureCbCalled) {
+  std::atomic<bool> configCalled{false};
+  ScopedServerInterfaceThread ssit(
+      make_shared<SimpleServiceImpl>(), "::1", 0, [&](ThriftServer&) {
+        configCalled = true;
+      });
+  EXPECT_TRUE(configCalled);
 }

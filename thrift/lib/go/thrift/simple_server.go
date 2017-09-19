@@ -20,9 +20,13 @@
 package thrift
 
 import (
+	"errors"
 	"log"
 	"runtime/debug"
 )
+
+// ErrServerClosed is returned by the Serve methods after a call to Stop
+var ErrServerClosed = errors.New("thrift: Server closed")
 
 // Simple, non-concurrent server for testing.
 type TSimpleServer struct {
@@ -124,7 +128,7 @@ func (p *TSimpleServer) AcceptLoop() error {
 		if err != nil {
 			select {
 			case <-p.quit:
-				return nil
+				return ErrServerClosed
 			default:
 			}
 			return err
@@ -144,8 +148,7 @@ func (p *TSimpleServer) Serve() error {
 	if err != nil {
 		return err
 	}
-	p.AcceptLoop()
-	return nil
+	return p.AcceptLoop()
 }
 
 func (p *TSimpleServer) Stop() error {
@@ -156,10 +159,25 @@ func (p *TSimpleServer) Stop() error {
 
 func (p *TSimpleServer) processRequests(client TTransport) error {
 	processor := p.processorFactory.GetProcessor(client)
-	inputTransport := p.inputTransportFactory.GetTransport(client)
-	outputTransport := p.outputTransportFactory.GetTransport(client)
-	inputProtocol := p.inputProtocolFactory.GetProtocol(inputTransport)
-	outputProtocol := p.outputProtocolFactory.GetProtocol(outputTransport)
+	var (
+		inputTransport, outputTransport TTransport
+		inputProtocol, outputProtocol   TProtocol
+	)
+
+	inputTransport = p.inputTransportFactory.GetTransport(client)
+
+	// Special case for THeader, it requires that the transport/protocol for
+	// input/output is the same object (to track session state).
+	if _, ok := inputTransport.(*THeaderTransport); ok {
+		outputTransport = nil
+		inputProtocol = p.inputProtocolFactory.GetProtocol(inputTransport)
+		outputProtocol = inputProtocol
+	} else {
+		outputTransport = p.outputTransportFactory.GetTransport(client)
+		inputProtocol = p.inputProtocolFactory.GetProtocol(inputTransport)
+		outputProtocol = p.outputProtocolFactory.GetProtocol(outputTransport)
+	}
+
 	defer func() {
 		if e := recover(); e != nil {
 			log.Printf("panic in processor: %s: %s", e, debug.Stack())

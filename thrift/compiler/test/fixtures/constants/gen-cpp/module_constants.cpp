@@ -4,76 +4,185 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "module_constants.h"
+#include "thrift/compiler/test/fixtures/constants/gen-cpp/module_constants.h"
+
+#include <folly/Indestructible.h>
+
 
 
 
 constexpr int32_t const module_constants::myInt_;
 constexpr char const *const module_constants::name_;
 std::vector<std::map<std::string, int32_t> >  const &module_constants::states() {
-  static auto const instance([]() {
-    std::vector<std::map<std::string, int32_t> >  value;
-
-    std::map<std::string, int32_t>  tmp0;
-    tmp0.insert(std::make_pair("San Diego", 3211000));
-    tmp0.insert(std::make_pair("Sacramento", 479600));
-    tmp0.insert(std::make_pair("SF", 837400));
-
-    value.push_back(tmp0);
-    std::map<std::string, int32_t>  tmp1;
-    tmp1.insert(std::make_pair("New York", 8406000));
-    tmp1.insert(std::make_pair("Albany", 98400));
-
-    value.push_back(tmp1);
-
-    return value;
-  }());
-  return instance;
+  static folly::Indestructible<std::vector<std::map<std::string, int32_t> > > const instance{
+    std::vector<std::map<std::string, int32_t> > {
+      std::map<std::string, int32_t> {
+        {"San Diego", 3211000},
+        {"Sacramento", 479600},
+        {"SF", 837400},
+      },
+      std::map<std::string, int32_t> {
+        {"New York", 8406000},
+        {"Albany", 98400},
+      },
+    }
+  };
+  return *instance;
 }
 constexpr double const module_constants::x_;
 constexpr double const module_constants::y_;
 constexpr double const module_constants::z_;
+constexpr double const module_constants::zeroDoubleValue_;
+constexpr double const module_constants::longDoubleValue_;
 Internship const &module_constants::instagram() {
-  static auto const instance([]() {
-    Internship value;
-
-    value.weeks = 12;
-    value.__isset.weeks = true;
-    value.title = "Software Engineer";
-    value.__isset.title = true;
-    value.employer = (Company)3;
-    value.__isset.employer = true;
-
-    return value;
-  }());
-  return instance;
+  static folly::Indestructible<Internship> const instance{
+    Internship(
+      ::apache::thrift::detail::wrap_argument<1>(12),
+      ::apache::thrift::detail::wrap_argument<2>("Software Engineer"),
+      ::apache::thrift::detail::wrap_argument<3>(Company::INSTAGRAM))
+  };
+  return *instance;
+}
+std::vector<Range>  const &module_constants::kRanges() {
+  static folly::Indestructible<std::vector<Range> > const instance{
+    std::vector<Range> {
+      Range(
+        ::apache::thrift::detail::wrap_argument<1>(1),
+        ::apache::thrift::detail::wrap_argument<2>(2)),
+      Range(
+        ::apache::thrift::detail::wrap_argument<1>(5),
+        ::apache::thrift::detail::wrap_argument<2>(6)),
+    }
+  };
+  return *instance;
 }
 std::vector<Internship>  const &module_constants::internList() {
-  static auto const instance([]() {
-    std::vector<Internship>  value;
-
-    Internship tmp2;
-    tmp2.weeks = 12;
-    tmp2.__isset.weeks = true;
-    tmp2.title = "Software Engineer";
-    tmp2.__isset.title = true;
-    tmp2.employer = (Company)3;
-    tmp2.__isset.employer = true;
-
-    value.push_back(tmp2);
-    Internship tmp3;
-    tmp3.weeks = 10;
-    tmp3.__isset.weeks = true;
-    tmp3.title = "Sales Intern";
-    tmp3.__isset.title = true;
-    tmp3.employer = (Company)0;
-    tmp3.__isset.employer = true;
-
-    value.push_back(tmp3);
-
-    return value;
-  }());
-  return instance;
+  static folly::Indestructible<std::vector<Internship> > const instance{
+    std::vector<Internship> {
+      Internship(
+        ::apache::thrift::detail::wrap_argument<1>(12),
+        ::apache::thrift::detail::wrap_argument<2>("Software Engineer"),
+        ::apache::thrift::detail::wrap_argument<3>(Company::INSTAGRAM)),
+      Internship(
+        ::apache::thrift::detail::wrap_argument<1>(10),
+        ::apache::thrift::detail::wrap_argument<2>("Sales Intern"),
+        ::apache::thrift::detail::wrap_argument<3>(Company::FACEBOOK)),
+    }
+  };
+  return *instance;
+}
+struct1 const &module_constants::pod_0() {
+  static folly::Indestructible<struct1> const instance{
+    struct1()
+  };
+  return *instance;
+}
+struct1 const &module_constants::pod_1() {
+  static folly::Indestructible<struct1> const instance{
+    struct1(
+      ::apache::thrift::detail::wrap_argument<1>(10),
+      ::apache::thrift::detail::wrap_argument<2>("foo"))
+  };
+  return *instance;
+}
+struct2 const &module_constants::pod_2() {
+  static folly::Indestructible<struct2> const instance{
+    struct2(
+      ::apache::thrift::detail::wrap_argument<1>(98),
+      ::apache::thrift::detail::wrap_argument<2>("gaz"),
+      ::apache::thrift::detail::wrap_argument<3>(struct1(
+          ::apache::thrift::detail::wrap_argument<1>(12),
+          ::apache::thrift::detail::wrap_argument<2>("bar"))),
+      ::apache::thrift::detail::wrap_argument<4>(std::vector<int32_t> {
+          11,
+          22,
+          33,
+        }))
+  };
+  return *instance;
+}
+struct3 const &module_constants::pod_3() {
+  static folly::Indestructible<struct3> const instance{
+    struct3(
+      ::apache::thrift::detail::wrap_argument<1>("abc"),
+      ::apache::thrift::detail::wrap_argument<2>(456),
+      ::apache::thrift::detail::wrap_argument<3>(struct2(
+          ::apache::thrift::detail::wrap_argument<1>(888),
+          ::apache::thrift::detail::wrap_argument<3>(struct1(
+              ::apache::thrift::detail::wrap_argument<2>("gaz"))),
+          ::apache::thrift::detail::wrap_argument<4>(std::vector<int32_t> {
+              1,
+              2,
+              3,
+            }))))
+  };
+  return *instance;
+}
+union1 const &module_constants::u_1_1() {
+  static folly::Indestructible<union1> const instance{
+    union1(
+      ::apache::thrift::detail::wrap_argument<1>(97))
+  };
+  return *instance;
+}
+union1 const &module_constants::u_1_2() {
+  static folly::Indestructible<union1> const instance{
+    union1(
+      ::apache::thrift::detail::wrap_argument<2>(5.6))
+  };
+  return *instance;
+}
+union1 const &module_constants::u_1_3() {
+  static folly::Indestructible<union1> const instance{
+    union1()
+  };
+  return *instance;
+}
+union2 const &module_constants::u_2_1() {
+  static folly::Indestructible<union2> const instance{
+    union2(
+      ::apache::thrift::detail::wrap_argument<1>(51))
+  };
+  return *instance;
+}
+union2 const &module_constants::u_2_2() {
+  static folly::Indestructible<union2> const instance{
+    union2(
+      ::apache::thrift::detail::wrap_argument<2>(6.7))
+  };
+  return *instance;
+}
+union2 const &module_constants::u_2_3() {
+  static folly::Indestructible<union2> const instance{
+    union2(
+      ::apache::thrift::detail::wrap_argument<3>(struct1(
+          ::apache::thrift::detail::wrap_argument<1>(8),
+          ::apache::thrift::detail::wrap_argument<2>("abacabb"))))
+  };
+  return *instance;
+}
+union2 const &module_constants::u_2_4() {
+  static folly::Indestructible<union2> const instance{
+    union2(
+      ::apache::thrift::detail::wrap_argument<4>(union1(
+          ::apache::thrift::detail::wrap_argument<1>(43))))
+  };
+  return *instance;
+}
+union2 const &module_constants::u_2_5() {
+  static folly::Indestructible<union2> const instance{
+    union2(
+      ::apache::thrift::detail::wrap_argument<4>(union1(
+          ::apache::thrift::detail::wrap_argument<2>(9.8))))
+  };
+  return *instance;
+}
+union2 const &module_constants::u_2_6() {
+  static folly::Indestructible<union2> const instance{
+    union2(
+      ::apache::thrift::detail::wrap_argument<4>(union1()))
+  };
+  return *instance;
 }
 constexpr char const *const module_constants::apostrophe_;
 constexpr char const *const module_constants::tripleApostrophe_;
@@ -81,209 +190,96 @@ constexpr char const *const module_constants::quotationMark_;
 constexpr char const *const module_constants::backslash_;
 constexpr char const *const module_constants::escaped_a_;
 std::map<std::string, int32_t>  const &module_constants::char2ascii() {
-  static auto const instance([]() {
-    std::map<std::string, int32_t>  value;
-
-    value.insert(std::make_pair("'", 39));
-    value.insert(std::make_pair("\"", 34));
-    value.insert(std::make_pair("\\", 92));
-    value.insert(std::make_pair("\x61", 97));
-
-    return value;
-  }());
-  return instance;
+  static folly::Indestructible<std::map<std::string, int32_t> > const instance{
+    std::map<std::string, int32_t> {
+      {"'", 39},
+      {"\"", 34},
+      {"\\", 92},
+      {"\x61", 97},
+    }
+  };
+  return *instance;
+}
+std::vector<std::string>  const &module_constants::escaped_strings() {
+  static folly::Indestructible<std::vector<std::string> > const instance{
+    std::vector<std::string> {
+      "\x61",
+      "\xab",
+      "\x6a",
+      "\xa6",
+      "\x61yyy",
+      "\xabyyy",
+      "\x6ayyy",
+      "\xa6yyy",
+      "zzz\x61",
+      "zzz\xab",
+      "zzz\x6a",
+      "zzz\xa6",
+      "zzz\x61yyy",
+      "zzz\xabyyy",
+      "zzz\x6ayyy",
+      "zzz\xa6yyy",
+    }
+  };
+  return *instance;
+}
+constexpr bool const module_constants::false_c_;
+constexpr bool const module_constants::true_c_;
+constexpr int8_t const module_constants::zero_byte_;
+constexpr int16_t const module_constants::zero16_;
+constexpr int32_t const module_constants::zero32_;
+constexpr int64_t const module_constants::zero64_;
+constexpr double const module_constants::zero_dot_zero_;
+constexpr char const *const module_constants::empty_string_;
+std::vector<int32_t>  const &module_constants::empty_int_list() {
+  static folly::Indestructible<std::vector<int32_t> > const instance{
+    std::vector<int32_t> {}
+  };
+  return *instance;
+}
+std::vector<std::string>  const &module_constants::empty_string_list() {
+  static folly::Indestructible<std::vector<std::string> > const instance{
+    std::vector<std::string> {}
+  };
+  return *instance;
+}
+std::set<int32_t>  const &module_constants::empty_int_set() {
+  static folly::Indestructible<std::set<int32_t> > const instance{
+    std::set<int32_t> {}
+  };
+  return *instance;
+}
+std::set<std::string>  const &module_constants::empty_string_set() {
+  static folly::Indestructible<std::set<std::string> > const instance{
+    std::set<std::string> {}
+  };
+  return *instance;
+}
+std::map<int32_t, int32_t>  const &module_constants::empty_int_int_map() {
+  static folly::Indestructible<std::map<int32_t, int32_t> > const instance{
+    std::map<int32_t, int32_t> {}
+  };
+  return *instance;
+}
+std::map<int32_t, std::string>  const &module_constants::empty_int_string_map() {
+  static folly::Indestructible<std::map<int32_t, std::string> > const instance{
+    std::map<int32_t, std::string> {}
+  };
+  return *instance;
+}
+std::map<std::string, int32_t>  const &module_constants::empty_string_int_map() {
+  static folly::Indestructible<std::map<std::string, int32_t> > const instance{
+    std::map<std::string, int32_t> {}
+  };
+  return *instance;
+}
+std::map<std::string, std::string>  const &module_constants::empty_string_string_map() {
+  static folly::Indestructible<std::map<std::string, std::string> > const instance{
+    std::map<std::string, std::string> {}
+  };
+  return *instance;
 }
 
-std::string const &module_constants_codemod::name() {
-  static auto const instance([]() {
-    std::string value;
-
-    value = "Mark Zuckerberg";
-    return value;
-  }());
-  return instance;
-}
-std::vector<std::map<std::string, int32_t> >  const &module_constants_codemod::states() {
-  static auto const instance([]() {
-    std::vector<std::map<std::string, int32_t> >  value;
-
-    std::map<std::string, int32_t>  tmp4;
-    tmp4.insert(std::make_pair("San Diego", 3211000));
-    tmp4.insert(std::make_pair("Sacramento", 479600));
-    tmp4.insert(std::make_pair("SF", 837400));
-
-    value.push_back(tmp4);
-    std::map<std::string, int32_t>  tmp5;
-    tmp5.insert(std::make_pair("New York", 8406000));
-    tmp5.insert(std::make_pair("Albany", 98400));
-
-    value.push_back(tmp5);
-
-    return value;
-  }());
-  return instance;
-}
-Internship const &module_constants_codemod::instagram() {
-  static auto const instance([]() {
-    Internship value;
-
-    value.weeks = 12;
-    value.__isset.weeks = true;
-    value.title = "Software Engineer";
-    value.__isset.title = true;
-    value.employer = (Company)3;
-    value.__isset.employer = true;
-
-    return value;
-  }());
-  return instance;
-}
-std::vector<Internship>  const &module_constants_codemod::internList() {
-  static auto const instance([]() {
-    std::vector<Internship>  value;
-
-    Internship tmp6;
-    tmp6.weeks = 12;
-    tmp6.__isset.weeks = true;
-    tmp6.title = "Software Engineer";
-    tmp6.__isset.title = true;
-    tmp6.employer = (Company)3;
-    tmp6.__isset.employer = true;
-
-    value.push_back(tmp6);
-    Internship tmp7;
-    tmp7.weeks = 10;
-    tmp7.__isset.weeks = true;
-    tmp7.title = "Sales Intern";
-    tmp7.__isset.title = true;
-    tmp7.employer = (Company)0;
-    tmp7.__isset.employer = true;
-
-    value.push_back(tmp7);
-
-    return value;
-  }());
-  return instance;
-}
-std::string const &module_constants_codemod::apostrophe() {
-  static auto const instance([]() {
-    std::string value;
-
-    value = "'";
-    return value;
-  }());
-  return instance;
-}
-std::string const &module_constants_codemod::tripleApostrophe() {
-  static auto const instance([]() {
-    std::string value;
-
-    value = "'''";
-    return value;
-  }());
-  return instance;
-}
-std::string const &module_constants_codemod::quotationMark() {
-  static auto const instance([]() {
-    std::string value;
-
-    value = "\"";
-    return value;
-  }());
-  return instance;
-}
-std::string const &module_constants_codemod::backslash() {
-  static auto const instance([]() {
-    std::string value;
-
-    value = "\\";
-    return value;
-  }());
-  return instance;
-}
-std::string const &module_constants_codemod::escaped_a() {
-  static auto const instance([]() {
-    std::string value;
-
-    value = "\x61";
-    return value;
-  }());
-  return instance;
-}
-std::map<std::string, int32_t>  const &module_constants_codemod::char2ascii() {
-  static auto const instance([]() {
-    std::map<std::string, int32_t>  value;
-
-    value.insert(std::make_pair("'", 39));
-    value.insert(std::make_pair("\"", 34));
-    value.insert(std::make_pair("\\", 92));
-    value.insert(std::make_pair("\x61", 97));
-
-    return value;
-  }());
-  return instance;
-}
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
-moduleConstants::moduleConstants() {
-  myInt = 1337;
-  name = "Mark Zuckerberg";
-  std::map<std::string, int32_t>  tmp8;
-  tmp8.insert(std::make_pair("San Diego", 3211000));
-  tmp8.insert(std::make_pair("Sacramento", 479600));
-  tmp8.insert(std::make_pair("SF", 837400));
-
-  states.push_back(tmp8);
-  std::map<std::string, int32_t>  tmp9;
-  tmp9.insert(std::make_pair("New York", 8406000));
-  tmp9.insert(std::make_pair("Albany", 98400));
-
-  states.push_back(tmp9);
-
-  x = 1;
-  y = 1000000;
-  z = 1e+09;
-  instagram.weeks = 12;
-  instagram.__isset.weeks = true;
-  instagram.title = "Software Engineer";
-  instagram.__isset.title = true;
-  instagram.employer = (Company)3;
-  instagram.__isset.employer = true;
-
-  Internship tmp10;
-  tmp10.weeks = 12;
-  tmp10.__isset.weeks = true;
-  tmp10.title = "Software Engineer";
-  tmp10.__isset.title = true;
-  tmp10.employer = (Company)3;
-  tmp10.__isset.employer = true;
-
-  internList.push_back(tmp10);
-  Internship tmp11;
-  tmp11.weeks = 10;
-  tmp11.__isset.weeks = true;
-  tmp11.title = "Sales Intern";
-  tmp11.__isset.title = true;
-  tmp11.employer = (Company)0;
-  tmp11.__isset.employer = true;
-
-  internList.push_back(tmp11);
-
-  apostrophe = "'";
-  tripleApostrophe = "'''";
-  quotationMark = "\"";
-  backslash = "\\";
-  escaped_a = "\x61";
-  char2ascii.insert(std::make_pair("'", 39));
-  char2ascii.insert(std::make_pair("\"", 34));
-  char2ascii.insert(std::make_pair("\\", 92));
-  char2ascii.insert(std::make_pair("\x61", 97));
-
-}
-
-#pragma GCC diagnostic pop
 
 
 

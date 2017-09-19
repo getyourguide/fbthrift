@@ -20,7 +20,7 @@
 using std::shared_ptr;
 using std::unique_ptr;
 using std::make_shared;
-using folly::make_unique;
+using std::make_unique;
 using folly::io::RWPrivateCursor;
 using folly::io::Cursor;
 using folly::IOBuf;
@@ -33,15 +33,16 @@ namespace apache { namespace thrift {
 DuplexChannel::DuplexChannel(Who::WhoEnum who,
                              const shared_ptr<TAsyncTransport>& transport)
   : cpp2Channel_(new DuplexCpp2Channel(
-                     *this, transport,
+                     who, transport,
                      make_unique<DuplexFramingHandler>(*this),
-                     make_unique<DuplexProtectionHandler>(*this)),
-                 TDelayedDestruction::Destructor())
+                     make_unique<DuplexProtectionHandler>(*this),
+                     make_unique<DuplexSaslNegotiationHandler>(*this)),
+                 folly::DelayedDestruction::Destructor())
   , clientChannel_(new DuplexClientChannel(*this, cpp2Channel_),
-                   async::TDelayedDestruction::Destructor())
+                   folly::DelayedDestruction::Destructor())
   , clientFramingHandler_(*clientChannel_.get())
   , serverChannel_(new DuplexServerChannel(*this, cpp2Channel_),
-                   async::TDelayedDestruction::Destructor())
+                   folly::DelayedDestruction::Destructor())
   , serverFramingHandler_(*serverChannel_.get())
   , mainChannel_(who)
 {
@@ -60,7 +61,6 @@ FramingHandler& DuplexChannel::DuplexFramingHandler::getHandler(
     return duplex_.serverFramingHandler_;
   default:
     CHECK(false);
-    return *static_cast<FramingHandler*>(nullptr);
   }
 }
 
@@ -137,7 +137,7 @@ DuplexChannel::DuplexFramingHandler::addFrame(
     }
   }
 
-  return std::move(buf);
+  return buf;
 }
 
 }} // apache::thrift

@@ -4,48 +4,49 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "module_types.h"
-
-#include "module_types.tcc"
+#include "src/gen-cpp2/module_types.h"
+#include "src/gen-cpp2/module_types.tcc"
 
 #include <algorithm>
+#include <folly/Indestructible.h>
+
+#include "src/gen-cpp2/module_data.h"
 
 namespace cpp2 {
 
-template uint32_t Banal::read<apache::thrift::BinaryProtocolReader>(apache::thrift::BinaryProtocolReader*);
-template uint32_t Banal::write<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Banal::serializedSize<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Banal::serializedSizeZC<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Banal::read<apache::thrift::CompactProtocolReader>(apache::thrift::CompactProtocolReader*);
-template uint32_t Banal::write<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Banal::serializedSize<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Banal::serializedSizeZC<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
+void Banal::__clear() {
+  // clear all fields
+}
 
 bool Banal::operator==(const Banal& /* rhs */) const {
   return true;
 }
 
-void swap(Banal& a, Banal& b) {
-  using ::std::swap;
+void Banal::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
 }
 
-} // cpp2
-namespace apache { namespace thrift {
+void swap(Banal& a, Banal& b) {
+  using ::std::swap;
+  (void)a;
+  (void)b;
+}
 
-}} // apache::thrift
+template uint32_t Banal::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t Banal::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t Banal::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Banal::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Banal::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t Banal::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t Banal::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t Banal::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
+
+} // cpp2
 namespace cpp2 {
 
-template uint32_t Fiery::read<apache::thrift::BinaryProtocolReader>(apache::thrift::BinaryProtocolReader*);
-template uint32_t Fiery::write<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Fiery::serializedSize<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Fiery::serializedSizeZC<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Fiery::read<apache::thrift::CompactProtocolReader>(apache::thrift::CompactProtocolReader*);
-template uint32_t Fiery::write<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Fiery::serializedSize<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Fiery::serializedSizeZC<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-
 void Fiery::__clear() {
-  message = std::string();
+  // clear all fields
+  message = apache::thrift::StringTraits< std::string>::fromStringLiteral("");
 }
 
 bool Fiery::operator==(const Fiery& rhs) const {
@@ -55,15 +56,26 @@ bool Fiery::operator==(const Fiery& rhs) const {
   return true;
 }
 
+void Fiery::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "message") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+}
+
 void swap(Fiery& a, Fiery& b) {
   using ::std::swap;
   swap(a.message, b.message);
 }
 
-} // cpp2
-namespace apache { namespace thrift {
-
-}} // apache::thrift
-namespace cpp2 {
+template uint32_t Fiery::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t Fiery::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t Fiery::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Fiery::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Fiery::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t Fiery::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t Fiery::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t Fiery::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 } // cpp2

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #ifndef THRIFT_TEST_MOCKTASYNCSOCKET_H_
 #define THRIFT_TEST_MOCKTASYNCSOCKET_H_ 1
 
@@ -21,7 +20,7 @@
 #include <gmock/gmock.h>
 
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
+#include <folly/io/async/EventBase.h>
 
 namespace apache {
 namespace thrift {
@@ -32,16 +31,32 @@ class MockTAsyncSocket : public apache::thrift::async::TAsyncSocket {
  public:
   typedef std::unique_ptr<MockTAsyncSocket, Destructor> UniquePtr;
 
-  explicit MockTAsyncSocket(async::TEventBase* base) : TAsyncSocket(base) {
+  explicit MockTAsyncSocket(folly::EventBase* base) : TAsyncSocket(base) {
     attachEventBase(base);
   }
 
-  GMOCK_METHOD5_(, noexcept, , connect,
-      void(AsyncSocket::ConnectCallback*,
-           const folly::SocketAddress&,
-           int,
-           const OptionMap&,
-           const folly::SocketAddress&));
+  static MockTAsyncSocket::UniquePtr newSocket(folly::EventBase* base) {
+    return MockTAsyncSocket::UniquePtr(new MockTAsyncSocket(base));
+  }
+
+  GMOCK_METHOD5_(,
+                 noexcept,
+                 ,
+                 connectInternal,
+                 void(AsyncSocket::ConnectCallback*,
+                      const folly::SocketAddress&,
+                      int,
+                      const OptionMap&,
+                      const folly::SocketAddress&));
+
+  void connect(
+      AsyncSocket::ConnectCallback* callback,
+      const folly::SocketAddress& addr,
+      int timeout = 0,
+      const OptionMap& options = emptyOptionMap,
+      const folly::SocketAddress& bindAddr = anyAddress()) noexcept override {
+    connectInternal(callback, addr, timeout, options, bindAddr);
+  }
 
   MOCK_CONST_METHOD1(getPeerAddress,
                      void(folly::SocketAddress*));
@@ -51,6 +66,13 @@ class MockTAsyncSocket : public apache::thrift::async::TAsyncSocket {
   MOCK_CONST_METHOD0(good, bool());
   MOCK_CONST_METHOD0(readable, bool());
   MOCK_CONST_METHOD0(hangup, bool());
+  MOCK_METHOD1(setReadCB, void(AsyncTransportWrapper::ReadCallback*));
+  MOCK_METHOD3(
+      writeChain,
+      void(
+          AsyncTransportWrapper::WriteCallback*,
+          std::unique_ptr<folly::IOBuf>&& buf,
+          apache::thrift::async::WriteFlags));
 };
 
 }}}

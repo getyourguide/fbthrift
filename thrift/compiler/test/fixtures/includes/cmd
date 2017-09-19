@@ -1,3 +1,12 @@
-hs src/module.thrift
-py src/module.thrift
-android_lite -r src/module.thrift
+json src/service.thrift
+hs src/service.thrift
+py src/service.thrift
+android_lite src/module.thrift
+cocoa:import_path=thrift src/service.thrift
+mstch_swift src/service.thrift
+mstch_cpp2 src/service.thrift
+mstch_cpp2 src/module.thrift
+mstch_cpp2 src/includes.thrift
+go src/service.thrift
+go src/matching_names.thrift
+mstch_py3 src/service.thrift

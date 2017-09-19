@@ -86,7 +86,7 @@ class SerializableDynamic {
           break;
         }
         case 3:
-       {
+        {
           if (ftype == protocol::T_DOUBLE) {
             double value;
             xfer += iprot->readDouble(value);
@@ -110,7 +110,7 @@ class SerializableDynamic {
         case 5:
         {
           if (ftype == protocol::T_LIST) {
-            value_ = {};
+            value_ = folly::dynamic::array;
             uint32_t size;
             bool sizeUnknown;
             protocol::TType etype;
@@ -184,13 +184,13 @@ class SerializableDynamic {
         break;
 
       case folly::dynamic::Type::DOUBLE:
-        xfer += p->writeFieldBegin("boolean", protocol::T_DOUBLE, 3);
+        xfer += p->writeFieldBegin("doubl", protocol::T_DOUBLE, 3);
         xfer += p->writeDouble(value_.asDouble());
         xfer += p->writeFieldEnd();
         break;
 
       case folly::dynamic::Type::STRING:
-        xfer += p->writeFieldBegin("boolean", protocol::T_STRING, 4);
+        xfer += p->writeFieldBegin("str", protocol::T_STRING, 4);
         xfer += p->writeString(value_.asString());
         xfer += p->writeFieldEnd();
         break;
@@ -263,7 +263,7 @@ inline uint32_t Cpp2Ops< SerializableDynamic>::write(
 template <>
 template <class Protocol_>
 inline uint32_t Cpp2Ops< SerializableDynamic>::serializedSize(
-    Protocol_* p,
+    Protocol_ const* p,
     const SerializableDynamic* obj) {
   uint32_t xfer = 0;
   xfer += p->serializedStructSize("Variant");
@@ -282,12 +282,12 @@ inline uint32_t Cpp2Ops< SerializableDynamic>::serializedSize(
       break;
 
     case folly::dynamic::Type::DOUBLE:
-      xfer += p->serializedFieldSize("boolean", protocol::T_DOUBLE, 3);
+      xfer += p->serializedFieldSize("doubl", protocol::T_DOUBLE, 3);
       xfer += p->serializedSizeDouble(obj->value_.asDouble());
       break;
 
     case folly::dynamic::Type::STRING:
-      xfer += p->serializedFieldSize("boolean", protocol::T_STRING, 4);
+      xfer += p->serializedFieldSize("str", protocol::T_STRING, 4);
       xfer += p->serializedSizeString(obj->value_.asString());
       break;
 
@@ -324,7 +324,7 @@ inline uint32_t Cpp2Ops< SerializableDynamic>::serializedSize(
 template <>
 template <class Protocol_>
 inline uint32_t Cpp2Ops< SerializableDynamic>::serializedSizeZC(
-    Protocol_* p,
+    Protocol_ const* p,
     const SerializableDynamic* obj) {
   return Cpp2Ops< SerializableDynamic>::serializedSize(p, obj);
 }
@@ -392,7 +392,7 @@ inline uint32_t Cpp2Ops< SerializableDynamic>::read(
       case 5:
       {
         if (ftype == protocol::T_LIST) {
-          obj->value_ = {};
+          obj->value_ = folly::dynamic::array;
           uint32_t size;
           protocol::TType etype;
           xfer += iprot->readListBegin(etype, size);

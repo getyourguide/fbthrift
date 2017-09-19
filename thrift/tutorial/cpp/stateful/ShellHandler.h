@@ -19,8 +19,8 @@
 
 #pragma once
 
-#include "thrift/tutorial/cpp/stateful/AuthHandler.h"
-#include "thrift/tutorial/cpp/stateful/gen-cpp2/ShellService.h"
+#include <thrift/tutorial/cpp/stateful/AuthHandler.h>
+#include <thrift/tutorial/cpp/stateful/gen-cpp2/ShellService.h>
 
 namespace apache { namespace thrift { namespace tutorial { namespace stateful {
 
@@ -42,7 +42,7 @@ class ShellHandler : virtual public ShellServiceSvIf, public AuthHandler {
 
  protected:
   void validateState();
-  void throwErrno(const char* msg);
+  [[noreturn]] void throwErrno(const char* msg);
 
   std::mutex mutex_;
   int cwd_;
@@ -70,10 +70,10 @@ class ShellHandlerFactory : public apache::thrift::AsyncProcessorFactory {
         std::unique_ptr<folly::IOBuf> buf,
         apache::thrift::protocol::PROTOCOL_TYPES protType,
         apache::thrift::Cpp2RequestContext* context,
-        apache::thrift::async::TEventBase* eb,
+        folly::EventBase* eb,
         apache::thrift::concurrency::ThreadManager* tm) override {
       if (!handler_) {
-        handler_ = folly::make_unique<ShellHandler>(
+        handler_ = std::make_unique<ShellHandler>(
             std::move(serviceAuthState_), context->getConnectionContext());
       }
       if (!iface_) {
@@ -89,7 +89,7 @@ class ShellHandlerFactory : public apache::thrift::AsyncProcessorFactory {
   };
 
   std::unique_ptr<apache::thrift::AsyncProcessor> getProcessor() override {
-    return folly::make_unique<CustomProcessor>(authState_);
+    return std::make_unique<CustomProcessor>(authState_);
   }
 
  protected:

@@ -29,6 +29,9 @@ class TBinaryProtocol(TProtocolBase):
 
     """Binary implementation of the Thrift protocol driver."""
 
+    # For simpler THeaderTransport
+    PROTOCOL_ID = 0x80
+
     # NastyHaxx. Python 2.4+ on 32-bit machines forces hex constants to be
     # positive, converting this into a long. If we hardcode the int value
     # instead it'll stay in 32 bit-land.
@@ -256,7 +259,7 @@ class TBinaryProtocolAccelerated(TBinaryProtocol):
     but the generated code recognizes it directly and will call into
     our C module to do the encoding, bypassing this object entirely.
     We inherit from TBinaryProtocol so that the normal TBinaryProtocol
-    encoding can happen if the fastbinary module doesn't work for some
+    encoding can happen if the fastproto module doesn't work for some
     reason.  (TODO(dreiss): Make this happen sanely in more cases.)
 
     In order to take advantage of the C module, just use

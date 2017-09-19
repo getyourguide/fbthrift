@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 #include <thrift/lib/cpp2/server/ThriftServer.h>
 #include <thrift/lib/cpp/util/ScopedServerThread.h>
 #include <thrift/lib/cpp2/async/HeaderClientChannel.h>
-#include <thrift/lib/cpp2/TestServer.h>
+#include <thrift/lib/cpp2/test/util/TestThriftServerFactory.h>
 
 using namespace cpp2;
 using namespace apache::thrift;
@@ -85,7 +85,7 @@ class PresultServiceInterface : public PresultServiceSvIf {
   void methodStruct(Struct& ret, std::unique_ptr<Struct> x) override
   { ret = *x; }
 
-  void methodException(Struct& ret, int32_t which) override {
+  void methodException(Struct& /* ret */, int32_t which) override {
     if (which) {
       throw Exception1(FRAGILE, 5);
     } else {

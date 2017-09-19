@@ -6,17 +6,12 @@
  */
 #pragma once
 
-#include "module_types.h"
+#include "thrift/compiler/test/fixtures/basic/gen-cpp2/module_types.h"
 #include <thrift/lib/cpp2/protocol/Protocol.h>
 namespace cpp2 {
 
-struct module_constants {};
+struct module_constants {
 
-struct __attribute__((__deprecated__("module_constants_codemod is a transitional class only intended for codemods from the deprecated moduleConstants to module_constants. Consider switching to the latter as soon as possible."))) module_constants_codemod {};
-
-class __attribute__((__deprecated__("moduleConstants suffers from the 'static initialization order fiasco' (https://isocpp.org/wiki/faq/ctors#static-init-order) and may CRASH you program. Instead, use module_constants::CONSTANT_NAME()"))) moduleConstants {
- public:
-  moduleConstants() {}
 };
 
 } // cpp2

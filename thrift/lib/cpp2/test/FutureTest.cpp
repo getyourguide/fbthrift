@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp2/async/RequestChannel.h>
 #include <thrift/lib/cpp2/async/FutureRequest.h>
@@ -22,19 +21,20 @@
 #include <thrift/lib/cpp2/async/HeaderClientChannel.h>
 
 #include <thrift/lib/cpp/util/ScopedServerThread.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
+#include <folly/io/async/EventBase.h>
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
 
 #include <thrift/lib/cpp2/async/StubSaslClient.h>
 #include <thrift/lib/cpp2/async/StubSaslServer.h>
-#include <thrift/lib/cpp2/TestServer.h>
+#include <thrift/lib/cpp2/test/util/TestThriftServerFactory.h>
+#include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
 
-#include <boost/cast.hpp>
 #include <boost/lexical_cast.hpp>
 #include <memory>
 #include <atomic>
 
 #include <folly/Executor.h>
+#include <folly/MapUtil.h>
 #include <folly/futures/ManualExecutor.h>
 
 using namespace apache::thrift;
@@ -49,38 +49,46 @@ class TestInterface : public FutureServiceSvIf {
       int64_t size) override {
     EXPECT_NE("", getConnectionContext()->getPeerAddress()->describe());
 
-    MoveWrapper<Promise<std::unique_ptr<std::string> > > p;
-    auto f = p->getFuture();
+    Promise<std::unique_ptr<std::string>> p;
+    auto f = p.getFuture();
 
-    auto func = std::function<void()>([=]() mutable {
+    auto func = [ p = std::move(p), size ]() mutable {
       std::unique_ptr<std::string> _return(
         new std::string("test" + boost::lexical_cast<std::string>(size)));
-      p->setValue(std::move(_return));
-    });
+      p.setValue(std::move(_return));
+    };
 
-    RequestEventBase::get()->runInEventBaseThread([this, func, size](){
-      RequestEventBase::get()->tryRunAfterDelay(func, size);
-    });
+    RequestEventBase::get()->runInEventBaseThread(
+        [ func = std::move(func), size ]() mutable {
+          RequestEventBase::get()->tryRunAfterDelay(std::move(func), size);
+        });
 
-    return std::move(f);
+    return f;
   }
 
   Future<Unit> future_noResponse(int64_t size) override {
-    MoveWrapper<Promise<Unit>> p;
-    auto f = p->getFuture();
+    Promise<Unit> p;
+    auto f = p.getFuture();
 
-    auto func = std::function<void()>([=]() mutable {
-      p->setValue();
-    });
-    RequestEventBase::get()->runInEventBaseThread([this, func, size](){
-      RequestEventBase::get()->tryRunAfterDelay(func, size);
-    });
-    return std::move(f);
+    auto func = [p = std::move(p)]() mutable {
+      p.setValue();
+    };
+    RequestEventBase::get()->runInEventBaseThread(
+        [ func = std::move(func), size ]() mutable {
+          RequestEventBase::get()->tryRunAfterDelay(std::move(func), size);
+        });
+    return f;
   }
 
   Future<std::unique_ptr<std::string>> future_echoRequest(
       std::unique_ptr<std::string> req) override {
     *req += "ccccccccccccccccccccccccccccccccccccccccccccc";
+
+    auto header = getConnectionContext()->getHeader();
+
+    if (header->getHeaders().count("foo")) {
+      header->setHeader("header_from_server", "1");
+    }
 
     return makeFuture<std::unique_ptr<std::string>>(std::move(req));
   }
@@ -95,7 +103,7 @@ class TestInterface : public FutureServiceSvIf {
 
     p.setException(x);
 
-    return std::move(f);
+    return f;
   }
 
   Future<Unit> future_voidThrowing() override {
@@ -108,28 +116,27 @@ class TestInterface : public FutureServiceSvIf {
 
     p.setException(x);
 
-    return std::move(f);
+    return f;
   }
 };
 
 void AsyncCpp2Test(bool enable_security) {
   apache::thrift::TestThriftServerFactory<TestInterface> factory;
   ScopedServerThread sst(factory.create());
-  TEventBase base;
+  EventBase base;
   std::shared_ptr<TAsyncSocket> socket(
     TAsyncSocket::newSocket(&base, *sst.getAddress()));
 
-  auto client_channel = HeaderClientChannel::newChannel(socket);
+  auto channel = HeaderClientChannel::newChannel(socket);
+  channel->setTimeout(10000);
   if (enable_security) {
-    client_channel->setSecurityPolicy(THRIFT_SECURITY_PERMITTED);
-    client_channel->setSaslClient(std::unique_ptr<SaslClient>(
+    channel->setSecurityPolicy(THRIFT_SECURITY_PERMITTED);
+    channel->setSaslClient(std::unique_ptr<SaslClient>(
       new StubSaslClient(socket->getEventBase())
     ));
   }
-  FutureServiceAsyncClient client(std::move(client_channel));
+  FutureServiceAsyncClient client(std::move(channel));
 
-  boost::polymorphic_downcast<HeaderClientChannel*>(
-    client.getChannel())->setTimeout(10000);
   client.sendResponse([](ClientReceiveState&& state) {
                         std::string response;
                         try {
@@ -146,14 +153,12 @@ void AsyncCpp2Test(bool enable_security) {
 TEST(ThriftServer, FutureExceptions) {
   apache::thrift::TestThriftServerFactory<TestInterface> factory;
   ScopedServerThread sst(factory.create());
-  TEventBase base;
+  EventBase base;
   std::shared_ptr<TAsyncSocket> socket(
     TAsyncSocket::newSocket(&base, *sst.getAddress()));
 
-  FutureServiceAsyncClient client(
-    std::unique_ptr<HeaderClientChannel,
-                    apache::thrift::async::TDelayedDestruction::Destructor>(
-                      new HeaderClientChannel(socket)));
+  auto channel = HeaderClientChannel::newChannel(socket);
+  FutureServiceAsyncClient client(std::move(channel));
   auto f = client.future_throwing().waitVia(&base);
 
   EXPECT_THROW(f.value(), Xception);
@@ -168,17 +173,13 @@ TEST(ThriftServer, FutureClientTest) {
 
   apache::thrift::TestThriftServerFactory<TestInterface> factory;
   ScopedServerThread sst(factory.create());
-  TEventBase base;
+  EventBase base;
   std::shared_ptr<TAsyncSocket> socket(
     TAsyncSocket::newSocket(&base, *sst.getAddress()));
 
-  FutureServiceAsyncClient client(
-    std::unique_ptr<HeaderClientChannel,
-                    apache::thrift::async::TDelayedDestruction::Destructor>(
-                      new HeaderClientChannel(socket)));
-
-  boost::polymorphic_downcast<HeaderClientChannel*>(
-    client.getChannel())->setTimeout(10000);
+  auto channel = HeaderClientChannel::newChannel(socket);
+  channel->setTimeout(10000);
+  FutureServiceAsyncClient client(std::move(channel));
 
   // only once you call wait() should you start looping,
   // so the wait time in value() (which calls wait()) should
@@ -217,7 +218,7 @@ TEST(ThriftServer, FutureClientTest) {
 
     // Wait for future to finish
     f.getVia(&base);
-    EXPECT_EQ(true, false);
+    ADD_FAILURE();
   } catch (...) {
     return;
   }
@@ -235,17 +236,13 @@ TEST(ThriftServer, FutureGetOrderTest) {
   factory.useSimpleThreadManager(false);
   factory.useThreadManager(thm);
   ScopedServerThread sst(factory.create());
-  TEventBase base;
+  EventBase base;
   std::shared_ptr<TAsyncSocket> socket(
     TAsyncSocket::newSocket(&base, *sst.getAddress()));
 
-  FutureServiceAsyncClient client(
-    std::unique_ptr<HeaderClientChannel,
-                    apache::thrift::async::TDelayedDestruction::Destructor>(
-                      new HeaderClientChannel(socket)));
-
-  boost::polymorphic_downcast<HeaderClientChannel*>(
-    client.getChannel())->setTimeout(10000);
+  auto channel = HeaderClientChannel::newChannel(socket);
+  channel->setTimeout(10000);
+  FutureServiceAsyncClient client(std::move(channel));
 
   auto future0 = client.future_sendResponse(0);
   auto future1 = client.future_sendResponse(10);
@@ -275,16 +272,14 @@ TEST(ThriftServer, OnewayFutureClientTest) {
 
   apache::thrift::TestThriftServerFactory<TestInterface> factory;
   ScopedServerThread sst(factory.create());
-  TEventBase base;
+  EventBase base;
   std::shared_ptr<TAsyncSocket> socket(
     TAsyncSocket::newSocket(&base, *sst.getAddress()));
 
-  FutureServiceAsyncClient client(
-    std::unique_ptr<HeaderClientChannel,
-                    apache::thrift::async::TDelayedDestruction::Destructor>(
-                      new HeaderClientChannel(socket)));
+  auto channel = HeaderClientChannel::newChannel(socket);
+  FutureServiceAsyncClient client(std::move(channel));
 
-  auto future = client.future_noResponse(1000);
+  auto future = client.future_noResponse(100);
   steady_clock::time_point sent = steady_clock::now();
 
   // wait for future to finish.
@@ -299,12 +294,24 @@ TEST(ThriftServer, OnewayFutureClientTest) {
 
   int factor = 1;
   EXPECT_GE(waitTime, factor * gotTime);
+  // Client returns quickly because it is oneway, need to sleep for
+  // some time so at least when the request reaches the server it is
+  // not already stopped.
+  // Also consider use a Baton if this is still flaky under stress run.
+  /* sleep override */ std::this_thread::sleep_for(
+      std::chrono::milliseconds(200));
 }
 
-int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
-  google::InitGoogleLogging(argv[0]);
-  google::ParseCommandLineFlags(&argc, &argv, true);
+TEST(ThriftServer, FutureHeaderClientTest) {
+  ScopedServerInterfaceThread runner(make_shared<TestInterface>());
+  EventBase eb;
+  auto client = runner.newClient<FutureServiceAsyncClient>(&eb);
 
-  return RUN_ALL_TESTS();
+  RpcOptions rpcOptions;
+  rpcOptions.setWriteHeader("foo", "bar");
+  auto future = client->header_future_echoRequest(rpcOptions, "hi")
+    .waitVia(&eb);
+
+  const auto& headers = future.value().second->getHeaders();
+  EXPECT_EQ(get_default(headers, "header_from_server"), "1");
 }

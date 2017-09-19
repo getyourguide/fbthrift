@@ -17,7 +17,7 @@
 #pragma once
 
 #include <folly/SocketAddress.h>
-#include "thrift/tutorial/cpp/stateful/gen-cpp2/AuthenticatedService.h"
+#include <thrift/tutorial/cpp/stateful/gen-cpp2/AuthenticatedService.h>
 
 namespace apache { namespace thrift { namespace tutorial { namespace stateful {
 
@@ -41,7 +41,7 @@ class AuthHandler : virtual public AuthenticatedServiceSvIf {
   }
 
  protected:
-  void throwLoginError(const std::string& message) const;
+  [[noreturn]] void throwLoginError(const std::string& message) const;
 
   std::string computeClientInfoString() const;
 

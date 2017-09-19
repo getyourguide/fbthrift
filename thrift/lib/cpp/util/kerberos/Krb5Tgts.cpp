@@ -16,6 +16,7 @@
 
 #include <thrift/lib/cpp/util/kerberos/Krb5Tgts.h>
 
+#include <chrono>
 #include <glog/logging.h>
 #include <memory>
 #include <set>
@@ -32,6 +33,13 @@
 
 namespace apache { namespace thrift { namespace krb5 {
 using namespace std;
+
+/**
+ * Don't use the tgts if they're about to expire within 5 minutes.
+ * This is to prevent handshake failures where the tgts expire during the
+ * handshake. This is also to make sure clock skew issues are minimized.
+ */
+const uint32_t Krb5Tgts::EXPIRATION_THRESHOLD_SEC = 300;
 
 Krb5Tgts& Krb5Tgts::operator=(Krb5Tgts&& tgts) {
   if (this == &tgts) {
@@ -75,7 +83,7 @@ void Krb5Tgts::setTgtForRealm(const std::string& realm,
 
 void Krb5Tgts::setClientPrincipal(const Krb5Principal& client) {
   WriteLock lock(lock_);
-  client_ = folly::make_unique<Krb5Principal>(
+  client_ = std::make_unique<Krb5Principal>(
     Krb5Principal::copyPrincipal(ctx_.get(), client.get()));
 }
 
@@ -90,7 +98,7 @@ void Krb5Tgts::kInit(const Krb5Principal& client) {
   }
   Krb5Credentials new_creds = keytab.getInitCreds(client.get());
   WriteLock lock(lock_);
-  client_ = folly::make_unique<Krb5Principal>(
+  client_ = std::make_unique<Krb5Principal>(
     Krb5Principal::copyPrincipal(ctx_.get(), client.get()));
   // Other realm credentials become invalid, clear them
   realmTgtsMap_.clear();
@@ -120,13 +128,18 @@ std::shared_ptr<const Krb5Credentials> Krb5Tgts::getTgt() {
 std::shared_ptr<const Krb5Credentials> Krb5Tgts::getTgtForRealm(
     const std::string& realm) {
   waitForInit();
+  uint64_t curtime = chrono::duration_cast<chrono::seconds>(
+    std::chrono::system_clock::now().time_since_epoch()).count();
 
   {
     ReadLock lock(lock_);
     // We're going cross-realm, we also need the tgt for the other realm.
     std::shared_ptr<Krb5Credentials> tgt = getForRealm(realm);
     if (tgt != nullptr) {
-      return tgt;
+      uint64_t expires = tgt->get().times.endtime;
+      if (expires > curtime + EXPIRATION_THRESHOLD_SEC) {
+        return tgt;
+      }
     }
   }
 
@@ -134,7 +147,10 @@ std::shared_ptr<const Krb5Credentials> Krb5Tgts::getTgtForRealm(
   // Try again
   std::shared_ptr<Krb5Credentials> tgt = getForRealm(realm);
   if (tgt != nullptr) {
-    return tgt;
+    uint64_t expires = tgt->get().times.endtime;
+    if (expires > curtime + EXPIRATION_THRESHOLD_SEC) {
+      return tgt;
+    }
   }
 
   Krb5Principal princ = Krb5Principal::copyPrincipal(
@@ -167,7 +183,7 @@ vector<string> Krb5Tgts::getValidRealms() {
   return ret;
 }
 
-std::pair<uint64_t, uint64_t> Krb5Tgts::getLifetime() {
+Krb5Lifetime Krb5Tgts::getLifetime() {
   waitForInit();
   // Get the lifetime of the main cred
   ReadLock lock(lock_);
@@ -176,6 +192,21 @@ std::pair<uint64_t, uint64_t> Krb5Tgts::getLifetime() {
     tgt_->get().times.endtime);
 }
 
+std::map<std::string, Krb5Lifetime> Krb5Tgts::getLifetimes() {
+  waitForInit();
+  ReadLock lock(lock_);
+  const auto mainTgtClientPrincipal =
+      Krb5Principal::copyPrincipal(ctx_.get(), client_->get());
+  const auto mainTgtRealm = mainTgtClientPrincipal.getRealm();
+  const auto mainTgtLifetime =
+      std::make_pair(tgt_->get().times.starttime, tgt_->get().times.endtime);
+  std::map<std::string, Krb5Lifetime> ret = {{mainTgtRealm, mainTgtLifetime}};
+  for (const auto& entry : realmTgtsMap_) {
+    ret[entry.first] = std::make_pair(
+        entry.second->get().times.starttime, entry.second->get().times.endtime);
+  }
+  return ret;
+}
 
 void Krb5Tgts::waitForInit() {
   MutexGuard guard(initLock_);

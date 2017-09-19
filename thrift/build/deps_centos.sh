@@ -12,6 +12,7 @@ sudo yum install -y \
     libtool \
     gcc-c++ \
     boost \
+    boost-devel \
     libevent-devel \
     libevent \
     flex \
@@ -21,16 +22,22 @@ sudo yum install -y \
     snappy-devel \
     libgsasl-devel \
     numactl-devel \
-    numactl-libs
+    numactl-libs \
+    gflags-devel \
+    glog-devel \
+    cmake
 
 # no rpm for this?
 if [ ! -e double-conversion ]; then
-echo "Fetching double-conversion from git (yum failed)"
-    git clone https://github.com/floitsch/double-conversion.git double-conversion
-    cd double-conversion
-    cmake . -DBUILD_SHARED_LIBS=ON
-    sudo make install
-    cd ..
+  echo "Fetching double-conversion from git (yum failed)"
+  git clone https://github.com/floitsch/double-conversion.git double-conversion
+  cd double-conversion
+  cmake . -DBUILD_SHARED_LIBS=ON
+  sudo make install
+  cd ..
 fi
 
 install_folly centos  # needs git
+install_mstch centos  # needs git, cmake
+install_zstd centos   # needs git
+install_wangle centos

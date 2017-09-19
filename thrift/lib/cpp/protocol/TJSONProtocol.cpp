@@ -300,23 +300,23 @@ class TJSONContext {
 
  public:
 
-  TJSONContext() {};
+  TJSONContext() {}
 
-  virtual ~TJSONContext() {};
+  virtual ~TJSONContext() {}
 
   /**
    * Write context data to the transport. Default is to do nothing.
    */
-  virtual uint32_t write(TTransport &trans) {
+  virtual uint32_t write(TTransport& /*trans*/) {
     return 0;
-  };
+  }
 
   /**
    * Read context data from the transport. Default is to do nothing.
    */
-  virtual uint32_t read(TJSONProtocol::LookaheadReader &reader) {
+  virtual uint32_t read(TJSONProtocol::LookaheadReader& /*reader*/) {
     return 0;
-  };
+  }
 
   /**
    * Return true if numbers need to be escaped as strings in this context.
@@ -645,7 +645,7 @@ uint32_t TJSONProtocol::writeMessageEnd() {
   return writeJSONArrayEnd();
 }
 
-uint32_t TJSONProtocol::writeStructBegin(const char* name) {
+uint32_t TJSONProtocol::writeStructBegin(const char* /*name*/) {
   return writeJSONObjectStart();
 }
 
@@ -653,7 +653,7 @@ uint32_t TJSONProtocol::writeStructEnd() {
   return writeJSONObjectEnd();
 }
 
-uint32_t TJSONProtocol::writeFieldBegin(const char* name,
+uint32_t TJSONProtocol::writeFieldBegin(const char* /*name*/,
                                         const TType fieldType,
                                         const int16_t fieldId) {
   uint32_t result = writeJSONInteger(fieldId);
@@ -832,7 +832,7 @@ uint32_t TJSONProtocol::readJSONString(std::string &str, bool skipContext) {
   if (allowDecodeUTF8_) {
     json += "\"";
     folly::dynamic parsed = folly::parseJson(json);
-    str += parsed.c_str();
+    str += parsed.getString();
   }
 
   return result;
@@ -888,13 +888,13 @@ uint32_t TJSONProtocol::readJSONBool(bool &value) {
   ++result;
 
   if (ch == kJSONTrue.at(0)) {
-    for (int i = 1; i < kJSONTrue.length(); ++i) {
+    for (size_t i = 1; i < kJSONTrue.length(); ++i) {
       result += readJSONSyntaxChar(kJSONTrue.at(i));
     }
     value = true;
 
   } else if (ch == kJSONFalse.at(0)) {
-    for (int i = 1; i < kJSONFalse.length(); ++i) {
+    for (size_t i = 1; i < kJSONFalse.length(); ++i) {
       result += readJSONSyntaxChar(kJSONFalse.at(i));
     }
     value = false;
@@ -1034,7 +1034,7 @@ uint32_t TJSONProtocol::readMessageEnd() {
   return readJSONArrayEnd();
 }
 
-uint32_t TJSONProtocol::readStructBegin(std::string& name) {
+uint32_t TJSONProtocol::readStructBegin(std::string& /*name*/) {
   return readJSONObjectStart();
 }
 
@@ -1042,7 +1042,7 @@ uint32_t TJSONProtocol::readStructEnd() {
   return readJSONObjectEnd();
 }
 
-uint32_t TJSONProtocol::readFieldBegin(std::string& name,
+uint32_t TJSONProtocol::readFieldBegin(std::string& /*name*/,
                                        TType& fieldType,
                                        int16_t& fieldId) {
   uint32_t result = 0;

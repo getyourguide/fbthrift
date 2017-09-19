@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,12 @@ namespace detail {
 template <class T,
           class = typename std::enable_if<std::is_integral<T>::value>::type>
 size_t bitsNeeded(const T& x) {
-  return x ? folly::findLastSet(std::is_signed<T>::value ? x ^ (x << 1) : x)
-           : 0;
+  using UT = typename std::make_unsigned<T>::type;
+  auto ux = static_cast<UT>(x);
+  return ux ? folly::findLastSet(std::is_signed<T>::value
+                                 ? static_cast<UT>(ux ^ (ux << 1))
+                                 : ux)
+            : 0;
 }
 
 /**
@@ -32,9 +36,16 @@ template <class T>
 struct PackedIntegerLayout : public LayoutBase {
   typedef LayoutBase Base;
   PackedIntegerLayout() : LayoutBase(typeid(T)) {}
-  explicit PackedIntegerLayout(const std::type_info& type) : LayoutBase(type) {}
+  explicit PackedIntegerLayout(const std::type_info& _type)
+      : LayoutBase(_type) {}
 
-  FieldPosition layout(LayoutRoot& root, const T& x, LayoutPosition self) {
+  FieldPosition maximize() {
+    FieldPosition pos = startFieldPosition();
+    pos.bitOffset += sizeof(T) * 8;
+    return pos;
+  }
+
+  FieldPosition layout(LayoutRoot&, const T& x, LayoutPosition /* self */) {
     FieldPosition pos = startFieldPosition();
     if (x) {
       pos.bitOffset += bitsNeeded(x);
@@ -42,15 +53,17 @@ struct PackedIntegerLayout : public LayoutBase {
     return pos;
   }
 
-  void freeze(FreezeRoot& root, const T& x, FreezePosition self) const {
-    DCHECK_LE(bitsNeeded(x), bits) << x;
+  void freeze(FreezeRoot&, const T& x, FreezePosition self) const {
+    if (bitsNeeded(x) > bits) {
+      throw LayoutException();
+    }
     if (!bits) {
       return;
     }
     folly::Bits<folly::Unaligned<T>>::set(
         reinterpret_cast<folly::Unaligned<T>*>(self.start),
         self.bitOffset,
-        this->bits,
+        bits,
         x);
   }
 
@@ -67,7 +80,8 @@ struct PackedIntegerLayout : public LayoutBase {
 
   void print(std::ostream& os, int level) const override {
     LayoutBase::print(os, level);
-    os << "packed " << folly::demangle(type.name());
+    os << "packed " << (std::is_signed<T>::value ? "signed" : "unsigned") << " "
+       << folly::demangle(type.name());
   }
 
   typedef T View;
@@ -86,8 +100,6 @@ struct PackedIntegerLayout : public LayoutBase {
 }
 
 template <class T>
-struct Layout<T,
-              typename std::enable_if<std::is_integral<
-                  T>::value>::type> : detail::PackedIntegerLayout<T> {};
-
+struct Layout<T, typename std::enable_if<std::is_integral<T>::value>::type>
+    : detail::PackedIntegerLayout<T> {};
 }}}

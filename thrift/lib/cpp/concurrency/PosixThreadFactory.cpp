@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <thrift/lib/cpp/concurrency/PosixThreadFactory.h>
 #include <thrift/lib/cpp/concurrency/Exception.h>
 #include <thrift/lib/cpp/concurrency/Mutex.h>
@@ -23,12 +22,14 @@
 #  include <google/base/Profiler.h>
 #endif
 
-#include <assert.h>
-#include <pthread.h>
-#include <sys/resource.h>
-
+#include <cassert>
 #include <iostream>
 
+#include <folly/String.h>
+#include <folly/ThreadId.h>
+#include <folly/ThreadName.h>
+#include <folly/portability/PThread.h>
+#include <folly/portability/SysResource.h>
 #include <glog/logging.h>
 
 namespace apache { namespace thrift { namespace concurrency {
@@ -45,13 +46,13 @@ bool PthreadThread::updateName() {
   if (!pthread_ || name_.empty()) {
     return false;
   }
-  return setPosixThreadName(pthread_, name_);
+  return folly::setThreadName(pthread_, name_);
 }
 
 PthreadThread::PthreadThread(int policy, int priority, int stackSize,
                              bool detached,
                              shared_ptr<Runnable> runnable) :
-  pthread_(0),
+  pthread_(),
   state_(uninitialized),
   policy_(policy),
   priority_(priority),
@@ -137,7 +138,11 @@ void PthreadThread::join() {
 }
 
 Thread::id_t PthreadThread::getId() {
-  return (Thread::id_t)pthread_;
+#ifdef _WIN32
+  return (Thread::id_t)pthread_getw32threadid_np(pthread_);
+#else
+   return (Thread::id_t)pthread_;
+#endif
 }
 
 shared_ptr<Runnable> PthreadThread::runnable() const {
@@ -180,14 +185,16 @@ void* PthreadThread::threadMain(void* arg) {
     int err =
       pthread_setschedparam(pthread_self(), thread->policy_, &sched_param);
     if (err != 0) {
-      VLOG(1) << "pthread_setschedparam failed (are you root?) with error " <<
-        err, strerror(err);
+      VLOG(1) << "pthread_setschedparam failed (are you root?) with error "
+              << err << ": " << folly::errnoStr(err);
     }
   } else if (thread->policy_ == SCHED_OTHER) {
+#ifndef _MSC_VER
     if (setpriority(PRIO_PROCESS, 0, thread->priority_) != 0) {
-      VLOG(1) << "setpriority failed (are you root?) with error " <<
-        errno, strerror(errno);
+      VLOG(1) << "setpriority failed (are you root?) with error " << errno
+              << ": " << folly::errnoStr(errno);
     }
+#endif
   }
 
   thread->runnable()->run();
@@ -207,8 +214,9 @@ int PosixThreadFactory::Impl::toPthreadPolicy(POLICY policy) {
   return SCHED_OTHER;
 }
 
-int PosixThreadFactory::Impl::toPthreadPriority(
-    POLICY policy, PRIORITY priority) {
+/* static */
+int PosixThreadFactory::Impl::toPthreadPriority(POLICY policy,
+                                                PRIORITY priority) {
   int pthread_policy = toPthreadPolicy(policy);
   int min_priority = 0;
   int max_priority = 0;
@@ -224,23 +232,39 @@ int PosixThreadFactory::Impl::toPthreadPriority(
     max_priority = -20;
   }
   int quanta = HIGHEST - LOWEST;
-  float stepsperquanta = (float)(max_priority - min_priority) / quanta;
+  float stepsperquanta =
+      static_cast<float>(max_priority - min_priority) / quanta;
 
-  if (priority <= HIGHEST) {
-    return (int)(min_priority + stepsperquanta * priority);
+#ifdef _MSC_VER
+  return static_cast<int>(min_priority + stepsperquanta * priority);
+#else
+  if (priority >= LOWEST && priority <= HIGHEST) {
+    return static_cast<int>(min_priority + stepsperquanta * priority);
+  } else if (priority == INHERITED && pthread_policy == SCHED_OTHER) {
+    errno = 0;
+    int prio = getpriority(PRIO_PROCESS, 0);
+    if (prio == -1 && errno != 0) {
+      PLOG(WARNING) << "getpriority failed";
+    } else {
+      return prio;
+    }
   } else {
-    // should never get here for priority increments.
+    // Should never get here.
     assert(false);
-    return (int)(min_priority + stepsperquanta * NORMAL);
   }
+
+  return static_cast<int>(min_priority + stepsperquanta * NORMAL);
+#endif
 }
 
-PosixThreadFactory::Impl::Impl(
-  POLICY policy, PRIORITY priority, int stackSize, DetachState detached) :
-  policy_(policy),
-  priority_(priority),
-  stackSize_(stackSize),
-  detached_(detached) {}
+PosixThreadFactory::Impl::Impl(POLICY policy,
+                               PRIORITY priority,
+                               int stackSize,
+                               DetachState detached)
+    : policy_(policy),
+      priority_(priority),
+      stackSize_(stackSize),
+      detached_(detached) {}
 
 shared_ptr<Thread> PosixThreadFactory::Impl::newThread(
     const shared_ptr<Runnable>& runnable,
@@ -287,7 +311,7 @@ void PosixThreadFactory::Impl::setDetachState(DetachState value) {
 }
 
 Thread::id_t PosixThreadFactory::Impl::getCurrentThreadId() const {
-  return (Thread::id_t)pthread_self();
+  return (Thread::id_t)folly::getCurrentThreadID();
 }
 
 

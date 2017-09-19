@@ -22,12 +22,10 @@
 #include <iostream>
 #include <vector>
 
-#include <stdlib.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <sstream>
-#include "thrift/compiler/generate/t_oop_generator.h"
-#include "thrift/compiler/platform.h"
+#include <thrift/compiler/generate/t_oop_generator.h>
+#include <thrift/compiler/platform.h>
 using namespace std;
 
 
@@ -39,8 +37,8 @@ class t_ocaml_generator : public t_oop_generator {
  public:
   t_ocaml_generator(
       t_program* program,
-      const std::map<std::string, std::string>& parsed_options,
-      const std::string& option_string)
+      const std::map<std::string, std::string>& /* parsed_options */,
+      const std::string& /* option_string */)
     : t_oop_generator(program)
   {
     out_dir_base_ = "gen-ocaml";
@@ -227,7 +225,7 @@ void t_ocaml_generator::generate_program() {
  */
 void t_ocaml_generator::init_generator() {
   // Make output directory
-  MKDIR(get_out_dir().c_str());
+  make_dir(get_out_dir().c_str());
 
   // Make output file
   string f_types_name = get_out_dir()+program_name_+"_types.ml";
@@ -411,8 +409,8 @@ string t_ocaml_generator::render_const_value(t_type* type, t_const_value* value)
     indent_up();
     const vector<t_field*>& fields = ((t_struct*)type)->get_members();
     vector<t_field*>::const_iterator f_iter;
-    const map<t_const_value*, t_const_value*>& val = value->get_map();
-    map<t_const_value*, t_const_value*>::const_iterator v_iter;
+    const vector<pair<t_const_value*, t_const_value*>>& val = value->get_map();
+    vector<pair<t_const_value*, t_const_value*>>::const_iterator v_iter;
     for (v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
       t_type* field_type = nullptr;
       for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter) {
@@ -435,14 +433,14 @@ string t_ocaml_generator::render_const_value(t_type* type, t_const_value* value)
   } else if (type->is_map()) {
     t_type* ktype = ((t_map*)type)->get_key_type();
     t_type* vtype = ((t_map*)type)->get_val_type();
-    const map<t_const_value*, t_const_value*>& val = value->get_map();
-    map<t_const_value*, t_const_value*>::const_iterator v_iter;
+    const vector<pair<t_const_value*, t_const_value*>>& val = value->get_map();
+    vector<pair<t_const_value*, t_const_value*>>::const_iterator v_iter;
     string hm = tmp("_hm");
     out << endl;
     indent_up();
     indent(out) << "(let " << hm << " = Hashtbl.create " << val.size() << " in" << endl;
     indent_up();
-    for (v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
+    for (auto v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
       string key = render_const_value(ktype, v_iter->first);
       string val = render_const_value(vtype, v_iter->second);
       indent(out) << "Hashtbl.add " << hm << " " << key << " " << val << ";" << endl;
@@ -1069,8 +1067,8 @@ void t_ocaml_generator::generate_service_server(t_service* tservice) {
  *
  * @param tfunction The function to write a dispatcher for
  */
-void t_ocaml_generator::generate_process_function(t_service* tservice,
-                                               t_function* tfunction) {
+void t_ocaml_generator::generate_process_function(
+    t_service* /* tservice */, t_function* tfunction) {
   // Open function
   indent(f_service_) <<
     "method private process_" << tfunction->get_name() <<
@@ -1213,7 +1211,6 @@ void t_ocaml_generator::generate_deserialize_type(ofstream &out,
     switch (tbase) {
     case t_base_type::TYPE_VOID:
       throw "compiler error: cannot serialize void field in a struct";
-      break;
     case t_base_type::TYPE_STRING:
       out << "readString";
       break;
@@ -1365,7 +1362,6 @@ void t_ocaml_generator::generate_serialize_field(ofstream &out,
       case t_base_type::TYPE_VOID:
         throw
           "compiler error: cannot serialize void field in a struct: " + name;
-        break;
       case t_base_type::TYPE_STRING:
         out << "writeString(" << name << ")";
         break;
@@ -1409,9 +1405,8 @@ void t_ocaml_generator::generate_serialize_field(ofstream &out,
  * @param tstruct The struct to serialize
  * @param prefix  String prefix to attach to all fields
  */
-void t_ocaml_generator::generate_serialize_struct(ofstream &out,
-                                               t_struct* tstruct,
-                                               string prefix) {
+void t_ocaml_generator::generate_serialize_struct(
+    ofstream &out, t_struct* /* tstruct */, string prefix) {
   indent(out) << prefix << "#write(oprot)";
 }
 
@@ -1558,7 +1553,7 @@ string t_ocaml_generator::argument_list(t_struct* tstruct) {
 
 string t_ocaml_generator::type_name(t_type* ttype) {
   string prefix = "";
-  t_program* program = ttype->get_program();
+  const t_program* program = ttype->get_program();
   if (program != nullptr && program != program_) {
     if (!ttype->is_service()) {
       prefix = capitalize(program->get_name()) + "_types.";
@@ -1597,6 +1592,8 @@ string t_ocaml_generator::type_to_enum(t_type* type) {
       return "Protocol.T_I32";
     case t_base_type::TYPE_I64:
       return "Protocol.T_I64";
+    case t_base_type::TYPE_FLOAT:
+      return "Protocol.T_FLOAT";
     case t_base_type::TYPE_DOUBLE:
       return "Protocol.T_DOUBLE";
     }
@@ -1638,6 +1635,7 @@ string t_ocaml_generator::render_ocaml_type(t_type* type) {
       return "Int32.t";
     case t_base_type::TYPE_I64:
       return "Int64.t";
+    case t_base_type::TYPE_FLOAT:
     case t_base_type::TYPE_DOUBLE:
       return "float";
     }

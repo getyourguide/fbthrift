@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,70 @@
  */
 #pragma once
 
-#include <folly/futures/Future.h>
 #include <folly/Traits.h>
-#include <thrift/lib/cpp2/async/AsyncProcessor.h>
+#include <folly/futures/Future.h>
+#include <thrift/lib/cpp2/FrozenTApplicationException.h>
+#include <thrift/lib/cpp2/GeneratedHeaderHelper.h>
+#include <thrift/lib/cpp2/SerializationSwitch.h>
 #include <thrift/lib/cpp2/Thrift.h>
+#include <thrift/lib/cpp2/async/AsyncProcessor.h>
+#include <thrift/lib/cpp2/frozen/Frozen.h>
+#include <thrift/lib/cpp2/protocol/Frozen2Protocol.h>
+#include <thrift/lib/cpp2/util/Frozen2ViewHelpers.h>
 #include <type_traits>
 
 namespace apache { namespace thrift {
 
 namespace detail {
+
+class container_traits {
+ public:
+  template <typename ...>
+  static std::false_type has_insert(...);
+
+  template <
+    typename T,
+    typename V = typename T::value_type,
+    typename = decltype(std::declval<T&>().insert(std::declval<V&&>()))>
+  static std::true_type has_insert(T*);
+
+  template <typename ...>
+  static std::false_type has_op_brace(...);
+
+  template <
+    typename T,
+    typename K = typename T::key_type,
+    typename = decltype(std::declval<T>()[std::declval<K>()])>
+  static std::true_type has_op_brace(T*);
+
+  template <typename T>
+  using is_map_or_set = decltype(has_insert(static_cast<T*>(nullptr)));
+
+  template <typename T>
+  using is_map_not_set = decltype(has_op_brace(static_cast<T*>(nullptr)));
+
+  template <typename ...>
+  static std::false_type has_push_back(...);
+
+  template <
+    typename T,
+    typename V = typename T::value_type,
+    typename = decltype(std::declval<T&>().push_back(std::declval<V&&>()))>
+  static std::true_type has_push_back(T*);
+
+  template <typename T>
+  using is_map = std::integral_constant<bool, is_map_not_set<T>::value>;
+
+  template <typename T>
+  using is_set = std::integral_constant<bool,
+        is_map_or_set<T>::value && !is_map_not_set<T>::value>;
+
+  template <typename T>
+  using is_vector = std::integral_constant<bool,
+        !is_map_or_set<T>::value &&
+        decltype(has_push_back(static_cast<T*>(nullptr)))::value>;
+};
+
 template <int N, int Size, class F, class Tuple>
 struct ForEachImpl {
   static uint32_t forEach(Tuple&& tuple, F&& f) {
@@ -151,6 +206,7 @@ T& maybe_remove_pointer(T* x) { return *x; }
 
 FOLLY_CREATE_HAS_MEMBER_FN_TRAITS(push_back_checker, push_back);
 FOLLY_CREATE_HAS_MEMBER_FN_TRAITS(insert_checker, insert);
+FOLLY_CREATE_HAS_MEMBER_FN_TRAITS(op_bracket_checker, operator[]);
 FOLLY_CREATE_HAS_MEMBER_FN_TRAITS(reserve_checker, reserve);
 
 // The std::vector<bool> specialization in gcc provides a push_back(bool)
@@ -159,6 +215,14 @@ template <class C>
 using is_vector_like = std::integral_constant<bool,
     push_back_checker<C, void(typename C::value_type&&)>::value ||
     push_back_checker<C, void(typename C::value_type)>::value>;
+
+template <class C>
+using op_bracket_of_key_signature =
+    typename C::mapped_type&(const typename C::key_type&);
+
+template <class C>
+using has_op_bracket_of_key = std::integral_constant<bool,
+      op_bracket_checker<C, op_bracket_of_key_signature<C>>::value>;
 
 template <class C>
 using has_insert = insert_checker<C,
@@ -170,13 +234,11 @@ using is_set_like = std::integral_constant<bool,
       std::is_same<typename C::key_type, typename C::value_type>::value>;
 
 template <class C>
-using is_map_like = std::integral_constant<bool,
-      has_insert<C>::value &&
-      !std::is_same<typename C::key_type, typename C::value_type>::value>;
+using is_map_like = has_op_bracket_of_key<C>;
 
 template <class T, class = void>
 struct Reserver {
-  static void reserve(T& container, typename T::size_type size) {}
+  static void reserve(T&, typename T::size_type) {}
 };
 
 template <class C>
@@ -223,6 +285,7 @@ class ThriftPresult : private std::tuple<Field...>,
   // to employ the empty base class optimization when they are empty
   typedef std::tuple<Field...> Fields;
   typedef detail::IsSetHelper<hasIsSet, sizeof...(Field)> CurIsSetHelper;
+
  public:
 
   CurIsSetHelper& isSet() { return *this; }
@@ -297,6 +360,252 @@ class ThriftPresult : private std::tuple<Field...>,
     return xfer;
   }
 };
+
+namespace frozen {
+
+template <bool hasIsSet, typename... Fields>
+struct ViewHelper<ThriftPresult<hasIsSet, Fields...>> {
+  using ViewType = ThriftPresult<hasIsSet, Fields...>;
+  using ObjectType = ThriftPresult<hasIsSet, Fields...>;
+
+  static ObjectType thaw(ViewType v) {
+    return v;
+  }
+};
+
+template <bool hasIsSet, typename... Args>
+class Layout<
+    ThriftPresult<hasIsSet, Args...>,
+    std::enable_if_t<
+        !folly::IsTriviallyCopyable<ThriftPresult<hasIsSet, Args...>>::value>>
+    : public LayoutBase, private std::tuple<Field<typename Args::ref_type>...> {
+ public:
+  using Base = LayoutBase;
+
+  using LayoutSelf = Layout;
+
+  using T = ThriftPresult<hasIsSet, Args...>;
+
+  using Tuple = std::tuple<Field<typename Args::ref_type>...>;
+
+  Layout()
+      : LayoutBase(typeid(T)),
+        Tuple(Field<typename Args::ref_type>{Args::fid,
+                                             typeid(Args).name()}...) {}
+
+  FieldPosition maximize() {
+    FieldPosition pos = startFieldPosition();
+    forEachElement(MaximizeTupleAccessor(pos));
+    return pos;
+  }
+  FieldPosition layout(LayoutRoot& root, const T& x, LayoutPosition self) {
+    FieldPosition pos = startFieldPosition();
+    forEachElement(LayoutTupleAccessor(root, x, self, pos));
+    return pos;
+  }
+  void freeze(FreezeRoot& root, const T& x, FreezePosition self) const {
+    forEachElement(FreezeTupleAccessor(root, x, self));
+  }
+  void thaw(ViewPosition self, T& out) const {
+    forEachElement(ThawTupleAccessor(self, out));
+  }
+  void print(std::ostream& os, int level) const final {
+    LayoutBase::print(os, level);
+    os << "::apache::thrift::ThriftPresult";
+  }
+  void clear() final {
+    LayoutBase::clear();
+    forEachElement(ClearTupleAccessor());
+  }
+
+  struct View : public ViewBase<View, LayoutSelf, T> {
+    View() {}
+    View(const LayoutSelf* layout, ViewPosition position)
+        : ViewBase<View, LayoutSelf, T>(layout, position) {}
+    template <int Idx>
+    auto get()
+        -> decltype(std::get<Idx>(this->layout_->asTuple())
+                        .layout.view(this->position_(
+                            std::get<Idx>(this->layout_->asTuple()).pos))) {
+      return std::get<Idx>(this->layout_->asTuple())
+          .layout.view(
+              this->position_(std::get<Idx>(this->layout_->asTuple()).pos));
+    }
+  };
+  View view(ViewPosition self) const {
+    return View(this, self);
+  }
+
+  template <typename SchemaInfo>
+  void save(
+      typename SchemaInfo::Schema& schema,
+      typename SchemaInfo::Layout& _layout,
+      typename SchemaInfo::Helper& helper) const {
+    Base::template save<SchemaInfo>(schema, _layout, helper);
+    forEachElement(SaveTupleAccessor<SchemaInfo>(schema, _layout, helper));
+  }
+
+  template <typename SchemaInfo>
+  void load(
+      const typename SchemaInfo::Schema& schema,
+      const typename SchemaInfo::Layout& _layout) {
+    Base::template load<SchemaInfo>(schema, _layout);
+    std::unordered_map<int, const schema::MemoryField*> refs;
+    for (const auto& field : _layout.getFields()) {
+      refs[field.getId()] = &field;
+    }
+    forEachElement(LoadTupleAccessor<SchemaInfo>(schema, _layout, refs));
+  }
+
+  inline Tuple& asTuple() {
+    return *this;
+  }
+
+  inline const Tuple& asTuple() const {
+    return *this;
+  }
+
+ protected:
+  template <
+      typename F,
+      typename Seq = std::make_index_sequence<sizeof...(Args)>>
+  void forEachElement(F&& f) {
+    forEachElement(std::forward<F>(f), Seq{});
+  }
+
+  template <
+      typename F,
+      typename Seq = std::make_index_sequence<sizeof...(Args)>>
+  void forEachElement(F&& f) const {
+    forEachElement(std::forward<F>(f), Seq{});
+  }
+
+ private:
+  template <typename F, size_t... Idxs>
+  void forEachElement(F&& f, std::index_sequence<Idxs...>) {
+    using _ = bool[sizeof...(Args)];
+    (void)_{(f.template forEach<Idxs>(std::get<Idxs>(asTuple())), false)...};
+  }
+
+  template <typename F, size_t... Idxs>
+  void forEachElement(F&& f, std::index_sequence<Idxs...>) const {
+    using _ = bool[sizeof...(Args)];
+    (void)_{(f.template forEach<Idxs>(std::get<Idxs>(asTuple())), false)...};
+  }
+
+  struct MaximizeTupleAccessor {
+    explicit MaximizeTupleAccessor(FieldPosition& pos) : pos_(pos) {}
+
+    template <int Idx, typename T>
+    void forEach(T& field) {
+      pos_ = maximizeField(pos_, field);
+    }
+
+    FieldPosition& pos_;
+  };
+
+  struct LayoutTupleAccessor {
+    explicit LayoutTupleAccessor(
+        LayoutRoot& root,
+        const T& x,
+        LayoutPosition& self,
+        FieldPosition& pos)
+        : root_(root), x_(x), self_(self), pos_(pos) {}
+
+    template <int Idx, typename T>
+    void forEach(T& field) {
+      if (x_.getIsSet(Idx)) {
+        pos_ =
+            root_.layoutField(self_, pos_, field, x_.template get<Idx>().ref());
+      }
+    }
+
+    LayoutRoot& root_;
+    const T& x_;
+    LayoutPosition& self_;
+    FieldPosition& pos_;
+  };
+
+  struct FreezeTupleAccessor {
+    explicit FreezeTupleAccessor(
+        FreezeRoot& root,
+        const T& x,
+        FreezePosition& self)
+        : root_(root), x_(x), self_(self) {}
+
+    template <int Idx, typename T>
+    void forEach(T& field) {
+      if (x_.getIsSet(Idx)) {
+        root_.freezeField(self_, field, x_.template get<Idx>().ref());
+      }
+    }
+
+    FreezeRoot& root_;
+    const T& x_;
+    FreezePosition& self_;
+  };
+
+  struct ThawTupleAccessor {
+    explicit ThawTupleAccessor(ViewPosition& self, T& out)
+        : self_(self), out_(out) {}
+
+    template <int Idx, typename T>
+    void forEach(T& field) {
+      thawField(self_, field, out_.template get<Idx>().ref());
+      out_.setIsSet(Idx, !field.layout.empty());
+    }
+
+    ViewPosition& self_;
+    T& out_;
+  };
+
+  struct ClearTupleAccessor {
+    template <int Idx, typename T>
+    void forEach(T& field) {
+      field.clear();
+    }
+  };
+
+  template <typename SchemaInfo>
+  struct SaveTupleAccessor {
+    SaveTupleAccessor(
+        typename SchemaInfo::Schema& schema,
+        typename SchemaInfo::Layout& layout,
+        typename SchemaInfo::Helper& helper)
+        : schema_(schema), layout_(layout), helper_(helper) {}
+
+    template <int Idx, typename T>
+    void forEach(T& field) {
+      field.template save<SchemaInfo>(schema_, layout_, helper_);
+    }
+
+    typename SchemaInfo::Schema& schema_;
+    typename SchemaInfo::Layout& layout_;
+    typename SchemaInfo::Helper& helper_;
+  };
+
+  template <typename SchemaInfo>
+  struct LoadTupleAccessor {
+    LoadTupleAccessor(
+        const typename SchemaInfo::Schema& schema,
+        const typename SchemaInfo::Layout& layout,
+        const std::unordered_map<int, const schema::MemoryField*>& refs)
+        : schema_(schema), layout_(layout), refs_(refs) {}
+
+    template <int Idx, typename T>
+    void forEach(T& field) {
+      if (auto ptr = folly::get_default(refs_, field.key, nullptr)) {
+        field.template load<SchemaInfo>(schema_, *ptr);
+      }
+    }
+
+    const typename SchemaInfo::Schema& schema_;
+    const typename SchemaInfo::Layout& layout_;
+    const std::unordered_map<int, const schema::MemoryField*>& refs_;
+  };
+};
+
+} // apache::thrift::frozen
 
 template <bool hasIsSet, class... Args>
 class Cpp2Ops<ThriftPresult<hasIsSet, Args...>> {
@@ -841,10 +1150,13 @@ class Cpp2Ops<std::unique_ptr<folly::IOBuf>> {
   }
 };
 
-class BinaryProtocolReader;
-class BinaryProtocolWriter;
-class CompactProtocolReader;
-class CompactProtocolWriter;
+//  AsyncClient helpers
+namespace detail {
+namespace ac {
+
+[[noreturn]] void throw_app_exn(char const* msg);
+} // namespace ac
+} // namespace detail
 
 //  AsyncProcessor helpers
 namespace detail { namespace ap {
@@ -863,10 +1175,11 @@ struct helper {
 
   static void process_exn(
       const char* func,
+      const TApplicationException::TApplicationExceptionType type,
       const std::string& msg,
       std::unique_ptr<ResponseChannel::Request> req,
       Cpp2RequestContext* ctx,
-      async::TEventBase* eb,
+      folly::EventBase* eb,
       int32_t protoSeqId);
 
 };
@@ -887,18 +1200,19 @@ using is_root_async_processor = std::is_void<typename T::BaseAsyncProcessor>;
 template <class ProtocolReader, class Processor>
 typename std::enable_if<is_root_async_processor<Processor>::value>::type
 process_missing(
-    Processor* processor,
+    Processor*,
     const std::string& fname,
     std::unique_ptr<ResponseChannel::Request> req,
-    std::unique_ptr<folly::IOBuf> buf,
+    std::unique_ptr<folly::IOBuf>,
     Cpp2RequestContext* ctx,
-    async::TEventBase* eb,
-    concurrency::ThreadManager* tm,
+    folly::EventBase* eb,
+    concurrency::ThreadManager*,
     int32_t protoSeqId) {
   using h = helper_r<ProtocolReader>;
   const char* fn = "process";
+  auto type = TApplicationException::TApplicationExceptionType::UNKNOWN_METHOD;
   const auto msg = folly::sformat("Method name {} not found", fname);
-  return h::process_exn(fn, msg, std::move(req), ctx, eb, protoSeqId);
+  return h::process_exn(fn, type, msg, std::move(req), ctx, eb, protoSeqId);
 }
 
 template <class ProtocolReader, class Processor>
@@ -909,7 +1223,7 @@ process_missing(
     std::unique_ptr<ResponseChannel::Request> req,
     std::unique_ptr<folly::IOBuf> buf,
     Cpp2RequestContext* ctx,
-    async::TEventBase* eb,
+    folly::EventBase* eb,
     concurrency::ThreadManager* tm,
     int32_t /*protoSeqId*/) {
   auto protType = ProtocolReader::protocolType();
@@ -917,44 +1231,71 @@ process_missing(
       std::move(req), std::move(buf), protType, ctx, eb, tm);
 }
 
+bool deserializeMessageBegin(
+    protocol::PROTOCOL_TYPES protType,
+    std::unique_ptr<ResponseChannel::Request>& req,
+    folly::IOBuf* buf,
+    Cpp2RequestContext* ctx,
+    folly::EventBase* eb);
+
 template <class ProtocolReader, class Processor>
 void process_pmap(
     Processor* proc,
     const typename GeneratedAsyncProcessor::ProcessMap<
-        typename GeneratedAsyncProcessor::ProcessFunc<
+        GeneratedAsyncProcessor::ProcessFunc<
             Processor, ProtocolReader>>& pmap,
     std::unique_ptr<ResponseChannel::Request> req,
     std::unique_ptr<folly::IOBuf> buf,
     Cpp2RequestContext* ctx,
-    async::TEventBase* eb,
+    folly::EventBase* eb,
     concurrency::ThreadManager* tm) {
-  using h = helper_r<ProtocolReader>;
-  const char* fn = "process";
-  std::string fname;
-  MessageType mtype;
-  int32_t protoSeqId = 0;
-  auto iprot = folly::make_unique<ProtocolReader>();
-  iprot->setInput(buf.get());
-  try {
-    iprot->readMessageBegin(fname, mtype, protoSeqId);
-  } catch (const TException& ex) {
-    LOG(ERROR) << "received invalid message from client: " << ex.what();
-    const char* msg = "invalid message from client";
-    return h::process_exn(fn, msg, std::move(req), ctx, eb, protoSeqId);
-  }
-  if (mtype != T_CALL && mtype != T_ONEWAY) {
-    LOG(ERROR) << "received invalid message of type " << mtype;
-    const char* msg = "invalid message arguments";
-    return h::process_exn(fn, msg, std::move(req), ctx, eb, protoSeqId);
-  }
+  const auto& fname = ctx->getMethodName();
   auto pfn = pmap.find(fname);
   if (pfn == pmap.end()) {
-    process_missing<ProtocolReader>(
-        proc, fname, std::move(req), std::move(buf), ctx, eb, tm, protoSeqId);
+    process_missing<ProtocolReader>(proc, fname, std::move(req),
+        std::move(buf), ctx, eb, tm, ctx->getProtoSeqId());
     return;
   }
+
+  folly::io::Cursor cursor(buf.get());
+  cursor.skip(ctx->getMessageBeginSize());
+
+  auto iprot = std::make_unique<ProtocolReader>();
+  iprot->setInput(cursor);
+
   (proc->*(pfn->second))(
       std::move(req), std::move(buf), std::move(iprot), ctx, eb, tm);
+}
+
+template <class Processor, typename... Args>
+typename std::enable_if<!Processor::HasFrozen2::value>::type process_frozen(
+    Processor*,
+    std::unique_ptr<ResponseChannel::Request> req,
+    std::unique_ptr<folly::IOBuf>,
+    Cpp2RequestContext* ctx,
+    folly::EventBase* eb,
+    Args&&...) {
+  DLOG(INFO) << "Received Frozen2Protocol request, "
+             << "but server is not built with Frozen2 support";
+  const char* fn = "process";
+  auto type =
+      TApplicationException::TApplicationExceptionType::INVALID_PROTOCOL;
+  const auto msg = "Server not built with frozen2 support";
+  return helper_r<Frozen2ProtocolReader>::process_exn(
+      fn, type, msg, std::move(req), ctx, eb, ctx->getProtoSeqId());
+}
+
+template <class Processor>
+typename std::enable_if<Processor::HasFrozen2::value>::type process_frozen(
+    Processor* processor,
+    std::unique_ptr<ResponseChannel::Request> req,
+    std::unique_ptr<folly::IOBuf> buf,
+    Cpp2RequestContext* ctx,
+    folly::EventBase* eb,
+    concurrency::ThreadManager* tm) {
+  const auto& pmap = processor->getFrozen2ProtocolProcessMap();
+  return process_pmap(
+      processor, pmap, std::move(req), std::move(buf), ctx, eb, tm);
 }
 
 //  Generated AsyncProcessor::process just calls this.
@@ -965,7 +1306,7 @@ void process(
     std::unique_ptr<folly::IOBuf> buf,
     protocol::PROTOCOL_TYPES protType,
     Cpp2RequestContext* ctx,
-    async::TEventBase* eb,
+    folly::EventBase* eb,
     concurrency::ThreadManager* tm) {
   switch (protType) {
     case protocol::T_BINARY_PROTOCOL: {
@@ -977,6 +1318,10 @@ void process(
       const auto& pmap = processor->getCompactProtocolProcessMap();
       return process_pmap(
           processor, pmap, std::move(req), std::move(buf), ctx, eb, tm);
+    }
+    case protocol::T_FROZEN2_PROTOCOL: {
+      return process_frozen(
+          processor, std::move(req), std::move(buf), ctx, eb, tm);
     }
     default:
       LOG(ERROR) << "invalid protType: " << protType;
@@ -1045,7 +1390,7 @@ future_returning(F&& f) {
 template <class F>
 std::unique_ptr<arg<F>>
 returning_uptr(F&& f) {
-  auto ret = folly::make_unique<arg<F>>();
+  auto ret = std::make_unique<arg<F>>();
   f(*ret);
   return ret;
 }
@@ -1071,22 +1416,28 @@ future_exn(std::exception_ptr ex) {
   return folly::makeFuture<R>(folly::exception_wrapper(std::move(ex)));
 }
 
+template <class R, class E>
+folly::Future<R>
+future_exn(std::exception_ptr ex, E& e) {
+  return folly::makeFuture<R>(folly::exception_wrapper(std::move(ex), e));
+}
+
 template <class F>
 ret<F>
 future_catching(F&& f) {
-  try { return f(); }
-  catch(...) { return future_exn<fut_ret<F>>(std::current_exception()); }
+  try {
+    return f();
+  } catch (const std::exception& e) {
+    return future_exn<fut_ret<F>>(std::current_exception(), e);
+  } catch(...) {
+    return future_exn<fut_ret<F>>(std::current_exception());
+  }
 }
 
 using CallbackBase = HandlerCallbackBase;
 using CallbackBasePtr = std::unique_ptr<CallbackBase>;
 template <class R> using Callback = HandlerCallback<fut_ret_drop<R>>;
 template <class R> using CallbackPtr = std::unique_ptr<Callback<R>>;
-
-template <class T>
-std::unique_ptr<T> to_unique_ptr(T* t) {
-  return std::unique_ptr<T>(t);
-}
 
 inline
 void
@@ -1107,33 +1458,33 @@ template <class F>
 void
 async_tm(ServerInterface* si, CallbackPtr<F> callback, F&& f) {
   async_tm_prep(si, callback.get());
-  auto fut = future_catching(std::forward<F>(f));
-  auto callbackp = callback.release();
-  fut.then([=](folly::Try<fut_ret<F>>&& _return) {
-      callbackp->completeInThread(std::move(_return));
-  });
+  future_catching(std::forward<F>(f))
+    .then([cb = std::move(callback)](folly::Try<fut_ret<F>>&& _return) mutable {
+      Callback<F>::completeInThread(std::move(cb), std::move(_return));
+    });
 }
 
 template <class F>
 void
 async_eb_oneway(ServerInterface* si, CallbackBasePtr callback, F&& f) {
-  auto callbackp = callback.release();
-  auto fm = folly::makeMoveWrapper(std::move(f));
-  callbackp->runFuncInQueue([=]() mutable {
-      async_tm_oneway(si, to_unique_ptr(callbackp), fm.move());
-  });
+  auto callbackp = callback.get();
+  callbackp->runFuncInQueue(
+      [ si, callback = std::move(callback), f = std::forward<F>(f) ]() mutable {
+        async_tm_oneway(si, std::move(callback), std::move(f));
+      }, true);
 }
 
 template <class F>
 void
 async_eb(ServerInterface* si, CallbackPtr<F> callback, F&& f) {
-  auto callbackp = callback.release();
-  auto fm = folly::makeMoveWrapper(std::move(f));
-  callbackp->runFuncInQueue([=]() mutable {
-      async_tm(si, to_unique_ptr(callbackp), fm.move());
-  });
+  auto callbackp = callback.get();
+  callbackp->runFuncInQueue(
+      [ si, callback = std::move(callback), f = std::forward<F>(f) ]() mutable {
+        async_tm(si, std::move(callback), std::move(f));
+      });
 }
 
+[[noreturn]] void throw_app_exn_unimplemented(char const* name);
 }} // detail::si
 
 }} // apache::thrift

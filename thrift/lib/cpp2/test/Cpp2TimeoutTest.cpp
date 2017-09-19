@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -23,33 +25,20 @@
 #include <thrift/lib/cpp2/async/RequestChannel.h>
 
 #include <thrift/lib/cpp/util/ScopedServerThread.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
+#include <folly/io/async/EventBase.h>
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
 
 #include <thrift/lib/cpp2/async/StubSaslClient.h>
 #include <thrift/lib/cpp2/async/StubSaslServer.h>
-#include <thrift/lib/cpp2/TestServer.h>
+#include <thrift/lib/cpp2/test/util/TestThriftServerFactory.h>
+#include <thrift/lib/cpp2/test/util/TestInterface.h>
 
-#include <boost/cast.hpp>
-#include <boost/lexical_cast.hpp>
 #include <memory>
 
 using namespace apache::thrift;
 using namespace apache::thrift::test::cpp2;
 using namespace apache::thrift::util;
 using namespace apache::thrift::async;
-
-class TestInterface : public TestServiceSvIf {
-  void sendResponse(std::string& _return, int64_t size) override {
-    if (size >= 0) {
-      usleep(size * 1000);
-    }
-
-    _return = "test";
-  }
-
-  void noResponse(int64_t size) override { usleep(size * 1000); }
-};
 
 class CloseChecker : public CloseCallback {
  public:
@@ -67,7 +56,7 @@ TEST(ThriftServer, IdleTimeoutTest) {
   factory.idleTimeoutMs(10);
   ScopedServerThread sst(factory.create());
 
-  TEventBase base;
+  folly::EventBase base;
   std::shared_ptr<TAsyncSocket> socket(
     TAsyncSocket::newSocket(&base, *sst.getAddress()));
 
@@ -87,7 +76,7 @@ TEST(ThriftServer, NoIdleTimeoutWhileWorkingTest) {
   factory.idleTimeoutMs(10);
   ScopedServerThread sst(factory.create());
 
-  TEventBase base;
+  folly::EventBase base;
   std::shared_ptr<TAsyncSocket> socket(
     TAsyncSocket::newSocket(&base, *sst.getAddress()));
 
@@ -111,7 +100,7 @@ TEST(ThriftServer, IdleTimeoutAfterTest) {
   factory.idleTimeoutMs(10);
   ScopedServerThread sst(factory.create());
 
-  TEventBase base;
+  folly::EventBase base;
 
   std::shared_ptr<TAsyncSocket> socket(
     TAsyncSocket::newSocket(&base, *sst.getAddress()));
@@ -133,12 +122,4 @@ TEST(ThriftServer, IdleTimeoutAfterTest) {
   base.loopForever();
   EXPECT_TRUE(checker.getClosed());
   client_channelp->setCloseCallback(nullptr);
-}
-
-int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
-  google::InitGoogleLogging(argv[0]);
-  google::ParseCommandLineFlags(&argc, &argv, true);
-
-  return RUN_ALL_TESTS();
 }

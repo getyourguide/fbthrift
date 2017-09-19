@@ -6,14 +6,13 @@
  */
 #pragma once
 
-#include <thrift/lib/cpp2/ServiceIncludes.h>
-#include <thrift/lib/cpp/TApplicationException.h>
-#include <thrift/lib/cpp2/async/FutureRequest.h>
 #include <folly/futures/Future.h>
-#include "module_types.h"
-
-
-#include "MyNode.h"
+#include <thrift/lib/cpp/TApplicationException.h>
+#include <thrift/lib/cpp2/ServiceIncludes.h>
+#include <thrift/lib/cpp2/async/FutureRequest.h>
+#include <thrift/lib/cpp2/async/HeaderChannel.h>
+#include "src/gen-cpp2/module_types.h"
+#include "src/gen-cpp2/MyNode.h"
 
 namespace folly {
   class IOBuf;
@@ -32,7 +31,6 @@ class MyLeafSvAsyncIf {
  public:
   virtual ~MyLeafSvAsyncIf() {}
   virtual void async_tm_do_leaf(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) = 0;
-  virtual void async_do_leaf(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) = delete;
   virtual folly::Future<folly::Unit> future_do_leaf() = 0;
 };
 
@@ -41,31 +39,29 @@ class MyLeafAsyncProcessor;
 class MyLeafSvIf : public MyLeafSvAsyncIf, virtual public  ::cpp2::MyNodeSvIf {
  public:
   typedef MyLeafAsyncProcessor ProcessorType;
-
-  virtual ~MyLeafSvIf() {}
-  virtual std::unique_ptr<apache::thrift::AsyncProcessor> getProcessor();
+  std::unique_ptr<apache::thrift::AsyncProcessor> getProcessor() override;
   virtual void do_leaf();
-  folly::Future<folly::Unit> future_do_leaf();
-  virtual void async_tm_do_leaf(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback);
+  folly::Future<folly::Unit> future_do_leaf() override;
+  void async_tm_do_leaf(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) override;
 };
 
 class MyLeafSvNull : public MyLeafSvIf, virtual public  ::cpp2::MyNodeSvIf {
  public:
-  virtual ~MyLeafSvNull() {}
-  virtual void do_leaf();
+  void do_leaf() override;
 };
 
 class MyLeafAsyncProcessor : public  ::cpp2::MyNodeAsyncProcessor {
  public:
-  virtual const char* getServiceName();
+  const char* getServiceName() override;
   using BaseAsyncProcessor =  ::cpp2::MyNodeAsyncProcessor;
+  using HasFrozen2 = std::false_type;
  protected:
   MyLeafSvIf* iface_;
-  virtual folly::Optional<std::string> getCacheKey(folly::IOBuf* buf, apache::thrift::protocol::PROTOCOL_TYPES protType);
+  folly::Optional<std::string> getCacheKey(folly::IOBuf* buf, apache::thrift::protocol::PROTOCOL_TYPES protType) override;
  public:
-  virtual void process(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, apache::thrift::protocol::PROTOCOL_TYPES protType, apache::thrift::Cpp2RequestContext* context, apache::thrift::async::TEventBase* eb, apache::thrift::concurrency::ThreadManager* tm);
+  void process(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, apache::thrift::protocol::PROTOCOL_TYPES protType, apache::thrift::Cpp2RequestContext* context, folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm) override;
  protected:
-  virtual bool isOnewayMethod(const folly::IOBuf* buf, const apache::thrift::transport::THeader* header);
+  bool isOnewayMethod(const folly::IOBuf* buf, const apache::thrift::transport::THeader* header) override;
  private:
   static std::unordered_set<std::string> onewayMethods_;
   static std::unordered_map<std::string, int16_t> cacheKeyMap_;
@@ -74,22 +70,20 @@ class MyLeafAsyncProcessor : public  ::cpp2::MyNodeAsyncProcessor {
   using BinaryProtocolProcessMap = ProcessMap<BinaryProtocolProcessFunc>;
   static const MyLeafAsyncProcessor::BinaryProtocolProcessMap& getBinaryProtocolProcessMap();
  private:
-  static MyLeafAsyncProcessor::BinaryProtocolProcessMap binaryProcessMap_;
+  static const MyLeafAsyncProcessor::BinaryProtocolProcessMap binaryProcessMap_;
  public:
   using CompactProtocolProcessFunc = ProcessFunc<MyLeafAsyncProcessor, apache::thrift::CompactProtocolReader>;
   using CompactProtocolProcessMap = ProcessMap<CompactProtocolProcessFunc>;
   static const MyLeafAsyncProcessor::CompactProtocolProcessMap& getCompactProtocolProcessMap();
  private:
-  static MyLeafAsyncProcessor::CompactProtocolProcessMap compactProcessMap_;
+  static const MyLeafAsyncProcessor::CompactProtocolProcessMap compactProcessMap_;
  private:
   template <typename ProtocolIn_, typename ProtocolOut_>
-  void _processInThread_do_leaf(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, std::unique_ptr<ProtocolIn_> iprot, apache::thrift::Cpp2RequestContext* ctx, apache::thrift::async::TEventBase* eb, apache::thrift::concurrency::ThreadManager* tm);
+  void _processInThread_do_leaf(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, std::unique_ptr<ProtocolIn_> iprot, apache::thrift::Cpp2RequestContext* ctx, folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm);
   template <typename ProtocolIn_, typename ProtocolOut_>
-  void process_do_leaf(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, std::unique_ptr<ProtocolIn_> iprot,apache::thrift::Cpp2RequestContext* ctx,apache::thrift::async::TEventBase* eb, apache::thrift::concurrency::ThreadManager* tm);
+  void process_do_leaf(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, std::unique_ptr<ProtocolIn_> iprot,apache::thrift::Cpp2RequestContext* ctx,folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm);
   template <class ProtocolIn_, class ProtocolOut_>
   static folly::IOBufQueue return_do_leaf(int32_t protoSeqId, apache::thrift::ContextStack* ctx);
-  template <class ProtocolIn_, class ProtocolOut_>
-  static void throw_do_leaf(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,std::exception_ptr ep,apache::thrift::Cpp2RequestContext* reqCtx);
   template <class ProtocolIn_, class ProtocolOut_>
   static void throw_wrapped_do_leaf(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,folly::exception_wrapper ew,apache::thrift::Cpp2RequestContext* reqCtx);
  public:
@@ -103,7 +97,7 @@ class MyLeafAsyncProcessor : public  ::cpp2::MyNodeAsyncProcessor {
 class MyLeafAsyncClient : public  ::cpp2::MyNodeAsyncClient {
  public:
   virtual const char* getServiceName();
-  typedef std::unique_ptr<apache::thrift::RequestChannel, apache::thrift::async::TDelayedDestruction::Destructor> channel_ptr;
+  typedef std::unique_ptr<apache::thrift::RequestChannel, folly::DelayedDestruction::Destructor> channel_ptr;
 
   virtual ~MyLeafAsyncClient() {}
 
@@ -111,18 +105,22 @@ class MyLeafAsyncClient : public  ::cpp2::MyNodeAsyncClient {
        ::cpp2::MyNodeAsyncClient(channel) {}
   virtual void do_leaf(std::unique_ptr<apache::thrift::RequestCallback> callback);
   virtual void do_leaf(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback);
+ private:
+  virtual void do_leafImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback);
+ public:
   virtual void sync_do_leaf();
   virtual void sync_do_leaf(apache::thrift::RpcOptions& rpcOptions);
   virtual folly::Future<folly::Unit> future_do_leaf();
   virtual folly::Future<folly::Unit> future_do_leaf(apache::thrift::RpcOptions& rpcOptions);
-  virtual void do_leaf(std::function<void (::apache::thrift::ClientReceiveState&&)> callback);
+  virtual folly::Future<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> header_future_do_leaf(apache::thrift::RpcOptions& rpcOptions);
+  virtual void do_leaf(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback);
   static folly::exception_wrapper recv_wrapped_do_leaf(::apache::thrift::ClientReceiveState& state);
   static void recv_do_leaf(::apache::thrift::ClientReceiveState& state);
   // Mock friendly virtual instance method
   virtual void recv_instance_do_leaf(::apache::thrift::ClientReceiveState& state);
   virtual folly::exception_wrapper recv_instance_wrapped_do_leaf(::apache::thrift::ClientReceiveState& state);
   template <typename Protocol_>
-  void do_leafT(Protocol_* prot, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback);
+  void do_leafT(Protocol_* prot, bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback);
   template <typename Protocol_>
   static folly::exception_wrapper recv_wrapped_do_leafT(Protocol_* prot, ::apache::thrift::ClientReceiveState& state);
   template <typename Protocol_>

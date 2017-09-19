@@ -12,8 +12,8 @@
 #include <folly/Optional.h>
 #include <folly/io/IOBuf.h>
 #include <folly/io/Cursor.h>
-#include <boost/operators.hpp>
 
+#include <thrift/lib/cpp2/GeneratedHeaderHelper.h>
 
 
 
@@ -29,20 +29,31 @@ enum class Animal {
   TARANTULA = 3
 };
 
-extern const std::map<Animal, const char*> _Animal_VALUES_TO_NAMES;
-extern const std::map<const char*, Animal, apache::thrift::ltstr> _Animal_NAMES_TO_VALUES;
+using _Animal_EnumMapFactory = apache::thrift::detail::TEnumMapFactory<Animal, Animal>;
+extern const _Animal_EnumMapFactory::ValuesToNamesMapType _Animal_VALUES_TO_NAMES;
+extern const _Animal_EnumMapFactory::NamesToValuesMapType _Animal_NAMES_TO_VALUES;
 
 } // cpp2
+namespace std {
+
+template<> struct hash<typename  ::cpp2::Animal> : public apache::thrift::detail::enum_hash<typename  ::cpp2::Animal> {};
+template<> struct equal_to<typename  ::cpp2::Animal> : public apache::thrift::detail::enum_equal_to<typename  ::cpp2::Animal> {};
+
+} // std
 namespace apache { namespace thrift {
 
-template <> const char* TEnumTraitsBase< ::cpp2::Animal>::findName( ::cpp2::Animal value);
-template <> bool TEnumTraitsBase< ::cpp2::Animal>::findValue(const char* name,  ::cpp2::Animal* outValue);
+template <> struct TEnumDataStorage< ::cpp2::Animal>;
+template <> const std::size_t TEnumTraits< ::cpp2::Animal>::size;
+template <> const folly::Range<const  ::cpp2::Animal*> TEnumTraits< ::cpp2::Animal>::values;
+template <> const folly::Range<const folly::StringPiece*> TEnumTraits< ::cpp2::Animal>::names;
+template <> const char* TEnumTraits< ::cpp2::Animal>::findName( ::cpp2::Animal value);
+template <> bool TEnumTraits< ::cpp2::Animal>::findValue(const char* name,  ::cpp2::Animal* outValue);
 
-template <> constexpr  ::cpp2::Animal TEnumTraits< ::cpp2::Animal>::min() {
+template <> inline constexpr  ::cpp2::Animal TEnumTraits< ::cpp2::Animal>::min() {
   return  ::cpp2::Animal::DOG;
 }
 
-template <> constexpr  ::cpp2::Animal TEnumTraits< ::cpp2::Animal>::max() {
+template <> inline constexpr  ::cpp2::Animal TEnumTraits< ::cpp2::Animal>::max() {
   return  ::cpp2::Animal::TARANTULA;
 }
 
@@ -51,7 +62,7 @@ namespace cpp2 {
 
 typedef int64_t PersonID;
 
-class Color : private boost::totally_ordered<Color> {
+class Color : private apache::thrift::detail::st::ComparisonOperators<Color> {
  public:
 
   Color() :
@@ -66,6 +77,30 @@ class Color : private boost::totally_ordered<Color> {
       green(std::move(green__arg)),
       blue(std::move(blue__arg)),
       alpha(std::move(alpha__arg)) {}
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Color(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Color(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    red = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Color(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Color(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    green = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Color(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Color(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    blue = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Color(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Color(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    alpha = arg.move();
+  }
 
   Color(Color&&) = default;
 
@@ -76,7 +111,7 @@ class Color : private boost::totally_ordered<Color> {
   Color& operator=(const Color&) = default;
   void __clear();
 
-  virtual ~Color() throw() {}
+  virtual ~Color() {}
 
   double red;
   double green;
@@ -97,20 +132,32 @@ class Color : private boost::totally_ordered<Color> {
     if (!(alpha == rhs.alpha)) {
       return alpha < rhs.alpha;
     }
+    (void)rhs;
     return false;
   }
 
   template <class Protocol_>
   uint32_t read(Protocol_* iprot);
   template <class Protocol_>
-  uint32_t serializedSize(Protocol_* prot_) const;
+  uint32_t serializedSize(Protocol_ const* prot_) const;
   template <class Protocol_>
-  uint32_t serializedSizeZC(Protocol_* prot_) const;
+  uint32_t serializedSizeZC(Protocol_ const* prot_) const;
   template <class Protocol_>
   uint32_t write(Protocol_* prot_) const;
+
+ private:
+  static void translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype);
 };
 
 void swap(Color& a, Color& b);
+extern template uint32_t Color::read<>(apache::thrift::BinaryProtocolReader*);
+extern template uint32_t Color::write<>(apache::thrift::BinaryProtocolWriter*) const;
+extern template uint32_t Color::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+extern template uint32_t Color::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+extern template uint32_t Color::read<>(apache::thrift::CompactProtocolReader*);
+extern template uint32_t Color::write<>(apache::thrift::CompactProtocolWriter*) const;
+extern template uint32_t Color::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+extern template uint32_t Color::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 } // cpp2
 namespace apache { namespace thrift {
@@ -123,36 +170,68 @@ template <> inline constexpr apache::thrift::protocol::TType Cpp2Ops< ::cpp2::Co
   return apache::thrift::protocol::T_STRUCT;
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Color>::write(Protocol* proto, const  ::cpp2::Color* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Color>::write(Protocol* proto,  ::cpp2::Color const* obj) {
   return obj->write(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Color>::read(Protocol* proto,   ::cpp2::Color* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Color>::read(Protocol* proto,  ::cpp2::Color* obj) {
   return obj->read(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Color>::serializedSize(Protocol* proto, const  ::cpp2::Color* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Color>::serializedSize(Protocol const* proto,  ::cpp2::Color const* obj) {
   return obj->serializedSize(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Color>::serializedSizeZC(Protocol* proto, const  ::cpp2::Color* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Color>::serializedSizeZC(Protocol const* proto,  ::cpp2::Color const* obj) {
   return obj->serializedSizeZC(proto);
 }
 
 }} // apache::thrift
 namespace cpp2 {
 
-class Vehicle : private boost::totally_ordered<Vehicle> {
+class Vehicle : private apache::thrift::detail::st::ComparisonOperators<Vehicle> {
  public:
 
-  Vehicle() {}
+  Vehicle() :
+      hasAC(false) {}
   // FragileConstructor for use in initialization lists only
 
-  Vehicle(apache::thrift::FragileConstructor,  ::cpp2::Color color__arg, std::string licensePlate__arg, std::string description__arg, std::string name__arg) :
+  Vehicle(apache::thrift::FragileConstructor,  ::cpp2::Color color__arg, std::string licensePlate__arg, std::string description__arg, std::string name__arg, bool hasAC__arg) :
       color(std::move(color__arg)),
       licensePlate(std::move(licensePlate__arg)),
       description(std::move(description__arg)),
-      name(std::move(name__arg)) {}
+      name(std::move(name__arg)),
+      hasAC(std::move(hasAC__arg)) {}
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Vehicle(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Vehicle(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    color = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Vehicle(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Vehicle(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    licensePlate = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Vehicle(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Vehicle(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    description = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Vehicle(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Vehicle(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    name = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Vehicle(::apache::thrift::detail::argument_wrapper<5, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Vehicle(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    hasAC = arg.move();
+  }
 
   Vehicle(Vehicle&&) = default;
 
@@ -163,26 +242,38 @@ class Vehicle : private boost::totally_ordered<Vehicle> {
   Vehicle& operator=(const Vehicle&) = default;
   void __clear();
 
-  virtual ~Vehicle() throw() {}
+  virtual ~Vehicle() {}
 
    ::cpp2::Color color;
   folly::Optional<std::string> licensePlate;
   folly::Optional<std::string> description;
   folly::Optional<std::string> name;
+  folly::Optional<bool> hasAC;
   bool operator==(const Vehicle& rhs) const;
   bool operator < (const Vehicle& rhs) const;
 
   template <class Protocol_>
   uint32_t read(Protocol_* iprot);
   template <class Protocol_>
-  uint32_t serializedSize(Protocol_* prot_) const;
+  uint32_t serializedSize(Protocol_ const* prot_) const;
   template <class Protocol_>
-  uint32_t serializedSizeZC(Protocol_* prot_) const;
+  uint32_t serializedSizeZC(Protocol_ const* prot_) const;
   template <class Protocol_>
   uint32_t write(Protocol_* prot_) const;
+
+ private:
+  static void translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype);
 };
 
 void swap(Vehicle& a, Vehicle& b);
+extern template uint32_t Vehicle::read<>(apache::thrift::BinaryProtocolReader*);
+extern template uint32_t Vehicle::write<>(apache::thrift::BinaryProtocolWriter*) const;
+extern template uint32_t Vehicle::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+extern template uint32_t Vehicle::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+extern template uint32_t Vehicle::read<>(apache::thrift::CompactProtocolReader*);
+extern template uint32_t Vehicle::write<>(apache::thrift::CompactProtocolWriter*) const;
+extern template uint32_t Vehicle::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+extern template uint32_t Vehicle::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 } // cpp2
 namespace apache { namespace thrift {
@@ -195,33 +286,30 @@ template <> inline constexpr apache::thrift::protocol::TType Cpp2Ops< ::cpp2::Ve
   return apache::thrift::protocol::T_STRUCT;
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Vehicle>::write(Protocol* proto, const  ::cpp2::Vehicle* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Vehicle>::write(Protocol* proto,  ::cpp2::Vehicle const* obj) {
   return obj->write(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Vehicle>::read(Protocol* proto,   ::cpp2::Vehicle* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Vehicle>::read(Protocol* proto,  ::cpp2::Vehicle* obj) {
   return obj->read(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Vehicle>::serializedSize(Protocol* proto, const  ::cpp2::Vehicle* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Vehicle>::serializedSize(Protocol const* proto,  ::cpp2::Vehicle const* obj) {
   return obj->serializedSize(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Vehicle>::serializedSizeZC(Protocol* proto, const  ::cpp2::Vehicle* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Vehicle>::serializedSizeZC(Protocol const* proto,  ::cpp2::Vehicle const* obj) {
   return obj->serializedSizeZC(proto);
 }
 
 }} // apache::thrift
 namespace cpp2 {
 
-class Person : private boost::totally_ordered<Person> {
+class Person : private apache::thrift::detail::st::ComparisonOperators<Person> {
  public:
 
   Person() :
-      id(0),
-      age(0),
-      bestFriend(0),
-      afraidOfAnimal( ::cpp2::Animal()) {}
+      id(0) {}
   // FragileConstructor for use in initialization lists only
 
   Person(apache::thrift::FragileConstructor,  ::cpp2::PersonID id__arg, std::string name__arg, int16_t age__arg, std::string address__arg,  ::cpp2::Color favoriteColor__arg, std::set< ::cpp2::PersonID> friends__arg,  ::cpp2::PersonID bestFriend__arg, std::map< ::cpp2::Animal, std::string> petNames__arg,  ::cpp2::Animal afraidOfAnimal__arg, std::vector< ::cpp2::Vehicle> vehicles__arg) :
@@ -235,6 +323,66 @@ class Person : private boost::totally_ordered<Person> {
       petNames(std::move(petNames__arg)),
       afraidOfAnimal(std::move(afraidOfAnimal__arg)),
       vehicles(std::move(vehicles__arg)) {}
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Person(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Person(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    id = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Person(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Person(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    name = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Person(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Person(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    age = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Person(::apache::thrift::detail::argument_wrapper<4, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Person(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    address = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Person(::apache::thrift::detail::argument_wrapper<5, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Person(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    favoriteColor = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Person(::apache::thrift::detail::argument_wrapper<6, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Person(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    friends = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Person(::apache::thrift::detail::argument_wrapper<7, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Person(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    bestFriend = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Person(::apache::thrift::detail::argument_wrapper<8, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Person(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    petNames = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Person(::apache::thrift::detail::argument_wrapper<9, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Person(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    afraidOfAnimal = arg.move();
+  }
+  template <typename T__ThriftWrappedArgument__Ctor, typename... Args__ThriftWrappedArgument__Ctor>
+  Person(::apache::thrift::detail::argument_wrapper<10, T__ThriftWrappedArgument__Ctor> arg, Args__ThriftWrappedArgument__Ctor&&... args):
+    Person(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    vehicles = arg.move();
+  }
 
   Person(Person&&) = default;
 
@@ -245,7 +393,7 @@ class Person : private boost::totally_ordered<Person> {
   Person& operator=(const Person&) = default;
   void __clear();
 
-  virtual ~Person() throw() {}
+  virtual ~Person() {}
 
    ::cpp2::PersonID id;
   std::string name;
@@ -263,14 +411,25 @@ class Person : private boost::totally_ordered<Person> {
   template <class Protocol_>
   uint32_t read(Protocol_* iprot);
   template <class Protocol_>
-  uint32_t serializedSize(Protocol_* prot_) const;
+  uint32_t serializedSize(Protocol_ const* prot_) const;
   template <class Protocol_>
-  uint32_t serializedSizeZC(Protocol_* prot_) const;
+  uint32_t serializedSizeZC(Protocol_ const* prot_) const;
   template <class Protocol_>
   uint32_t write(Protocol_* prot_) const;
+
+ private:
+  static void translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype);
 };
 
 void swap(Person& a, Person& b);
+extern template uint32_t Person::read<>(apache::thrift::BinaryProtocolReader*);
+extern template uint32_t Person::write<>(apache::thrift::BinaryProtocolWriter*) const;
+extern template uint32_t Person::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+extern template uint32_t Person::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+extern template uint32_t Person::read<>(apache::thrift::CompactProtocolReader*);
+extern template uint32_t Person::write<>(apache::thrift::CompactProtocolWriter*) const;
+extern template uint32_t Person::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+extern template uint32_t Person::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 } // cpp2
 namespace apache { namespace thrift {
@@ -283,19 +442,19 @@ template <> inline constexpr apache::thrift::protocol::TType Cpp2Ops< ::cpp2::Pe
   return apache::thrift::protocol::T_STRUCT;
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Person>::write(Protocol* proto, const  ::cpp2::Person* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Person>::write(Protocol* proto,  ::cpp2::Person const* obj) {
   return obj->write(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Person>::read(Protocol* proto,   ::cpp2::Person* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Person>::read(Protocol* proto,  ::cpp2::Person* obj) {
   return obj->read(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Person>::serializedSize(Protocol* proto, const  ::cpp2::Person* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Person>::serializedSize(Protocol const* proto,  ::cpp2::Person const* obj) {
   return obj->serializedSize(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::Person>::serializedSizeZC(Protocol* proto, const  ::cpp2::Person* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::Person>::serializedSizeZC(Protocol const* proto,  ::cpp2::Person const* obj) {
   return obj->serializedSizeZC(proto);
 }
 

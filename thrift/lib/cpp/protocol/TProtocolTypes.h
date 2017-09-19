@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ enum PROTOCOL_TYPES {
   T_DEBUG_PROTOCOL = 3,
   T_VIRTUAL_PROTOCOL = 4,
   T_SIMPLE_JSON_PROTOCOL = 5,
+  T_FROZEN2_PROTOCOL = 6,
 };
-
 }}} // apache::thrift::protocol
 
 #endif // #define _THRIFT_PROTOCOL_TPROTOCOLTYPES_H_ 1

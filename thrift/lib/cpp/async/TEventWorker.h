@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,21 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #ifndef THRIFT_SERVER_TEVENTWORKER_H_
 #define THRIFT_SERVER_TEVENTWORKER_H_ 1
 
-#include <thrift/lib/cpp/async/TAsyncServerSocket.h>
+#include <folly/io/async/AsyncServerSocket.h>
 #include <thrift/lib/cpp/async/TAsyncSSLSocket.h>
 #include <thrift/lib/cpp/async/TEventServer.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
+#include <folly/io/async/EventBase.h>
 #include <thrift/lib/cpp/async/TEventTask.h>
-#include <thrift/lib/cpp/async/TEventHandler.h>
-#include <thrift/lib/cpp/async/TNotificationQueue.h>
+#include <folly/io/async/EventHandler.h>
+#include <folly/io/async/NotificationQueue.h>
 #include <thrift/lib/cpp/server/TServer.h>
-#include <ext/hash_map>
 #include <list>
 #include <stack>
+#include <unordered_map>
 
 namespace apache { namespace thrift { namespace async {
 
@@ -44,9 +43,9 @@ class TEventServer;
  */
 class TEventWorker :
       public apache::thrift::server::TServer,
-      public TAsyncServerSocket::AcceptCallback,
+      public folly::AsyncServerSocket::AcceptCallback,
       public TAsyncSSLSocket::HandshakeCallback,
-      public TNotificationQueue<TaskCompletionMessage>::Consumer {
+      public folly::NotificationQueue<TaskCompletionMessage>::Consumer {
  private:
   /// Object that processes requests.
   std::shared_ptr<TAsyncProcessorFactory> asyncProcessorFactory_;
@@ -54,14 +53,14 @@ class TEventWorker :
   /// The mother ship.
   TEventServer* server_;
 
-  /// An instance's TEventBase for I/O.
-  TEventBase eventBase_;
+  /// An instance's folly::EventBase for I/O.
+  folly::EventBase eventBase_;
 
   /// Our ID in [0:nWorkers).
   uint32_t workerID_;
 
   /// Pipe that task completion notifications are sent over
-  TNotificationQueue<TaskCompletionMessage> notificationQueue_;
+  folly::NotificationQueue<TaskCompletionMessage> notificationQueue_;
 
   /**
    * A stack of idle TEventConnection objects for reuse.
@@ -98,7 +97,7 @@ class TEventWorker :
   void makeCompletionCallback();
 
   /**
-   * Initialize our TEventBase to generate incoming connection events.
+   * Initialize our EventBase to generate incoming connection events.
    * Note that this is called once before the main loop is executed and
    * sets up a READ event on the output of the listener's socktpair.
    */
@@ -125,9 +124,9 @@ class TEventWorker :
         return ((size_t)p ^ ((size_t)p >> kPtrHashShift)) * kPtrHashMult;
       }
     };
-  typedef __gnu_cxx::hash_map<const TEventConnection*,
-                              ConnectionList::iterator,
-                              hash<TEventConnection*> > ConnectionMap;
+  typedef std::unordered_map<const TEventConnection*,
+                             ConnectionList::iterator,
+                             hash<TEventConnection*>> ConnectionMap;
 
   /**
    * The list of active connections (used to allow the oldest connections
@@ -200,11 +199,11 @@ class TEventWorker :
   }
 
   /**
-   * Get my TEventBase object.
+   * Get my EventBase object.
    *
-   * @returns pointer to my TEventBase object.
+   * @returns pointer to my EventBase object.
    */
-  TEventBase* getEventBase() {
+  folly::EventBase* getEventBase() {
     return &eventBase_;
   }
 
@@ -254,7 +253,7 @@ class TEventWorker :
   /**
    * Task completed (called in this worker's thread)
    */
-  void messageAvailable(TaskCompletionMessage&& msg) override;
+  void messageAvailable(TaskCompletionMessage&& msg) noexcept override;
 
   void connectionAccepted(
       int fd, const folly::SocketAddress& clientAddr) noexcept override;

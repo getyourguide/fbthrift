@@ -19,7 +19,7 @@
 #ifndef THRIFT_PY_COMPILER_H
 #define THRIFT_PY_COMPILER_H
 
-#include "thrift/compiler/common.h"
+#include <thrift/compiler/common.h>
 
 // boost.python
 #include <boost/python.hpp>
@@ -28,7 +28,7 @@
 #include <boost/python/call.hpp>
 
 // boilerplate that enables quick definition of wrappers in boost::python
-#include "thrift/compiler/py/conv.h"
+#include <thrift/compiler/py/conv.h>
 
 namespace {
 using boost::noncopyable;
@@ -40,8 +40,6 @@ using namespace thrift::compiler::py::conv;
 extern unique_ptr<t_base_type> g_type_void_sptr;
 
 namespace thrift { namespace compiler { namespace py {
-
-bool validate_throws(t_struct* throws);
 
 void process(const dict& params, const object& generate_callback);
 

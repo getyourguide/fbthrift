@@ -17,13 +17,13 @@
  * under the License.
  */
 
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <unistd.h>
+#include <thrift/lib/cpp/server/TServer.h>
+
+#include <folly/portability/SysResource.h>
 
 namespace apache { namespace thrift { namespace server {
 
-int increase_max_fds(int max_fds=(1<<24))  {
+int increase_max_fds(int max_fds)  {
   struct rlimit fdmaxrl;
 
   for(fdmaxrl.rlim_cur = max_fds, fdmaxrl.rlim_max = max_fds;

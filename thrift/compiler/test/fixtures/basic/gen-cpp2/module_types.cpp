@@ -4,53 +4,49 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "module_types.h"
+#include "thrift/compiler/test/fixtures/basic/gen-cpp2/module_types.h"
 
-#include "module_types.tcc"
+#include "thrift/compiler/test/fixtures/basic/gen-cpp2/module_types.tcc"
 
 #include <algorithm>
 
+#include <folly/Indestructible.h>
+
+#include "thrift/compiler/test/fixtures/basic/gen-cpp2/module_data.h"
+
+
+
 namespace cpp2 {
 
-MyEnum _kMyEnumValues[] = {
-  MyEnum::MyValue1,
-  MyEnum::MyValue2
-};
-
-const char* _kMyEnumNames[] = {
-  "MyValue1",
-  "MyValue2"
-};
-
-const std::map<MyEnum, const char*> _MyEnum_VALUES_TO_NAMES(apache::thrift::TEnumIterator<MyEnum>(2, _kMyEnumValues, _kMyEnumNames), apache::thrift::TEnumIterator<MyEnum>(-1, nullptr, nullptr));
-const std::map<const char*, MyEnum, apache::thrift::ltstr> _MyEnum_NAMES_TO_VALUES(apache::thrift::TEnumInverseIterator<MyEnum>(2, _kMyEnumValues, _kMyEnumNames), apache::thrift::TEnumInverseIterator<MyEnum>(-1, nullptr, nullptr));
+const _MyEnum_EnumMapFactory::ValuesToNamesMapType _MyEnum_VALUES_TO_NAMES = _MyEnum_EnumMapFactory::makeValuesToNamesMap();
+const _MyEnum_EnumMapFactory::NamesToValuesMapType _MyEnum_NAMES_TO_VALUES = _MyEnum_EnumMapFactory::makeNamesToValuesMap();
 
 } // cpp2
+namespace std {
+
+} // std
 namespace apache { namespace thrift {
 
-template <> const char* TEnumTraitsBase< ::cpp2::MyEnum>::findName( ::cpp2::MyEnum value) {
-  return findName( ::cpp2::_MyEnum_VALUES_TO_NAMES, value);
+template <> const std::size_t TEnumTraits< ::cpp2::MyEnum>::size = 2;
+template <> const folly::Range<const  ::cpp2::MyEnum*> TEnumTraits< ::cpp2::MyEnum>::values = folly::range( ::cpp2::_MyEnumEnumDataStorage::values);
+template <> const folly::Range<const folly::StringPiece*> TEnumTraits< ::cpp2::MyEnum>::names = folly::range( ::cpp2::_MyEnumEnumDataStorage::names);
+template <> const char* TEnumTraits< ::cpp2::MyEnum>::findName( ::cpp2::MyEnum value) {
+  static auto const map = folly::Indestructible< ::cpp2::_MyEnum_EnumMapFactory::ValuesToNamesMapType>{ ::cpp2::_MyEnum_EnumMapFactory::makeValuesToNamesMap()};
+  return findName(*map, value);
 }
 
-template <> bool TEnumTraitsBase< ::cpp2::MyEnum>::findValue(const char* name,  ::cpp2::MyEnum* outValue) {
-  return findValue( ::cpp2::_MyEnum_NAMES_TO_VALUES, name, outValue);
+template <> bool TEnumTraits< ::cpp2::MyEnum>::findValue(const char* name,  ::cpp2::MyEnum* outValue) {
+  static auto const map = folly::Indestructible< ::cpp2::_MyEnum_EnumMapFactory::NamesToValuesMapType>{ ::cpp2::_MyEnum_EnumMapFactory::makeNamesToValuesMap()};
+  return findValue(*map, name, outValue);
 }
 
 }} // apache::thrift
 namespace cpp2 {
 
-template uint32_t MyStruct::read<apache::thrift::BinaryProtocolReader>(apache::thrift::BinaryProtocolReader*);
-template uint32_t MyStruct::write<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t MyStruct::serializedSize<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t MyStruct::serializedSizeZC<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t MyStruct::read<apache::thrift::CompactProtocolReader>(apache::thrift::CompactProtocolReader*);
-template uint32_t MyStruct::write<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t MyStruct::serializedSize<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t MyStruct::serializedSizeZC<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-
 void MyStruct::__clear() {
+  // clear all fields
   MyIntField = 0;
-  MyStringField = std::string();
+  MyStringField = apache::thrift::StringTraits< std::string>::fromStringLiteral("");
   __isset.__clear();
 }
 
@@ -61,15 +57,85 @@ bool MyStruct::operator==(const MyStruct& rhs) const {
   if (!((MyStringField == rhs.MyStringField))) {
     return false;
   }
+  if (!((MyDataField == rhs.MyDataField))) {
+    return false;
+  }
   return true;
+}
+
+const  ::cpp2::MyDataItem& MyStruct::get_MyDataField() const& {
+  return MyDataField;
+}
+
+ ::cpp2::MyDataItem MyStruct::get_MyDataField() && {
+  return std::move(MyDataField);
+}
+
+void MyStruct::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "MyIntField") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I64;
+  }
+  else if (_fname == "MyStringField") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "MyDataField") {
+    fid = 3;
+    _ftype = apache::thrift::protocol::T_STRUCT;
+  }
 }
 
 void swap(MyStruct& a, MyStruct& b) {
   using ::std::swap;
   swap(a.MyIntField, b.MyIntField);
   swap(a.MyStringField, b.MyStringField);
+  swap(a.MyDataField, b.MyDataField);
   swap(a.__isset, b.__isset);
 }
+
+template uint32_t MyStruct::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t MyStruct::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t MyStruct::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t MyStruct::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t MyStruct::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t MyStruct::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t MyStruct::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t MyStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
+
+} // cpp2
+namespace apache { namespace thrift {
+
+}} // apache::thrift
+namespace cpp2 {
+
+void MyDataItem::__clear() {
+  // clear all fields
+}
+
+bool MyDataItem::operator==(const MyDataItem& /* rhs */) const {
+  return true;
+}
+
+void MyDataItem::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+}
+
+void swap(MyDataItem& a, MyDataItem& b) {
+  using ::std::swap;
+  (void)a;
+  (void)b;
+}
+
+template uint32_t MyDataItem::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t MyDataItem::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t MyDataItem::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t MyDataItem::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t MyDataItem::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t MyDataItem::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t MyDataItem::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t MyDataItem::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 } // cpp2
 namespace apache { namespace thrift {

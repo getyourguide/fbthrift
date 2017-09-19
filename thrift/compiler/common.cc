@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +18,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#include <thrift/compiler/common.h>
 
-#include "thrift/compiler/common.h"
+#ifdef _WIN32
+# include <windows.h> /* for GetFullPathName */
+#endif
+
+#include <boost/filesystem.hpp>
+
+#include <thrift/compiler/platform.h>
 
 /**
  * Global program tree
  */
 t_program* g_program;
+std::map<std::string, t_program*> program_cache;
 
 /**
  * Global types
@@ -40,19 +50,9 @@ t_base_type* g_type_double;
 t_base_type* g_type_float;
 
 /**
- * Global scope
+ * Global scope cache for faster compilations
  */
-t_scope* g_scope;
-
-/**
- * Parent scope to also parse types
- */
-t_scope* g_parent_scope;
-
-/**
- * Prefix for putting types in parent scope
- */
-string g_parent_prefix;
+t_scope* g_scope_cache;
 
 /**
  * Parsing pass
@@ -68,6 +68,11 @@ string g_curdir;
  * Current file being parsed
  */
 string g_curpath;
+
+/**
+ * Directory containing template files
+ */
+string g_template_dir;
 
 /**
  * Search path for inclusions
@@ -130,22 +135,14 @@ int g_allow_neg_enum_vals;
  */
 int g_allow_64bit_consts = 0;
 
-
-char *saferealpath(const char *path, char *resolved_path) {
-#ifdef MINGW
-  char buf[MAX_PATH];
-  char* basename;
-  DWORD len = GetFullPathName(path, MAX_PATH, buf, &basename);
-  if (len == 0 || len > MAX_PATH - 1){
-    strcpy(resolved_path, path);
-  } else {
-    CharLowerBuff(buf, len);
-    strcpy(resolved_path, buf);
+std::string compute_absolute_path(const std::string& path) {
+  boost::filesystem::path abspath{path};
+  try {
+    abspath = boost::filesystem::canonical(abspath);
+    return abspath.string();
+  } catch (const boost::filesystem::filesystem_error& e) {
+    failure("Could not find file: %s. Error: %s", path.c_str(), e.what());
   }
-  return resolved_path;
-#else
-  return realpath(path, resolved_path);
-#endif
 }
 
 void yyerror(const char* fmt, ...) {
@@ -197,6 +194,7 @@ void pwarning(int level, const char* fmt, ...) {
   fprintf(stderr, "\n");
 }
 
+[[noreturn]]
 void failure(const char* fmt, ...) {
   va_list args;
   fprintf(stderr, "[FAILURE:%s:%d] ", g_curpath.c_str(), yylineno);
@@ -205,18 +203,6 @@ void failure(const char* fmt, ...) {
   va_end(args);
   fprintf(stderr, "\n");
   exit(1);
-}
-
-string program_name(string filename) {
-  string::size_type slash = filename.rfind("/");
-  if (slash != string::npos) {
-    filename = filename.substr(slash+1);
-  }
-  string::size_type dot = filename.rfind(".");
-  if (dot != string::npos) {
-    filename = filename.substr(0, dot);
-  }
-  return filename;
 }
 
 string directory_name(string filename) {
@@ -231,18 +217,7 @@ string directory_name(string filename) {
 string include_file(string filename) {
   // Absolute path? Just try that
   if (filename[0] == '/') {
-    // Realpath!
-    char rp[PATH_MAX];
-    if (saferealpath(filename.c_str(), rp) == nullptr) {
-      pwarning(0, "Cannot open include file %s\n", filename.c_str());
-      return std::string();
-    }
-
-    // Stat this file
-    struct stat finfo;
-    if (stat(rp, &finfo) == 0) {
-      return rp;
-    }
+    return compute_absolute_path(filename);
   } else { // relative path, start searching
     // new search path with current dir global
     vector<string> sp = g_incl_searchpath;
@@ -252,24 +227,17 @@ string include_file(string filename) {
     vector<string>::iterator it;
     for (it = sp.begin(); it != sp.end(); it++) {
       string sfilename = *(it) + "/" + filename;
-
-      // Realpath!
-      char rp[PATH_MAX];
-      if (saferealpath(sfilename.c_str(), rp) == nullptr) {
-        continue;
-      }
-
-      // Stat this files
-      struct stat finfo;
-      if (stat(rp, &finfo) == 0) {
-        return rp;
+      if (boost::filesystem::exists(sfilename)) {
+        return sfilename;
+      } else {
+        pdebug("Could not find: %s.", sfilename.c_str());
       }
     }
+
+    // File was not found
+    failure("Could not find include file %s", filename.c_str());
   }
 
-  // Uh oh
-  pwarning(0, "Could not find include file %s", filename.c_str());
-  return std::string();
 }
 
 void clear_doctext() {
@@ -471,6 +439,8 @@ void validate_const_rec(std::string name, t_type* type, t_const_value* value) {
     throw string("type error: cannot declare a void const: " + name);
   }
 
+  auto as_struct = dynamic_cast<t_struct *>(type);
+  assert((as_struct != nullptr) == type->is_struct());
   if (type->is_base_type()) {
     t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
     switch (tbase) {
@@ -481,7 +451,8 @@ void validate_const_rec(std::string name, t_type* type, t_const_value* value) {
       }
       break;
     case t_base_type::TYPE_BOOL:
-      if (value->get_type() != t_const_value::CV_INTEGER) {
+      if (value->get_type() != t_const_value::CV_BOOL
+          && value->get_type() != t_const_value::CV_INTEGER) {
         throw string("type error: const \"" + name + "\" was declared as bool");
       }
       break;
@@ -521,16 +492,48 @@ void validate_const_rec(std::string name, t_type* type, t_const_value* value) {
     if (value->get_type() != t_const_value::CV_INTEGER) {
       throw string("type error: const \"" + name + "\" was declared as enum");
     }
+    const auto as_enum = dynamic_cast<t_enum*>(type);
+    assert(as_enum != nullptr);
+    const auto enum_val = as_enum->find_value(value->get_integer());
+    if (enum_val == nullptr) {
+      pwarning(
+          0,
+          "type error: const \"%s\" was declared as enum \"%s\" with a value"
+          " not of that enum",
+          name.c_str(),
+          type->get_name().c_str());
+    }
+  } else if (as_struct && as_struct->is_union()) {
+    if (value->get_type() != t_const_value::CV_MAP) {
+      throw string("type error: const \"" + name + "\" was declared as union");
+    }
+    auto const &map = value->get_map();
+    if (map.size() > 1) {
+      throw string("type error: const \"" + name + "\" is a union and can't "
+        "have more than one field set");
+    }
+    if (!map.empty()) {
+      if (map.front().first->get_type() != t_const_value::CV_STRING) {
+        throw string("type error: const \"" + name + "\" is a union and member "
+          "names must be a string");
+      }
+      auto const &member_name = map.front().first->get_string();
+      auto const &member = as_struct->get_member(member_name);
+      if (!member) {
+        throw string("type error: no member named \"" + member_name + "\" for "
+          "union const \"" + name + "\"");
+      }
+    }
   } else if (type->is_struct() || type->is_xception()) {
     if (value->get_type() != t_const_value::CV_MAP) {
-      throw string("type error: const \"" + name + "\" was declared as" +
-        "struct/xception");
+      throw string("type error: const \"" + name + "\" was declared as " +
+        "struct/exception");
     }
     const vector<t_field*>& fields = ((t_struct*)type)->get_members();
     vector<t_field*>::const_iterator f_iter;
 
-    const map<t_const_value*, t_const_value*>& val = value->get_map();
-    map<t_const_value*, t_const_value*>::const_iterator v_iter;
+    const vector<pair<t_const_value*, t_const_value*>>& val = value->get_map();
+    vector<pair<t_const_value*, t_const_value*>>::const_iterator v_iter;
     for (v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
       if (v_iter->first->get_type() != t_const_value::CV_STRING) {
         throw string("type error: " + name + " struct key must be string");
@@ -552,8 +555,8 @@ void validate_const_rec(std::string name, t_type* type, t_const_value* value) {
   } else if (type->is_map()) {
     t_type* k_type = ((t_map*)type)->get_key_type();
     t_type* v_type = ((t_map*)type)->get_val_type();
-    const map<t_const_value*, t_const_value*>& val = value->get_map();
-    map<t_const_value*, t_const_value*>::const_iterator v_iter;
+    const vector<pair<t_const_value*, t_const_value*>>& val = value->get_map();
+    vector<pair<t_const_value*, t_const_value*>>::const_iterator v_iter;
     for (v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
       validate_const_rec(name + "<key>", k_type, v_iter->first);
       validate_const_rec(name + "<val>", v_type, v_iter->second);
@@ -573,9 +576,27 @@ void validate_const_rec(std::string name, t_type* type, t_const_value* value) {
   }
 }
 
-void parse(t_program* program, t_program* parent_program) {
+void parse(
+    t_program* program,
+    std::set<std::string>& already_parsed_paths,
+    std::set<std::string> circular_deps) {
   // Get scope file path
   string path = program->get_path();
+
+  // Fail on circular dependencies
+  if (circular_deps.count(path)) {
+    failure(
+        "Circular dependency found: file %s is already parsed.", path.c_str());
+  } else {
+    circular_deps.insert(path);
+  }
+
+  // Skip on already parsed files
+  if (already_parsed_paths.count(path)) {
+    return;
+  } else {
+    already_parsed_paths.insert(path);
+  }
 
   // Set current dir global, which is used in the include_file function
   g_curdir = directory_name(path);
@@ -591,7 +612,6 @@ void parse(t_program* program, t_program* parent_program) {
   pverbose("Scanning %s for includes\n", path.c_str());
   g_parse_mode = INCLUDES;
   g_program = program;
-  g_scope = program->scope();
   try {
     yylineno = 1;
     if (yyparse() != 0) {
@@ -603,8 +623,7 @@ void parse(t_program* program, t_program* parent_program) {
   fclose(yyin);
 
   // Recursively parse all the include programs
-  vector<t_program*>& includes = program->get_includes();
-  vector<t_program*>::iterator iter;
+  const auto& includes = program->get_includes();
   // Always enable g_allow_neg_field_keys when parsing included files.
   // This way if a thrift file has negative keys, --allow-neg-keys doesn't have
   // to be used by everyone that includes it.
@@ -612,8 +631,8 @@ void parse(t_program* program, t_program* parent_program) {
   bool main_allow_neg_enum_vals = g_allow_neg_enum_vals;
   g_allow_neg_enum_vals = true;
   g_allow_neg_field_keys = true;
-  for (iter = includes.begin(); iter != includes.end(); ++iter) {
-    parse(*iter, program);
+  for (auto included_program : includes) {
+    parse(included_program, already_parsed_paths, circular_deps);
   }
   g_allow_neg_enum_vals = main_allow_neg_enum_vals;
   g_allow_neg_field_keys = main_allow_neg_keys;
@@ -621,9 +640,6 @@ void parse(t_program* program, t_program* parent_program) {
   // Parse the program file
   g_parse_mode = PROGRAM;
   g_program = program;
-  g_scope = program->scope();
-  g_parent_scope = (parent_program != nullptr) ? parent_program->scope() : nullptr;
-  g_parent_prefix = program->get_name() + ".";
   g_curpath = path;
   yyin = fopen(path.c_str(), "r");
   if (yyin == 0) {
@@ -647,4 +663,44 @@ void validate_const_type(t_const* c) {
 
 void validate_field_value(t_field* field, t_const_value* cv) {
   validate_const_rec(field->get_name(), field->get_type(), cv);
+}
+
+/**
+ * Get the true type behind a series of typedefs.
+ */
+const t_type* common_get_true_type(const t_type* type) {
+  while (type->is_typedef()) {
+    type = (static_cast<const t_typedef*>(type))->get_type();
+  }
+  return type;
+}
+t_type* common_get_true_type(t_type* type) {
+  return const_cast<t_type*>(
+      common_get_true_type(const_cast<const t_type*>(type)));
+}
+
+/**
+ * Check that all the elements of a throws block are actually exceptions.
+ */
+bool validate_throws(t_struct* throws) {
+  if (!throws) {
+    return true;
+  }
+
+  const vector<t_field*>& members = throws->get_members();
+  vector<t_field*>::const_iterator m_iter;
+  for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
+    if (!common_get_true_type((*m_iter)->get_type())->is_xception()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// TODO: Add a description of the function
+void override_annotations(std::map<std::string, std::string>& where,
+                          const std::map<std::string, std::string>& from) {
+  for (const auto& kvp : from) {
+    where[kvp.first] = kvp.second;
+  }
 }

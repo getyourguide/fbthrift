@@ -20,14 +20,13 @@
 #include <thrift/lib/cpp/Thrift.h>
 #include <thrift/lib/cpp/server/TServer.h>
 #include <thrift/lib/cpp/async/TAsyncProcessor.h>
-#include <thrift/lib/cpp/transport/TTransportUtils.h>
 #include <thrift/lib/cpp/transport/TSSLSocket.h>
 #include <thrift/lib/cpp/protocol/THeaderProtocol.h>
 #include <thrift/lib/cpp/concurrency/Mutex.h>
 #include <thrift/lib/cpp/concurrency/ThreadLocal.h>
-#include <thrift/lib/cpp/async/TAsyncServerSocket.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
-#include <thrift/lib/cpp/async/TEventBaseManager.h>
+#include <folly/io/async/AsyncServerSocket.h>
+#include <folly/io/async/EventBase.h>
+#include <folly/io/async/EventBaseManager.h>
 #include <thrift/lib/cpp/concurrency/PosixThreadFactory.h>
 #include <vector>
 #include <map>
@@ -146,19 +145,19 @@ class TEventServer : public apache::thrift::server::TServer {
   uint16_t port_;
 
   //! Listen socket
-  TAsyncServerSocket::UniquePtr socket_;
+  folly::AsyncServerSocket::UniquePtr socket_;
 
-  //! The TEventBase currently driving serve().  nullptr when not serving.
-  TEventBase* serveEventBase_;
+  //! The folly::EventBase currently driving serve().  nullptr when not serving.
+  folly::EventBase* serveEventBase_;
 
   //! Number of worker threads (may be set) (should be # of CPU cores)
   int nWorkers_;
 
   //! Milliseconds we'll wait for data to appear (0 = infinity)
-  int timeout_;
+  std::chrono::milliseconds timeout_;
 
-  //! Manager of per-thread TEventBase objects.
-  TEventBaseManager eventBaseManager_;
+  //! Manager of per-thread folly::EventBase objects.
+  folly::EventBaseManager eventBaseManager_;
 
   //! Last worker chosen -- used to select workers in round-robin sequence.
   uint32_t workerChoice_;
@@ -208,7 +207,7 @@ class TEventServer : public apache::thrift::server::TServer {
    * between the start of a call and the actual invokation of its processor.
    * The connection closes if it is exceeded.
    */
-  int32_t callTimeout_;
+  std::chrono::milliseconds callTimeout_;
 
   /**
    * The thread manager used when we're in queuing mode.
@@ -226,7 +225,7 @@ class TEventServer : public apache::thrift::server::TServer {
    * The time in milliseconds before an unperformed task expires --
    * queuing mode only. (0 == infinite)
    */
-  uint64_t taskExpireTime_;
+  std::chrono::milliseconds taskExpireTime_;
 
   /**
    * The number of incoming connections the TCP stack will buffer up while
@@ -629,7 +628,7 @@ class TEventServer : public apache::thrift::server::TServer {
    *       we destroy this socket, while cleaning itself up. So, 'accept' better
    *       work the first time :)
    */
-  void useExistingSocket(TAsyncServerSocket::UniquePtr socket);
+  void useExistingSocket(folly::AsyncServerSocket::UniquePtr socket);
 
   void useExistingSocket(int socket);
 
@@ -656,38 +655,38 @@ class TEventServer : public apache::thrift::server::TServer {
   }
 
   /**
-   * Get the TEventBase used by the current thread.
+   * Get the EventBase used by the current thread.
    * This will be different between each worker and the listener.  Use this
    * for any event monitoring within a processor and be careful NOT to
    * cache between connections (since they may be executed by different
    * workers).
    *
-   * @return a pointer to the TEventBase.
+   * @return a pointer to the EventBase.
    */
-  TEventBase* getEventBase() const {
+  folly::EventBase* getEventBase() const {
     return eventBaseManager_.getEventBase();
   }
 
   /**
    * Get the TEventServer's main event base.
    *
-   * @return a pointer to the TEventBase.
+   * @return a pointer to the EventBase.
    */
-  TEventBase* getServeEventBase() const {
+  folly::EventBase* getServeEventBase() const {
     return serveEventBase_;
   }
 
   /**
-   * Get the TEventBaseManager used by this server.
-   * This can be used to find or create the TEventBase associated with
+   * Get the EventBaseManager used by this server.
+   * This can be used to find or create the EventBase associated with
    * any given thread, including any new threads created by clients.
    *
-   * @return a pointer to the TEventBaseManager.
+   * @return a pointer to the EventBaseManager.
    */
-  TEventBaseManager* getEventBaseManager() {
+  folly::EventBaseManager* getEventBaseManager() {
     return &eventBaseManager_;
   }
-  const TEventBaseManager* getEventBaseManager() const {
+  const folly::EventBaseManager* getEventBaseManager() const {
     return &eventBaseManager_;
   }
 
@@ -764,7 +763,7 @@ class TEventServer : public apache::thrift::server::TServer {
   }
 
   /**
-   * Get the number of connections dropped by the TAsyncServerSocket
+   * Get the number of connections dropped by the AsyncServerSocket
    */
   uint64_t getNumDroppedConnections() const;
 
@@ -778,7 +777,7 @@ class TEventServer : public apache::thrift::server::TServer {
    *
    *  @return number of milliseconds, or 0 if no timeout set.
    */
-  int getRecvTimeout() const {
+  std::chrono::milliseconds getRecvTimeout() const {
     return timeout_;
   }
 
@@ -787,7 +786,7 @@ class TEventServer : public apache::thrift::server::TServer {
    *
    *  @param timeout number of milliseconds, or 0 to disable timeouts.
    */
-  void setRecvTimeout(int timeout) {
+  void setRecvTimeout(std::chrono::milliseconds timeout) {
     timeout_ = timeout;
   }
 
@@ -911,14 +910,14 @@ class TEventServer : public apache::thrift::server::TServer {
   /**
    * Set a call timeout in milliseconds.
    *
-   * When a worker's TEventBase starts taking longer than this amount of time
+   * When a worker's EventBase starts taking longer than this amount of time
    * to process a single loop, start dropping connections to reduce loadj
    *
    * TODO: This should be renamed something other than "call timeout"
    *
    * @param milliseconds the call timeout (0 inhibits)
    */
-  void setCallTimeout(int32_t milliseconds) {
+  void setCallTimeout(std::chrono::milliseconds milliseconds) {
     callTimeout_ = milliseconds;
   }
 
@@ -927,7 +926,7 @@ class TEventServer : public apache::thrift::server::TServer {
    *
    * @return the call timeout in milliseconds
    */
-  int32_t getCallTimeout() const {
+  std::chrono::milliseconds getCallTimeout() const {
     return callTimeout_;
   }
 
@@ -955,7 +954,7 @@ class TEventServer : public apache::thrift::server::TServer {
    *
    * @return task expire time
    */
-  int64_t getTaskExpireTime() const {
+  std::chrono::milliseconds getTaskExpireTime() const {
     return taskExpireTime_;
   }
 

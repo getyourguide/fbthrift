@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-#ifndef CPP2_WORKER_H_
-#define CPP2_WORKER_H_ 1
+#pragma once
 
-#include <thrift/lib/cpp/async/TAsyncServerSocket.h>
+#include <folly/io/async/AsyncServerSocket.h>
+#include <folly/io/async/EventBase.h>
+#include <folly/io/async/EventHandler.h>
+#include <folly/io/async/HHWheelTimer.h>
 #include <thrift/lib/cpp/async/TAsyncSSLSocket.h>
-#include <thrift/lib/cpp/async/HHWheelTimer.h>
-#include <thrift/lib/cpp2/server/ThriftServer.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
-#include <thrift/lib/cpp/async/TEventHandler.h>
 #include <thrift/lib/cpp/server/TServer.h>
+#include <thrift/lib/cpp2/server/ThriftServer.h>
+#include <thrift/lib/cpp2/server/peeking/TLSHelper.h>
 #include <unordered_set>
 
 #include <wangle/acceptor/ConnectionManager.h>
 #include <wangle/acceptor/Acceptor.h>
+#include <wangle/acceptor/PeekingAcceptorHandshakeHelper.h>
 
 namespace apache { namespace thrift {
 
@@ -43,9 +44,13 @@ class ThriftServer;
  * typically be around one Cpp2Worker thread per core.
  */
 class Cpp2Worker
-    : public wangle::Acceptor {
+    : public wangle::Acceptor,
+      private wangle::PeekingAcceptorHandshakeHelper::PeekCallback,
+      public std::enable_shared_from_this<Cpp2Worker> {
+ protected:
+  enum { kPeekCount = 9 };
+  struct DoNotUse {};
  public:
-
   /**
    * Cpp2Worker is the actual server object for existing connections.
    * One or more of these should be created by ThriftServer (one per
@@ -54,31 +59,28 @@ class Cpp2Worker
    * @param server the ThriftServer which created us.
    * @param serverChannel existing server channel to use, only for duplex server
    */
-  explicit Cpp2Worker(ThriftServer* server,
-             const std::shared_ptr<HeaderServerChannel>&
-             serverChannel = nullptr,
-             folly::EventBase* eventBase = nullptr) :
-    Acceptor(server->getServerSocketConfig()),
-    server_(server),
-    eventBase_(eventBase),
-    activeRequests_(0),
-    pendingCount_(0),
-    pendingTime_(std::chrono::steady_clock::now()) {
-    auto observer =
-      std::dynamic_pointer_cast<apache::thrift::async::EventBaseObserver>(
-      server_->getObserver());
-    if (serverChannel) {
-      // duplex
-      useExistingChannel(serverChannel);
-    } else if (!eventBase_) {
-      eventBase_ = folly::EventBaseManager::get()->getEventBase();
-    }
-    if (observer) {
-      eventBase_->setObserver(observer);
-    }
-
-    Acceptor::init(nullptr, eventBase_);
+  static std::shared_ptr<Cpp2Worker>
+  create(ThriftServer* server,
+         const std::shared_ptr<HeaderServerChannel>& serverChannel = nullptr,
+         folly::EventBase* eventBase = nullptr) {
+    std::shared_ptr<Cpp2Worker> worker(new Cpp2Worker(server, {}));
+    worker->construct(server, serverChannel, eventBase);
+    return worker;
   }
+
+  void init(
+      folly::AsyncServerSocket* serverSocket,
+      folly::EventBase* eventBase,
+      wangle::SSLStats* stats = nullptr) override {
+    securityProtocolCtxManager_.addPeeker(this);
+    Acceptor::init(serverSocket, eventBase, stats);
+  }
+
+  /*
+   * This is called from ThriftServer::stopDuplex
+   * Necessary for keeping the ThriftServer alive until this Worker dies
+   */
+  void stopDuplex(std::shared_ptr<ThriftServer> ts);
 
   /**
    * Get underlying server.
@@ -93,29 +95,89 @@ class Cpp2Worker
    * Count the number of pending fds. Used for overload detection.
    * Not thread-safe.
    */
-  int pendingCount();
+  int computePendingCount();
 
   /**
    * Cached pending count. Thread-safe.
    */
   int getPendingCount() const;
 
+  /**
+   * SSL stats hook
+   */
+  void updateSSLStats(
+      const folly::AsyncTransportWrapper* sock,
+      std::chrono::milliseconds acceptLatency,
+      wangle::SSLErrorEnum error) noexcept override;
+
+ protected:
+  Cpp2Worker(ThriftServer* server,
+             DoNotUse /* ignored, never call constructor directly */) :
+    Acceptor(server->getServerSocketConfig()),
+    wangle::PeekingAcceptorHandshakeHelper::PeekCallback(kPeekCount),
+    server_(server),
+    activeRequests_(0),
+    pendingCount_(0),
+    pendingTime_(std::chrono::steady_clock::now()) {
+  }
+
+  void construct(
+      ThriftServer*,
+      const std::shared_ptr<HeaderServerChannel>& serverChannel,
+      folly::EventBase* eventBase) {
+    auto observer =
+      std::dynamic_pointer_cast<folly::EventBaseObserver>(
+        server_->getObserver());
+    if (serverChannel) {
+      eventBase = serverChannel->getEventBase();
+    } else if (!eventBase) {
+      eventBase = folly::EventBaseManager::get()->getEventBase();
+    }
+    init(nullptr, eventBase);
+
+    if (serverChannel) {
+      // duplex
+      useExistingChannel(serverChannel);
+    }
+
+    if (observer) {
+      eventBase->setObserver(observer);
+    }
+  }
+
+  void onNewConnection(folly::AsyncTransportWrapper::UniquePtr,
+                       const folly::SocketAddress*,
+                       const std::string&,
+                       wangle::SecureTransportType,
+                       const wangle::TransportInfo&) override;
+
+  virtual std::shared_ptr<async::TAsyncTransport> createThriftTransport(
+      folly::AsyncTransportWrapper::UniquePtr);
+
+  SSLPolicy getSSLPolicy() {
+    return server_->getSSLPolicy();
+  }
+
+  void plaintextConnectionReady(
+      folly::AsyncTransportWrapper::UniquePtr sock,
+      const folly::SocketAddress& clientAddr,
+      const std::string& nextProtocolName,
+      wangle::SecureTransportType secureTransportType,
+      wangle::TransportInfo& tinfo) override;
+
  private:
   /// The mother ship.
   ThriftServer* server_;
 
-  /// An instance's TEventBase for I/O.
-  apache::thrift::async::TEventBase* eventBase_;
-
-  void onNewConnection(folly::AsyncSocket::UniquePtr,
-                       const folly::SocketAddress*,
-                       const std::string&,
-                       SecureTransportType,
-                       const wangle::TransportInfo&) override;
+  // For DuplexChannel case, set only during shutdown so that we can extend the
+  // lifetime of the ThriftServer if the Worker is kept alive by some
+  // Connections which are kept alive by in-flight requests
+  std::shared_ptr<ThriftServer> duplexServer_;
 
   folly::AsyncSocket::UniquePtr makeNewAsyncSocket(folly::EventBase* base,
                                                    int fd) override {
-    return folly::AsyncSocket::UniquePtr(new apache::thrift::async::TAsyncSocket(base, fd));
+    return folly::AsyncSocket::UniquePtr(
+        new apache::thrift::async::TAsyncSocket(base, fd));
   }
 
   folly::AsyncSSLSocket::UniquePtr makeNewAsyncSSLSocket(
@@ -142,10 +204,14 @@ class Cpp2Worker
   int pendingCount_;
   std::chrono::steady_clock::time_point pendingTime_;
 
+  wangle::AcceptorHandshakeHelper::UniquePtr getHelper(
+      const std::vector<uint8_t>& bytes,
+      const folly::SocketAddress& clientAddr,
+      std::chrono::steady_clock::time_point acceptTime,
+      wangle::TransportInfo& tinfo) override;
+
   friend class Cpp2Connection;
   friend class ThriftServer;
 };
 
 }} // apache::thrift
-
-#endif // #ifndef CPP2_WORKER_H_

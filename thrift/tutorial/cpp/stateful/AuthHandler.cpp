@@ -17,9 +17,9 @@
  * under the License.
  */
 
-#include "thrift/tutorial/cpp/stateful/AuthHandler.h"
+#include <thrift/tutorial/cpp/stateful/AuthHandler.h>
 
-#include "thrift/tutorial/cpp/stateful/ServiceAuthState.h"
+#include <thrift/tutorial/cpp/stateful/ServiceAuthState.h>
 #include <thrift/lib/cpp/server/TConnectionContext.h>
 
 using namespace std;
@@ -61,7 +61,7 @@ AuthHandler::listSessions(vector<SessionInfo> &_return) {
   });
 }
 
-void
+[[noreturn]] void
 AuthHandler::throwLoginError(const string& message) const {
   LoginError err;
   err.message = message;

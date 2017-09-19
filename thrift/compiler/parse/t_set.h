@@ -20,7 +20,7 @@
 #ifndef T_SET_H
 #define T_SET_H
 
-#include "thrift/compiler/parse/t_container.h"
+#include <thrift/compiler/parse/t_container.h>
 
 /**
  * A set is a lightweight container type that just wraps another data type.
@@ -50,7 +50,7 @@ class t_set : public t_container {
     return "set<" + elem_type_->get_impl_full_name() + ">";
   }
 
-  TypeValue get_type_value() const override { return t_types::TYPE_SET; }
+  TypeValue get_type_value() const override { return TypeValue::TYPE_SET; }
 
  private:
   t_type* elem_type_;

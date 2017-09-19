@@ -23,7 +23,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import itertools
+import json
 import os
 import pprint
 from six.moves.urllib.parse import urlparse
@@ -40,15 +40,17 @@ from thrift.protocol import TBinaryProtocol, TCompactProtocol, \
 
 class Function(object):
     """Metadata for a service method"""
-    def __init__(self, name, return_type, args):
-        self.name = name
+    def __init__(self, fn_name, svc_name, return_type, args):
+        self.fn_name = fn_name
+        self.svc_name = svc_name
         self.return_type = return_type
         self.args = args
 
 class RemoteClient(object):
-    def __init__(self, functions, service_class,
+    def __init__(self, functions, service_names, service_class,
                  ttypes, print_usage, default_port):
         self.functions = functions
+        self.service_names = service_names
         self.service_class = service_class
         self.ttypes = ttypes
         self.print_usage = print_usage
@@ -56,17 +58,20 @@ class RemoteClient(object):
 
     def _print_functions(self, out):
         """Print all the functions available from this service"""
-        out.write('Functions:\n')
-        for fn_name in sorted(self.functions):
-            fn = self.functions[fn_name]
-            if fn.return_type is None:
-                out.write('  oneway void ')
-            else:
-                out.write('  %s ' % (fn.return_type,))
-            out.write(fn_name + '(')
-            out.write(', '.join('%s %s' % (type, name)
-                                for type, name, true_type in fn.args))
-            out.write(')\n')
+        fns_by_service_name = {svc_name: {} for svc_name in self.service_names}
+        for fn in self.functions.values():
+            fns_by_service_name[fn.svc_name][fn.fn_name] = fn
+        for svc_name in reversed(self.service_names):
+            out.write('Functions in %s:\n' % (svc_name,))
+            for fn_name, fn in sorted(fns_by_service_name[svc_name].items()):
+                if fn.return_type is None:
+                    out.write('  oneway void ')
+                else:
+                    out.write('  %s ' % (fn.return_type,))
+                out.write(fn_name + '(')
+                out.write(', '.join('%s %s' % (type, name)
+                                    for type, name, true_type in fn.args))
+                out.write(')\n')
 
 
     def _exit(self, error_message=None, status=os.EX_USAGE, err_out=sys.stderr):
@@ -98,14 +103,20 @@ class RemoteClient(object):
 
     def _eval_arg(self, arg, thrift_types):
         """Evaluate a commandline argument within the scope of the IF types"""
-        locals().update(thrift_types)
-        return eval(arg)
+        code_globals = {}
+        code_globals.update(thrift_types)
+        # Explicitly compile the code so that it does not inherit our
+        # __future__ directives imported above.  In particular this ensures
+        # that string literals are not treated as unicode unless explicitly
+        # qualified as such.
+        code = compile(arg, '<command_line>', 'eval', 0, 1)
+        return eval(code, code_globals)
 
-    def _process_fn_args(self, fn, args):
+    def _process_fn_args(self, fn, args, eval_all=False):
         """Proccess positional commandline args as function arguments"""
         if len(args) != len(fn.args):
             self._exit(error_message=('"%s" expects %d arguments '
-                       '(received %d)') % (fn.name, len(fn.args), len(args)))
+                       '(received %d)') % (fn.fn_name, len(fn.args), len(args)))
 
         # Get all custom Thrift types
         thrift_types = {}
@@ -113,15 +124,15 @@ class RemoteClient(object):
             thrift_types[key] = getattr(self.ttypes, key)
 
         fn_args = []
-        for arg, arg_info in itertools.izip(args, fn.args):
-            if arg_info[2] == 'string':
+        for arg, arg_info in zip(args, fn.args):
+            if arg_info[2] == 'string' and not eval_all:
                 # For ease-of-use, we don't eval string arguments, simply so
                 # users don't have to wrap the arguments in quotes
                 fn_args.append(arg)
                 continue
             try:
                 value = self._eval_arg(arg, thrift_types)
-            except:
+            except Exception:
                 traceback.print_exc(file=sys.stderr)
                 self._exit(error_message='error parsing argument "%s"' % (arg,),
                            status=os.EX_DATAERR)
@@ -138,10 +149,11 @@ class RemoteClient(object):
         else:
             function = self.functions[fn_name]
 
-        function_args = self._process_fn_args(function, args.function_args)
+        function_args = self._process_fn_args(function, args.function_args,
+                                              args.evalargs)
 
         self._validate_options(args)
-        return function.name, function_args
+        return function.fn_name, function_args
 
     def _execute(self, fn_name, fn_args, args):
         """Make the requested call.
@@ -160,6 +172,13 @@ class RemoteClient(object):
             print(ret)
         else:
             pprint.pprint(ret, indent=2)
+
+        transport = client._iprot.trans
+        if isinstance(transport, THeaderTransport):
+            response_headers = transport.get_headers()
+            if response_headers is not None and len(response_headers) > 0:
+                print("Response headers:")
+                pprint.pprint(transport.get_headers(), indent=2)
 
         self._close_client()
 
@@ -206,7 +225,30 @@ class RemoteTransportClient(RemoteClient):
                 'default': False,
                 'help': 'Use TCompactProtocol'
             }
-        )
+        ), (
+            ['H', 'headers'],
+            {
+                'action': 'store',
+                'metavar': 'HEADERS_DICT',
+                'help':
+                'Python code to eval() into a dict of write headers',
+            }
+        ), (
+            ['I', 'stdin'],
+            {
+                'action': 'store_true',
+                'default': False,
+                'help': 'Take function arguments as a json list of strings '
+                'on stdin.  Implies --evalargs.',
+            }
+        ), (
+            ['e', 'evalargs'],
+            {
+                'action': 'store_true',
+                'default': False,
+                'help': 'Call eval() on all arguments, including strings',
+            }
+        ),
     ]
 
     def _get_client_by_transport(self, options, transport, socket=None):
@@ -229,6 +271,19 @@ class RemoteTransportClient(RemoteClient):
                     socket, fuzz_fields=options.fuzz, verbose=True)
             else:
                 transport = THeaderTransport(socket)
+                if options.headers is not None:
+                    try:
+                        parsed_headers = eval(options.headers)
+                    except Exception:
+                        self._exit(
+                            error_message='Request headers (--headers) argument'
+                                          ' failed eval')
+                    if not isinstance(parsed_headers, dict):
+                        self._exit(
+                            error_message='Request headers (--headers) argument'
+                                          ' must evaluate to a dict')
+                    for header_name, header_value in parsed_headers.items():
+                        transport.set_header(header_name, header_value)
             protocol = THeaderProtocol.THeaderProtocol(transport)
         else:
             self._exit(error_message=('No valid protocol '
@@ -239,6 +294,7 @@ class RemoteTransportClient(RemoteClient):
         self._transport = transport
 
         client = self.service_class.Client(protocol)
+
         return client
 
     def close_client(self):
@@ -327,6 +383,26 @@ class RemoteHttpClient(RemoteTransportClient):
         if not any([options.unframed, options.json]):
             self._exit(error_message='can only specify --url with '
                        '--unframed or --json')
+
+class RemoteUNIXDomainClient(RemoteTransportClient):
+    selector_option = 'path'
+    options = list(RemoteTransportClient.options)
+
+    options.append((
+        ['p', 'path'],
+        {
+            'action': 'store',
+            'help': 'The path of the socket to use'
+        }
+    ))
+
+    def _get_client(self, options):
+        socket = TSocket.TSocket(unix_socket=options.path)
+        if options.framed:
+            transport = TTransport.TFramedTransport(socket)
+        else:
+            transport = TTransport.TBufferedTransport(socket)
+        return self._get_client_by_transport(options, transport, socket=socket)
 
 class Namespace(object):
     def __init__(self, attrs=None):
@@ -471,6 +547,13 @@ class Remote(object):
             print_usage(sys.stderr, help=True)
             sys.exit(os.EX_USAGE)
 
+        if args.stdin:
+            if args.function_args:
+                print('error: cannot specify --stdin and arguments on the '
+                      'command line', file=sys.stderr)
+            args.function_args = json.load(sys.stdin)
+            args.evalargs = True
+
         return args, print_usage
 
     @classmethod
@@ -487,13 +570,15 @@ class Remote(object):
             return matching_types[0]
 
     @classmethod
-    def run(cls, functions, service_class, ttypes, argv, default_port=9090):
+    def run(cls, functions, service_names, service_class,
+            ttypes, argv, default_port=9090):
         all_options = cls._get_all_options()
         args, print_usage = cls._parse_options(all_options, argv)
         client_type = cls._get_client_type(args, print_usage)
-        client = client_type(functions, service_class, ttypes,
+        client = client_type(functions, service_names, service_class, ttypes,
                              print_usage, default_port)
         client.run(args)
 
 Remote.register_client_type(RemoteHostClient)
 Remote.register_client_type(RemoteHttpClient)
+Remote.register_client_type(RemoteUNIXDomainClient)

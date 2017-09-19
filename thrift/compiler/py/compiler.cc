@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +18,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * thrift - a lightweight cross-language rpc/serialization tool
  *
@@ -27,17 +28,9 @@
  *
  */
 
-#include "thrift/compiler/py/compiler.h"
+#include <thrift/compiler/py/compiler.h>
 
 unique_ptr<t_base_type> g_type_void_sptr;
-
-// TODO reimplement validate_throws(t_struct*) in python?
-// we don't want to import t_generator here
-//
-// we have to write its signature though because it's used somewhere
-bool validate_throws(t_struct* throws) {
-  return true;
-}
 
 namespace thrift { namespace compiler { namespace py {
 
@@ -67,10 +60,10 @@ void process(const dict& params, const object& generate_callback) {
   g_allow_neg_enum_vals = extract<bool> (opts.attr("allow_neg_enum_vals"));
   g_allow_64bit_consts = extract<bool> (opts.attr("allow_64bit_consts"));
 
-  auto e = extract<list> (opts.attr("includeDirs"));
+  auto e = extract<boost::python::list> (opts.attr("includeDirs"));
   if (e.check()) {
     // if it's set, push the include dirs into the global search path
-    list includes = e;
+    boost::python::list includes = e;
     for (it = stl_input_iterator<object> (includes); it != end; ++it) {
       g_incl_searchpath.push_back(extract<string> (*it));
     }
@@ -136,7 +129,9 @@ void process(const dict& params, const object& generate_callback) {
   g_type_float = type_float.get();
 
   // Parse it!
-  parse(program.get(), nullptr);
+  g_scope_cache = program->scope();
+  std::set<std::string> already_parsed_paths;
+  parse(program.get(), already_parsed_paths);
 
   // The current path is not really relevant when we are doing generation.
   // Reset the variable to make warning messages clearer.

@@ -17,13 +17,11 @@
  * under the License.
  */
 
-#include <cerrno>
-#include <exception>
 #include <iostream>
 
 #include <thrift/lib/cpp/transport/TMemPagedTransport.tcc>
 
-#include <unistd.h>
+#include <folly/portability/Unistd.h>
 
 using std::cout;
 using std::cerr;
@@ -31,7 +29,7 @@ using std::endl;
 
 namespace apache { namespace thrift { namespace transport {
 
-void testFixedMemoryPagedTransport() {
+static void testFixedMemoryPagedTransport() {
   srand(time(0));
   const size_t kPageSize = 1<<10;
   const size_t kMaxMemSize = 1<<28;
@@ -91,7 +89,7 @@ void testFixedMemoryPagedTransport() {
 
 }}} // apache::thrift::transport
 
-int main(int argc, char**argv) {
+int main(int /*argc*/, char** /*argv*/) {
   apache::thrift::transport::testFixedMemoryPagedTransport();
   return 0;
 }

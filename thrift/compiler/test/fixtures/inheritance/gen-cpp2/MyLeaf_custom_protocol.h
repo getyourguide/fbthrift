@@ -6,7 +6,6 @@
  */
 #pragma once
 
-
 /**
  * This header file includes the tcc files of the corresponding header file
  * and the header files of its dependent types. Include this header file
@@ -14,7 +13,6 @@
  * VirtualProtocol) to read/write thrift structs.
  */
 
-#include "MyLeaf.tcc"
-
-#include "module_types_custom_protocol.h"
-#include "MyNode_custom_protocol.h"
+#include "src/gen-cpp2/MyLeaf.tcc"
+#include "src/gen-cpp2/module_types_custom_protocol.h"
+#include "src/gen-cpp2/MyNode_custom_protocol.h"

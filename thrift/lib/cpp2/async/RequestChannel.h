@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #ifndef THRIFT_ASYNC_REQUESTCHANNEL_H_
 #define THRIFT_ASYNC_REQUESTCHANNEL_H_ 1
 
@@ -21,15 +20,15 @@
 #include <memory>
 #include <thrift/lib/cpp2/async/MessageChannel.h>
 #include <thrift/lib/cpp/Thrift.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
-#include <thrift/lib/cpp/async/Request.h>
+#include <folly/Function.h>
+#include <folly/io/async/EventBase.h>
+#include <folly/io/async/Request.h>
 #include <thrift/lib/cpp/concurrency/Thread.h>
 #include <thrift/lib/cpp/EventHandlerBase.h>
 #include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <folly/ExceptionWrapper.h>
 #include <folly/String.h>
 #include <folly/io/IOBufQueue.h>
-#include <folly/MoveWrapper.h>
 #include <wangle/deprecated/rx/Subject.h>
 
 #include <glog/logging.h>
@@ -50,26 +49,27 @@ class ClientReceiveState {
         isStreamEnd_(false) {
   }
 
-  ClientReceiveState(uint16_t protocolId,
-                     std::unique_ptr<folly::IOBuf> buf,
-                     std::unique_ptr<apache::thrift::transport::THeader> header,
-                     std::shared_ptr<apache::thrift::ContextStack> ctx,
-                     bool isSecurityActive,
-                     bool isStreamEnd = false)
-    : protocolId_(protocolId),
-      ctx_(std::move(ctx)),
-      buf_(std::move(buf)),
-      header_(std::move(header)),
-      isSecurityActive_(isSecurityActive),
-      isStreamEnd_(isStreamEnd) {
+  ClientReceiveState(uint16_t _protocolId,
+                    std::unique_ptr<folly::IOBuf> _buf,
+                    std::unique_ptr<apache::thrift::transport::THeader> _header,
+                    std::shared_ptr<apache::thrift::ContextStack> _ctx,
+                    bool _isSecurityActive,
+                    bool _isStreamEnd = false)
+    : protocolId_(_protocolId),
+      ctx_(std::move(_ctx)),
+      buf_(std::move(_buf)),
+      header_(std::move(_header)),
+      isSecurityActive_(_isSecurityActive),
+      isStreamEnd_(_isStreamEnd) {
   }
-  ClientReceiveState(folly::exception_wrapper excw,
-                     std::shared_ptr<apache::thrift::ContextStack> ctx,
-                     bool isSecurityActive)
+  ClientReceiveState(folly::exception_wrapper _excw,
+                     std::shared_ptr<apache::thrift::ContextStack> _ctx,
+                     bool _isSecurityActive)
     : protocolId_(-1),
-      ctx_(std::move(ctx)),
-      excw_(std::move(excw)),
-      isSecurityActive_(isSecurityActive),
+      ctx_(std::move(_ctx)),
+      header_(std::make_unique<apache::thrift::transport::THeader>()),
+      excw_(std::move(_excw)),
+      isSecurityActive_(_isSecurityActive),
       isStreamEnd_(false) {
   }
 
@@ -77,24 +77,12 @@ class ClientReceiveState {
     return excw_ ? true : false;
   }
 
-  folly::exception_wrapper exceptionWrapper() {
+  folly::exception_wrapper const& exception() const {
     return excw_;
   }
 
-  folly::exception_wrapper&& moveExceptionWrapper() {
-    return std::move(excw_);
-  }
-
-  std::exception_ptr exception() {
-    if (!exc_ && excw_) {
-      exc_ = excw_.getExceptionPtr();
-    }
-    return exc_;
-  }
-
-  void resetException(folly::exception_wrapper ex) {
-    excw_ = std::move(ex);
-    exc_ = std::exception_ptr();
+  folly::exception_wrapper& exception() {
+    return excw_;
   }
 
   uint16_t protocolId() const {
@@ -117,15 +105,20 @@ class ClientReceiveState {
     return std::move(header_);
   }
 
+  void resetHeader(std::unique_ptr<apache::thrift::transport::THeader> h) {
+    header_ = std::move(h);
+  }
+
   apache::thrift::ContextStack* ctx() const {
     return ctx_.get();
   }
+
   bool isSecurityActive() const {
     return isSecurityActive_;
   }
 
-  void resetCtx(std::shared_ptr<apache::thrift::ContextStack> ctx) {
-    ctx_ = std::move(ctx);
+  void resetCtx(std::shared_ptr<apache::thrift::ContextStack> _ctx) {
+    ctx_ = std::move(_ctx);
   }
 
   bool isStreamEnd() const {
@@ -137,7 +130,6 @@ class ClientReceiveState {
   std::shared_ptr<apache::thrift::ContextStack> ctx_;
   std::unique_ptr<folly::IOBuf> buf_;
   std::unique_ptr<apache::thrift::transport::THeader> header_;
-  std::exception_ptr exc_;
   folly::exception_wrapper excw_;
   bool isSecurityActive_;
   bool isStreamEnd_;
@@ -150,14 +142,61 @@ class RequestCallback {
   virtual void replyReceived(ClientReceiveState&&) = 0;
   virtual void requestError(ClientReceiveState&&) = 0;
 
-  std::shared_ptr<apache::thrift::async::RequestContext> context_;
+  std::shared_ptr<folly::RequestContext> context_;
   // To log latency incurred for doing thrift security
   int64_t securityStart_ = 0;
   int64_t securityEnd_ = 0;
 };
 
+/***
+ *  Like RequestCallback, a base class to be derived, but with a different set
+ *  of overridable member functions which may be better suited to some cases.
+ */
+class SendRecvRequestCallback : public RequestCallback {
+ public:
+  virtual void send(folly::exception_wrapper&& ex) = 0;
+  virtual void recv(ClientReceiveState&& state) = 0;
+
+ private:
+  enum struct Phase { Send, Recv };
+
+  void requestSent() final {
+    send({});
+    phase_ = Phase::Recv;
+  }
+  void requestError(ClientReceiveState&& state) final {
+    switch (phase_) {
+      case Phase::Send:
+        send(std::move(state.exception()));
+        phase_ = Phase::Recv;
+        break;
+      case Phase::Recv:
+        recv(std::move(state));
+        break;
+    }
+  }
+  void replyReceived(ClientReceiveState&& state) final {
+    recv(std::move(state));
+  }
+
+  Phase phase_{Phase::Send};
+};
+
+class FunctionSendRecvRequestCallback final : public SendRecvRequestCallback {
+ public:
+  using Send = folly::Function<void(folly::exception_wrapper&&)>;
+  using Recv = folly::Function<void(ClientReceiveState&&)>;
+  FunctionSendRecvRequestCallback(Send sendf, Recv recvf) :
+      sendf_(std::move(sendf)), recvf_(std::move(recvf)) {}
+  void send(folly::exception_wrapper&& ew) override { sendf_(std::move(ew)); }
+  void recv(ClientReceiveState&& state) override { recvf_(std::move(state)); }
+ private:
+  Send sendf_;
+  Recv recvf_;
+};
+
 /* FunctionReplyCallback is meant to make RequestCallback easy to use
- * with std::function objects.  It is slower than implementing
+ * with folly::Function objects.  It is slower than implementing
  * RequestCallback directly.  It also throws the specific error
  * away, since there is no place to save it in a backwards
  * compatible way to thrift1.  It is still logged, though.
@@ -167,28 +206,27 @@ class RequestCallback {
 class FunctionReplyCallback : public RequestCallback {
  public:
   explicit FunctionReplyCallback(
-    std::function<void (ClientReceiveState&&)> callback)
-      : callback_(callback) {}
+    folly::Function<void (ClientReceiveState&&)> callback)
+      : callback_(std::move(callback)) {}
   void replyReceived(ClientReceiveState&& state) override {
     callback_(std::move(state));
   }
   void requestError(ClientReceiveState&& state) override {
-    VLOG(1)
-      << "Got an exception in FunctionReplyCallback replyReceiveError: "
-      << folly::exceptionStr(state.exception());
+    VLOG(1) << "Got an exception in FunctionReplyCallback replyReceiveError: "
+            << state.exception();
     callback_(std::move(state));
   }
   void requestSent() override {}
 
 private:
-  std::function<void (ClientReceiveState&&)> callback_;
+  folly::Function<void (ClientReceiveState&&)> callback_;
 };
 
 /* Useful for oneway methods. */
 class FunctionSendCallback : public RequestCallback {
  public:
   explicit FunctionSendCallback(
-    std::function<void (ClientReceiveState&&)>&& callback)
+    folly::Function<void (ClientReceiveState&&)>&& callback)
       : callback_(std::move(callback)) {}
   void requestSent() override {
     auto cb = std::move(callback_);
@@ -200,7 +238,7 @@ class FunctionSendCallback : public RequestCallback {
   }
   void replyReceived(ClientReceiveState&& /*state*/) override {}
  private:
-  std::function<void (ClientReceiveState&&)> callback_;
+  folly::Function<void (ClientReceiveState&&)> callback_;
 };
 
 class CloseCallback {
@@ -223,9 +261,14 @@ class RpcOptions {
   RpcOptions()
    : timeout_(0),
      priority_(apache::thrift::concurrency::N_PRIORITIES),
-     chunkTimeout_(0)
+     chunkTimeout_(0),
+     queueTimeout_(0)
   { }
 
+  /**
+   * NOTE: This only sets the receive timeout, and not the send timeout on
+   * transport. Probably you want to use HeaderClientChannel::setTimeout()
+   */
   RpcOptions& setTimeout(std::chrono::milliseconds timeout) {
     timeout_ = timeout;
     return *this;
@@ -253,6 +296,16 @@ class RpcOptions {
     return chunkTimeout_;
   }
 
+
+  RpcOptions& setQueueTimeout(std::chrono::milliseconds queueTimeout) {
+    queueTimeout_ = queueTimeout;
+    return *this;
+  }
+
+  std::chrono::milliseconds getQueueTimeout() const {
+    return queueTimeout_;
+  }
+
   void setWriteHeader(const std::string& key, const std::string& value) {
     writeHeaders_[key] = value;
   }
@@ -263,14 +316,6 @@ class RpcOptions {
 
   const std::map<std::string, std::string>& getReadHeaders() const {
     return readHeaders_;
-  }
-
-  void setUseForReadHeaders(bool use) {
-    useForReadHeaders_ = use;
-  }
-
-  bool getUseForReadHeaders() {
-    return useForReadHeaders_;
   }
 
   const std::map<std::string, std::string>& getWriteHeaders() const {
@@ -286,25 +331,36 @@ class RpcOptions {
   std::chrono::milliseconds timeout_;
   PRIORITY priority_;
   std::chrono::milliseconds chunkTimeout_;
+  std::chrono::milliseconds queueTimeout_;
 
   // For sending and receiving headers.
   std::map<std::string, std::string> writeHeaders_;
   std::map<std::string, std::string> readHeaders_;
-
-  // For sync calls, this flag won't be checked since rpcOptions will always
-  // be in scope. For future calls, if readHeaders is needed, set this flag
-  // before passing it to the call and make sure it doesn't go out of scope.
-  bool useForReadHeaders_{false};
 };
 
 /**
  * RequestChannel defines an asynchronous API for request-based I/O.
  */
-class RequestChannel : virtual public TDelayedDestruction {
+class RequestChannel : virtual public folly::DelayedDestruction {
  protected:
   ~RequestChannel() override {}
 
  public:
+  /**
+   * ReplyCallback will be invoked when the reply to this request is
+   * received.  TRequestChannel is responsible for associating requests with
+   * responses, and invoking the correct ReplyCallback when a response
+   * message is received.
+   *
+   * cb must not be null.
+   */
+  virtual uint32_t sendRequestSync(
+      RpcOptions&,
+      std::unique_ptr<RequestCallback>,
+      std::unique_ptr<apache::thrift::ContextStack>,
+      std::unique_ptr<folly::IOBuf>,
+      std::shared_ptr<apache::thrift::transport::THeader>);
+
   /**
    * ReplyCallback will be invoked when the reply to this request is
    * received.  TRequestChannel is responsible for associating requests with
@@ -359,63 +415,31 @@ class RequestChannel : virtual public TDelayedDestruction {
 
   virtual void setCloseCallback(CloseCallback*) = 0;
 
-  virtual apache::thrift::async::TEventBase* getEventBase() = 0;
+  virtual folly::EventBase* getEventBase() const = 0;
 
   virtual uint16_t getProtocolId() = 0;
-
-  // HACK: for backwards compatibility, copy headers that were written
-  // directly to the channel. remove this eventually.
-  void setWriteHeaderThroughChannel(const std::string& k,
-                                    const std::string& v) {
-    writeHeaders_[k] = v;
-  }
-
-  void flushWriteHeaders(apache::thrift::transport::THeader* header) {
-    if (writeHeaders_.empty()) {
-      return;
-    }
-
-    for (auto it = writeHeaders_.begin(); it != writeHeaders_.end(); ++it) {
-      header->setHeader(it->first, it->second);
-    }
-    writeHeaders_.clear();
-  }
-
- private:
-  std::map<std::string, std::string> writeHeaders_;
 };
 
 class ClientSyncCallback : public RequestCallback {
  public:
-  ClientSyncCallback(ClientReceiveState* rs,
-                     apache::thrift::async::TEventBase* eb,
-                     bool oneway = false)
-      : rs_(rs)
-      , eb_(eb)
-      , oneway_(oneway) {}
+  explicit ClientSyncCallback(ClientReceiveState* rs, bool oneway = false)
+      : rs_(rs), oneway_(oneway) {}
 
-  void requestSent() override {
-    if (oneway_) {
-      assert(eb_);
-      eb_->terminateLoopSoon();
-    }
-  }
+  void requestSent() override {}
   void replyReceived(ClientReceiveState&& rs) override {
     assert(rs.buf());
-    assert(eb_);
     assert(!oneway_);
     *rs_ = std::move(rs);
-    eb_->terminateLoopSoon();
   }
   void requestError(ClientReceiveState&& rs) override {
     assert(rs.exception());
-    assert(eb_);
     *rs_ = std::move(rs);
-    eb_->terminateLoopSoon();
+  }
+  bool isOneway() const {
+    return oneway_;
   }
  private:
   ClientReceiveState* rs_;
-  apache::thrift::async::TEventBase* eb_;
   bool oneway_;
 };
 
@@ -423,7 +447,7 @@ template <typename T>
 void clientCallbackToObservable(ClientReceiveState& state,
     folly::exception_wrapper (*recv_wrapped)(T&, ClientReceiveState&),
     wangle::SubjectPtr<T>& subj) {
-  if (auto ew = state.exceptionWrapper()) {
+  if (auto const& ew = state.exception()) {
     subj->onError(ew);
     return;
   }
@@ -439,19 +463,20 @@ void clientCallbackToObservable(ClientReceiveState& state,
   subj->onNext(value);
 }
 
-template <bool oneway, class Protocol, class Pargs, class WriteFunc, class SizeFunc>
-static void clientSendT(
+template <class Protocol>
+void clientSendT(
     Protocol* prot,
     apache::thrift::RpcOptions& rpcOptions,
     std::unique_ptr<apache::thrift::RequestCallback> callback,
     std::unique_ptr<apache::thrift::ContextStack> ctx,
     std::shared_ptr<apache::thrift::transport::THeader> header,
     RequestChannel* channel,
-    Pargs& pargs,
     const char* methodName,
-    WriteFunc&& writefunc,
-    SizeFunc&& sizefunc) {
-  size_t bufSize = sizefunc(prot, pargs);
+    folly::FunctionRef<void(Protocol*)> writefunc,
+    folly::FunctionRef<size_t(Protocol*)> sizefunc,
+    bool oneway,
+    bool sync) {
+  size_t bufSize = sizefunc(prot);
   bufSize += prot->serializedMessageSize(methodName);
   folly::IOBufQueue queue(folly::IOBufQueue::cacheChainLength());
   prot->setOutput(&queue, bufSize);
@@ -459,7 +484,7 @@ static void clientSendT(
   try {
     ctx->preWrite();
     prot->writeMessageBegin(methodName, apache::thrift::T_CALL, 0);
-    writefunc(prot, pargs);
+    writefunc(prot);
     prot->writeMessageEnd();
     ::apache::thrift::SerializedMessage smsg;
     smsg.protocolType = prot->protocolType();
@@ -468,54 +493,74 @@ static void clientSendT(
     ctx->postWrite(queue.chainLength());
   }
   catch (const apache::thrift::TException &ex) {
-    ctx->handlerError();
+    ctx->handlerErrorWrapped(
+        folly::exception_wrapper(std::current_exception(), ex));
     throw;
   }
 
+  if (sync) {
+    channel->sendRequestSync(
+        rpcOptions, std::move(callback), std::move(ctx), queue.move(), header);
+    return;
+  }
+
   auto eb = channel->getEventBase();
-  if(!eb || eb->isInEventBaseThread()) {
+  if (!eb || eb->isInEventBaseThread()) {
     if (oneway) {
       // Calling asyncComplete before sending because
       // sendOnewayRequest moves from ctx and clears it.
       ctx->asyncComplete();
-      channel->sendOnewayRequest(rpcOptions, std::move(callback),
-          std::move(ctx), queue.move(), header);
+      channel->sendOnewayRequest(
+          rpcOptions,
+          std::move(callback),
+          std::move(ctx),
+          queue.move(),
+          header);
     } else {
-      channel->sendRequest(rpcOptions, std::move(callback),
-          std::move(ctx), queue.move(), header);
+      channel->sendRequest(
+          rpcOptions,
+          std::move(callback),
+          std::move(ctx),
+          queue.move(),
+          header);
     }
-  }
-  else {
-    auto mvCb = folly::makeMoveWrapper(std::move(callback));
-    auto mvCtx = folly::makeMoveWrapper(std::move(ctx));
-    auto mvBuf = folly::makeMoveWrapper(queue.move());
-    eb->runInEventBaseThread(
-        [channel, rpcOptions, mvCb, mvCtx, mvBuf, header] () mutable {
-      if (oneway) {
-        // Calling asyncComplete before sending because
-        // sendOnewayRequest moves from ctx and clears it.
-        (*mvCtx)->asyncComplete();
-        channel->sendOnewayRequest(rpcOptions, std::move(*mvCb),
-            std::move(*mvCtx), std::move(*mvBuf), header);
-      } else {
-        channel->sendRequest(rpcOptions, std::move(*mvCb),
-            std::move(*mvCtx), std::move(*mvBuf), header);
-      }
+  } else if (oneway) {
+    eb->runInEventBaseThread([
+      channel,
+      rpcOptions,
+      callback = std::move(callback),
+      ctx = std::move(ctx),
+      queue = queue.move(),
+      header
+    ]() mutable {
+      // Calling asyncComplete before sending because
+      // sendOnewayRequest moves from ctx and clears it.
+      ctx->asyncComplete();
+      channel->sendOnewayRequest(
+          rpcOptions,
+          std::move(callback),
+          std::move(ctx),
+          std::move(queue),
+          header);
+    });
+  } else {
+    eb->runInEventBaseThread([
+      channel,
+      rpcOptions,
+      callback = std::move(callback),
+      ctx = std::move(ctx),
+      queue = queue.move(),
+      header
+    ]() mutable {
+      channel->sendRequest(
+          rpcOptions,
+          std::move(callback),
+          std::move(ctx),
+          std::move(queue),
+          header);
     });
   }
 }
-
-// Help the compiler to resolve overloaded methods in thrift generated code.
-template <class T, class... Args>
-auto resolve_functor(void(T::*m)(std::function<void(apache::thrift::ClientReceiveState&&)>, Args...)) -> decltype(m) {
-  return m;
-}
-
-template <class T, class... Args>
-auto resolve_callback(void(T::*m)(std::unique_ptr<apache::thrift::RequestCallback>, Args...)) -> decltype(m) {
-  return m;
-}
-
 }} // apache::thrift
 
 #endif // #ifndef THRIFT_ASYNC_REQUESTCHANNEL_H_

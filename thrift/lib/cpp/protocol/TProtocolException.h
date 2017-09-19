@@ -1,4 +1,6 @@
 /*
+ * Copyright 2004-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -95,6 +97,14 @@ class TProtocolException : public apache::thrift::TLibraryException {
       return message_.c_str();
     }
   }
+
+  [[noreturn]] static void throwUnionMissingStop();
+  [[noreturn]] static void throwReportedTypeMismatch();
+  [[noreturn]] static void throwNegativeSize();
+  [[noreturn]] static void throwExceededSizeLimit();
+  [[noreturn]] static void throwMissingRequiredField(
+      folly::StringPiece field,
+      folly::StringPiece type);
 
  protected:
   /**

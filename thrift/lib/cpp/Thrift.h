@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,11 @@
 #define THRIFT_THRIFT_H_
 
 #include <thrift/lib/cpp/thrift_config.h>
+#include <folly/portability/Sockets.h>
+#include <folly/portability/Time.h>
+#include <folly/Memory.h>
+#include <folly/Range.h>
+#include <folly/Traits.h>
 
 #ifdef THRIFT_PLATFORM_CONFIG
 # include THRIFT_PLATFORM_CONFIG
@@ -28,7 +33,6 @@
 #ifdef THRIFT_HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
-#include <netinet/in.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -74,10 +78,33 @@ struct TStructType {
 };
 
 /**
+ * Specialization fwd-decl in _types.h.
+ * Specialization defn in _data.h.
+ */
+template <typename T>
+struct TEnumDataStorage;
+
+/**
  * Helper template class for enum<->string conversion.
  */
-template<typename T>
-struct TEnumTraitsBase {
+template <typename T>
+struct TEnumTraits {
+  static const std::size_t size;
+  static const folly::Range<const T*> values;
+  static const folly::Range<const folly::StringPiece*> names;
+  // only has data when generated with cpp:enum_struct:
+  static const folly::Range<const folly::StringPiece*> prefixed_names;
+
+  /**
+   * Return the minimum value.
+   */
+  static constexpr T min();
+
+  /**
+   * Return the maximum value.
+   */
+  static constexpr T max();
+
   /**
    * Finds the name of a given enum value, returning it or nullptr on failure.
    * Specialized implementations will be emitted as part of enum codegen.
@@ -138,76 +165,33 @@ struct TEnumTraitsBase {
   }
 };
 
-template<typename T>
-struct TEnumTraits : public TEnumTraitsBase<T> {
-  /**
-   * Return the minimum value.
-   */
-  static constexpr T min();
+namespace detail {
 
-  /**
-   * Return the maximum value.
-   */
-  static constexpr T max();
+template <typename EnumTypeT, typename ValueTypeT>
+struct TEnumMapFactory {
+  using EnumType = EnumTypeT;
+  using ValueType = ValueTypeT;
+  using ValuesToNamesMapType = std::map<ValueType, const char*>;
+  using NamesToValuesMapType = std::map<const char*, ValueType, ltstr>;
+  using Traits = TEnumTraits<EnumType>;
+
+  static ValuesToNamesMapType makeValuesToNamesMap() {
+    ValuesToNamesMapType _return;
+    for (size_t i = 0; i < Traits::size; ++i) {
+      _return.emplace(ValueType(Traits::values[i]), Traits::names[i].data());
+    }
+    return _return;
+  }
+  static NamesToValuesMapType makeNamesToValuesMap() {
+    NamesToValuesMapType _return;
+    for (size_t i = 0; i < Traits::size; ++i) {
+      _return.emplace(Traits::names[i].data(), ValueType(Traits::values[i]));
+    }
+    return _return;
+  }
 };
 
-template <typename T>
-class TEnumIterator : public std::map<T, char*>::iterator {
- public:
-  TEnumIterator(int n,
-                T* enums,
-                const char** names) :
-      ii_(0), n_(n), enums_(enums), names_(names) {
-  }
-
-  int operator ++() {
-    return ++ii_;
-  }
-
-  bool operator !=(const TEnumIterator<T>& end) {
-    assert(end.n_ == -1);
-    return (ii_ != n_);
-  }
-
-  std::pair<T, const char*> operator*() const {
-    return std::make_pair(enums_[ii_], names_[ii_]);
-  }
-
- private:
-  int ii_;
-  const int n_;
-  T* enums_;
-  const char** names_;
-};
-
-template <typename T>
-class TEnumInverseIterator : public std::map<T, char*>::iterator {
- public:
-  TEnumInverseIterator(int n,
-                       T* enums,
-                       const char** names) :
-      ii_(0), n_(n), enums_(enums), names_(names) {
-  }
-
-  int operator ++() {
-    return ++ii_;
-  }
-
-  bool operator !=(const TEnumInverseIterator<T>& end) {
-    assert(end.n_ == -1);
-    return (ii_ != n_);
-  }
-
-  std::pair<const char*, T> operator*() const {
-    return std::make_pair(names_[ii_], enums_[ii_]);
-  }
-
- private:
-  int ii_;
-  const int n_;
-  T* enums_;
-  const char** names_;
-};
+}
 
 class TOutput {
  public:
@@ -325,9 +309,84 @@ inline void reallyClear(ThriftContainer& container) {
   swap(container, emptyContainer);
 }
 
+/**
+ * Type-traits for defining type classes that differ by merge strategy.
+ *
+ * Merge strategies may be:
+ *  - default_merge for all non-specialized types; value of merge target
+ *    is overwritten.
+ *  - map_merge and set_merge for associative containers.
+ */
+template <typename T, typename = void>
+struct MergeTrait {
+  using default_merge = void;
+};
+
 template <typename T>
-inline void merge(const T& from, T& to) {
+inline typename MergeTrait<T>::default_merge merge(const T& from, T& to) {
   to = from;
+}
+
+template <typename T>
+inline typename MergeTrait<T>::default_merge merge(T&& from, T& to) {
+  to = std::move(from);
+}
+
+template <typename T>
+inline void merge(const std::unique_ptr<T>& from, std::unique_ptr<T>& to);
+
+template <typename T, typename A>
+inline void merge(const std::vector<T, A>& from, std::vector<T, A>& to) {
+  std::copy(from.begin(), from.end(), std::back_inserter(to));
+}
+
+template <typename T, typename A>
+inline void merge(std::vector<T, A>&& from, std::vector<T, A>& to) {
+  std::move(from.begin(), from.end(), std::back_inserter(to));
+}
+
+template <typename... Ts>
+struct MergeTrait<std::unordered_set<Ts...>> {
+  using set_merge = void;
+};
+
+template <typename... Ts>
+struct MergeTrait<std::set<Ts...>> {
+  using set_merge = void;
+};
+
+template <typename T>
+inline typename MergeTrait<T>::set_merge merge(const T& from, T& to) {
+  std::copy(from.begin(), from.end(), std::inserter(to, to.end()));
+}
+
+template <typename T>
+inline typename MergeTrait<T>::set_merge merge(T&& from, T& to) {
+  std::move(from.begin(), from.end(), std::inserter(to, to.end()));
+}
+
+template <typename... Ts>
+struct MergeTrait<std::unordered_map<Ts...>> {
+  using map_merge = void;
+};
+
+template <typename... Ts>
+struct MergeTrait<std::map<Ts...>> {
+  using map_merge = void;
+};
+
+template <typename T>
+inline typename MergeTrait<T>::map_merge merge(const T& from, T& to) {
+  for (auto& kv : from) {
+    merge(kv.second, to[kv.first]);
+  }
+}
+
+template <typename T>
+inline typename MergeTrait<T>::map_merge merge(T&& from, T& to) {
+  for (auto&& kv : from) {
+    merge(std::move(kv.second), to[kv.first]);
+  }
 }
 
 template <typename T>
@@ -341,44 +400,54 @@ inline void merge(const std::unique_ptr<T>& from, std::unique_ptr<T>& to) {
   }
 }
 
-template <typename T>
-inline void merge(T&& from, T& to) {
-  to = std::move(from);
-}
+namespace detail {
 
-template <typename T, typename A>
-inline void merge(const std::vector<T, A>& from, std::vector<T, A>& to) {
-  std::copy(from.begin(), from.end(), std::back_inserter(to));
-}
+template <std::intmax_t Id, typename T>
+struct argument_wrapper {
+  static_assert(
+    std::is_rvalue_reference<T&&>::value,
+    "this wrapper handles only rvalues and initializer_list"
+  );
 
-template <typename T, typename A>
-inline void merge(std::vector<T, A>&& from, std::vector<T, A>& to) {
-  std::move(from.begin(), from.end(), std::back_inserter(to));
-}
-
-template <typename K, typename C, typename A>
-inline void merge(const std::set<K, C, A>& from, std::set<K, C, A>& to) {
-  std::copy(from.begin(), from.end(), std::inserter(to, to.end()));
-}
-
-template <typename K, typename C, typename A>
-inline void merge(std::set<K, C, A>&& from, std::set<K, C, A>& to) {
-  std::move(from.begin(), from.end(), std::inserter(to, to.end()));
-}
-
-template <typename K, typename T, typename C, typename A>
-void merge(const std::map<K, T, C, A>& from, std::map<K, T, C, A>& to) {
-  for (auto& kv : from) {
-    merge(kv.second, to[kv.first]);
+  template <typename U>
+  explicit argument_wrapper(U&& value):
+    argument_(std::forward<U>(value))
+  {
+    static_assert(
+      std::is_rvalue_reference<U&&>::value,
+      "this wrapper handles only rvalues and initializer_list"
+    );
   }
+
+  explicit argument_wrapper(const char* str) : argument_(str) {}
+
+  T&& move() { return std::move(argument_); }
+
+private:
+  T argument_;
+};
+
+template <std::intmax_t Id, typename T>
+detail::argument_wrapper<Id, std::initializer_list<T>> wrap_argument(
+  std::initializer_list<T> value
+) {
+  return detail::argument_wrapper<Id, std::initializer_list<T>>(
+    std::move(value)
+  );
 }
 
-template <typename K, typename T, typename C, typename A>
-void merge(std::map<K, T, C, A>&& from, std::map<K, T, C, A>& to) {
-  for (auto&& kv : from) {
-    merge(std::move(kv.second), to[kv.first]);
-  }
+template <std::intmax_t Id, typename T>
+detail::argument_wrapper<Id, T&&> wrap_argument(T&& value) {
+  static_assert(std::is_rvalue_reference<T&&>::value, "internal thrift error");
+  return detail::argument_wrapper<Id, T&&>(std::forward<T>(value));
 }
+
+template <std::intmax_t Id>
+detail::argument_wrapper<Id, const char*> wrap_argument(const char* str) {
+  return detail::argument_wrapper<Id, const char*>(str);
+}
+
+} // detail
 
 }} // apache::thrift
 

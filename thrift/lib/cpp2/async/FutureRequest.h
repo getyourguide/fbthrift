@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #pragma once
 
 #include <folly/futures/Future.h>
@@ -30,11 +29,11 @@ class FutureCallbackBase : public RequestCallback {
           : promise_(std::move(promise)),
             channel_(std::move(channel)) {}
 
-    void requestSent() override{};
+    void requestSent() override{}
 
     void requestError(ClientReceiveState&& state) override {
       CHECK(state.isException());
-      promise_.setException(state.moveExceptionWrapper());
+      promise_.setException(std::move(state.exception()));
     }
 
   protected:
@@ -51,11 +50,9 @@ class FutureCallback : public FutureCallbackBase<Result> {
     FutureCallback(
         folly::Promise<Result>&& promise,
         Processor processor,
-        std::shared_ptr<apache::thrift::RequestChannel> channel = nullptr,
-        apache::thrift::RpcOptions* rpcOptions = nullptr)
+        std::shared_ptr<apache::thrift::RequestChannel> channel = nullptr)
         : FutureCallbackBase<Result>(std::move(promise), std::move(channel)),
-          processor_(processor),
-          rpcOptions_(rpcOptions) {}
+          processor_(processor) {}
 
     void replyReceived(ClientReceiveState&& state) {
       CHECK(!state.isException());
@@ -63,19 +60,85 @@ class FutureCallback : public FutureCallbackBase<Result> {
 
       Result result;
       auto ew = processor_(result, state);
+
       if (ew) {
         this->promise_.setException(ew);
       } else {
         this->promise_.setValue(std::move(result));
       }
-
-      if (rpcOptions_ && !state.header()->getHeaders().empty()) {
-        rpcOptions_->setReadHeaders(state.header()->releaseHeaders());
-      }
     }
+
   private:
     Processor processor_;
-    apache::thrift::RpcOptions* rpcOptions_;
+};
+
+template <typename Result>
+class HeaderFutureCallback
+    : public FutureCallbackBase<std::pair<Result,
+        std::unique_ptr<apache::thrift::transport::THeader>>> {
+  private:
+    using HeaderResult = std::pair<
+        Result, std::unique_ptr<apache::thrift::transport::THeader>>;
+    typedef folly::exception_wrapper (*Processor)(Result&,ClientReceiveState&);
+    Processor processor_;
+
+  public:
+    HeaderFutureCallback(
+        folly::Promise<HeaderResult>&& promise,
+        Processor processor,
+        std::shared_ptr<apache::thrift::RequestChannel> channel = nullptr)
+        : FutureCallbackBase<HeaderResult>(std::move(promise),
+                                           std::move(channel))
+        , processor_(processor) {}
+
+    void replyReceived(ClientReceiveState&& state) override {
+      CHECK(!state.isException());
+      CHECK(state.buf());
+
+      Result result;
+      auto ew = processor_(result, state);
+
+      if (ew) {
+        this->promise_.setException(ew);
+      } else {
+        this->promise_.setValue(std::make_pair(std::move(result),
+                                               state.extractHeader()));
+      }
+    }
+};
+
+template <>
+class HeaderFutureCallback<folly::Unit>
+    : public FutureCallbackBase<std::pair<folly::Unit,
+        std::unique_ptr<apache::thrift::transport::THeader>>> {
+  private:
+    using HeaderResult = std::pair<
+        folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>;
+    typedef folly::exception_wrapper (*Processor)(ClientReceiveState&);
+    Processor processor_;
+
+  public:
+    HeaderFutureCallback(
+        folly::Promise<HeaderResult>&& promise,
+        Processor processor,
+        std::shared_ptr<apache::thrift::RequestChannel> channel = nullptr)
+        : FutureCallbackBase<HeaderResult>(std::move(promise),
+                                           std::move(channel))
+        , processor_(processor) {}
+
+    void replyReceived(ClientReceiveState&& state) override {
+      CHECK(!state.isException());
+      CHECK(state.buf());
+
+      auto ew = processor_(state);
+
+      if (ew) {
+        promise_.setException(ew);
+      } else {
+        promise_.setValue(std::make_pair(folly::Unit(),
+                                         state.extractHeader()));
+      }
+    }
 };
 
 class OneWayFutureCallback : public FutureCallbackBase<folly::Unit> {
@@ -88,7 +151,7 @@ class OneWayFutureCallback : public FutureCallbackBase<folly::Unit> {
 
     void requestSent() override {
       promise_.setValue();
-    };
+    }
 
     void replyReceived(ClientReceiveState&& /*state*/) override {
       CHECK(false);
@@ -104,31 +167,25 @@ class FutureCallback<folly::Unit> : public FutureCallbackBase<folly::Unit> {
   FutureCallback(
       folly::Promise<folly::Unit>&& promise,
       Processor processor,
-      std::shared_ptr<apache::thrift::RequestChannel> channel = nullptr,
-      apache::thrift::RpcOptions* rpcOptions = nullptr)
+      std::shared_ptr<apache::thrift::RequestChannel> channel = nullptr)
       : FutureCallbackBase<folly::Unit>(std::move(promise), std::move(channel)),
-        processor_(processor),
-        rpcOptions_(rpcOptions) {}
+        processor_(processor) {}
 
   void replyReceived(ClientReceiveState&& state) override {
     CHECK(!state.isException());
     CHECK(state.buf());
 
     auto ew = processor_(state);
+
     if (ew) {
       promise_.setException(ew);
     } else {
       promise_.setValue();
     }
-
-    if (rpcOptions_ && !state.header()->getHeaders().empty()) {
-      rpcOptions_->setReadHeaders(state.header()->releaseHeaders());
-    }
   }
 
  private:
   Processor processor_;
-  RpcOptions* rpcOptions_;
 };
 
 }} // Namespace

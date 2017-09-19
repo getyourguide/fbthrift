@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <gtest/gtest.h>
 #include <folly/Benchmark.h>
 #include <folly/Optional.h>
@@ -36,9 +35,9 @@ TEST(FrozenPair, Basic) {
   auto fip = freeze(ip);
   auto fsp = freeze(sp);
   auto fvip = freeze(vip);
-  EXPECT_EQ(ip, fip->thaw());
-  EXPECT_EQ(sp, fsp->thaw());
-  EXPECT_EQ(vip, fvip->thaw());
+  EXPECT_EQ(ip, fip.thaw());
+  EXPECT_EQ(sp, fsp.thaw());
+  EXPECT_EQ(vip, fvip.thaw());
 
   EXPECT_EQ(sp.first, fsp.first());
   EXPECT_EQ(sp.second, fsp.second());
@@ -49,8 +48,32 @@ TEST(FrozenMap, Basic) {
   auto fmap = freeze(map);
   EXPECT_EQ(map.at(3), fmap.at(3));
   EXPECT_EQ(map.find(3)->second, fmap.find(3)->second());
-  EXPECT_TRUE(map.count(2));
-  EXPECT_FALSE(map.count(8));
+  EXPECT_TRUE(fmap.count(2));
+  EXPECT_FALSE(fmap.count(8));
+}
+
+TEST(FrozenMap, NonSortValue) {
+  std::map<int, std::unordered_map<int, int>> mult{{1, {{1, 1}, {2, 2}}},
+                                                   {2, {{1, 2}, {2, 4}}}};
+  auto fmap = freeze(mult);
+  EXPECT_EQ(fmap.at(1).at(1), 1);
+  EXPECT_EQ(fmap.find(2)->second().find(2)->second(), 4);
+  EXPECT_FALSE(fmap.count(3));
+  EXPECT_TRUE(fmap.count(1));
+  EXPECT_TRUE(fmap.at(2).count(1));
+  EXPECT_FALSE(fmap.at(2).count(3));
+}
+
+TEST(FrozenMap, Iteration) {
+  auto& map = osquares;
+  auto fmap = freeze(map);
+  int sumK = 0, sumV = 0;
+  for (auto entry : fmap) {
+    sumK += entry.first();
+    sumV += entry.second();
+  }
+  EXPECT_EQ(10, sumK);
+  EXPECT_EQ(30, sumV);
 }
 
 TEST(FrozenHashMap, Basic) {
@@ -58,8 +81,20 @@ TEST(FrozenHashMap, Basic) {
   auto fmap = freeze(map);
   EXPECT_EQ(map.at(3), fmap.at(3));
   EXPECT_EQ(map.find(3)->second, fmap.find(3)->second());
-  EXPECT_TRUE(map.count(2));
-  EXPECT_FALSE(map.count(8));
+  EXPECT_TRUE(fmap.count(2));
+  EXPECT_FALSE(fmap.count(8));
+}
+
+TEST(FrozenHashMap, Iteration) {
+  auto& map = usquares;
+  auto fmap = freeze(map);
+  int sumK = 0, sumV = 0;
+  for (auto entry : fmap) {
+    sumK += entry.first();
+    sumV += entry.second();
+  }
+  EXPECT_EQ(10, sumK);
+  EXPECT_EQ(30, sumV);
 }
 
 TEST(FrozenMap, Strings) {
@@ -101,6 +136,13 @@ TEST(FrozenMap, GetDefault) {
   EXPECT_EQ(9, fmap.getDefault(3));
   EXPECT_EQ(0, fmap.getDefault(5));
   EXPECT_EQ(-1, fmap.getDefault(5, -1));
+}
+
+TEST(FrozenMap, GetOptional) {
+  auto fmap = freeze(osquares);
+  EXPECT_EQ(4, *fmap.getOptional(2));
+  EXPECT_EQ(9, *fmap.getOptional(3));
+  EXPECT_FALSE(fmap.getOptional(5));
 }
 
 TEST(FrozenMap, Nested) {
@@ -286,6 +328,6 @@ TEST(Frozen, SpillBug) {
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::InitGoogleLogging(argv[0]);
-  google::ParseCommandLineFlags(&argc, &argv, true);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
   return RUN_ALL_TESTS();
 }

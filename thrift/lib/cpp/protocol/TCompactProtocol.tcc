@@ -131,7 +131,8 @@ uint32_t TCompactProtocolT<Transport_>::writeFieldStop() {
  * stack so we can get the field id deltas correct.
  */
 template <class Transport_>
-uint32_t TCompactProtocolT<Transport_>::writeStructBegin(const char* name) {
+uint32_t TCompactProtocolT<Transport_>::writeStructBegin(
+    const char* /* name */) {
   lastField_.push(lastFieldId_);
   lastFieldId_ = 0;
   return 0;
@@ -247,8 +248,8 @@ uint32_t TCompactProtocolT<Transport_>::writeI64(const int64_t i64) {
  */
 template <class Transport_>
 uint32_t TCompactProtocolT<Transport_>::writeDouble(const double dub) {
-  BOOST_STATIC_ASSERT(sizeof(double) == sizeof(uint64_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<double>::is_iec559);
+  static_assert(sizeof(double) == sizeof(uint64_t), "");
+  static_assert(std::numeric_limits<double>::is_iec559, "");
 
   uint64_t bits = bitwise_cast<uint64_t>(dub);
   if (version_ >= VERSION_DOUBLE_BE) {
@@ -267,8 +268,8 @@ uint32_t TCompactProtocolT<Transport_>::writeDouble(const double dub) {
  */
 template <class Transport_>
 uint32_t TCompactProtocolT<Transport_>::writeFloat(const float flt) {
-  BOOST_STATIC_ASSERT(sizeof(float) == sizeof(uint32_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<float>::is_iec559);
+  static_assert(sizeof(float) == sizeof(uint32_t), "");
+  static_assert(std::numeric_limits<float>::is_iec559, "");
 
   uint32_t bits = bitwise_cast<uint32_t>(flt);
   bits = htonl(bits);
@@ -311,7 +312,7 @@ uint32_t TCompactProtocolT<Transport_>::writeBinary(const String_& str) {
  */
 template <class Transport_>
 int32_t TCompactProtocolT<Transport_>::writeFieldBeginInternal(
-    const char* name,
+    const char* /* name */,
     const TType fieldType,
     const int16_t fieldId,
     int8_t typeOverride) {
@@ -462,9 +463,10 @@ uint32_t TCompactProtocolT<Transport_>::readStructEnd() {
  * Read a field header off the wire.
  */
 template <class Transport_>
-uint32_t TCompactProtocolT<Transport_>::readFieldBegin(std::string& name,
-                                                       TType& fieldType,
-                                                       int16_t& fieldId) {
+uint32_t TCompactProtocolT<Transport_>::readFieldBegin(
+    std::string& /* name */,
+    TType& fieldType,
+    int16_t& fieldId) {
   uint32_t rsize = 0;
   int8_t byte;
   int8_t type;
@@ -650,8 +652,8 @@ uint32_t TCompactProtocolT<Transport_>::readI64(int64_t& i64) {
  */
 template <class Transport_>
 uint32_t TCompactProtocolT<Transport_>::readDouble(double& dub) {
-  BOOST_STATIC_ASSERT(sizeof(double) == sizeof(uint64_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<double>::is_iec559);
+  static_assert(sizeof(double) == sizeof(uint64_t), "");
+  static_assert(std::numeric_limits<double>::is_iec559, "");
 
   union {
     uint64_t bits;
@@ -672,8 +674,8 @@ uint32_t TCompactProtocolT<Transport_>::readDouble(double& dub) {
  */
 template <class Transport_>
 uint32_t TCompactProtocolT<Transport_>::readFloat(float& flt) {
-  BOOST_STATIC_ASSERT(sizeof(float) == sizeof(uint32_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<float>::is_iec559);
+  static_assert(sizeof(float) == sizeof(uint32_t), "");
+  static_assert(std::numeric_limits<float>::is_iec559, "");
 
   union {
     uint32_t bits;
@@ -724,19 +726,20 @@ uint32_t TCompactProtocolT<Transport_>::readBinary(String_& str) {
     return rsize + (uint32_t)size;
   }
 
-  // Use the heap here to prevent stack overflow for v. large strings
-  if (size > string_buf_size_ || string_buf_ == nullptr) {
-    void* new_string_buf = std::realloc(string_buf_, (uint32_t)size);
-    if (new_string_buf == nullptr) {
-      throw std::bad_alloc();
-    }
-    string_buf_ = (uint8_t*)new_string_buf;
-    string_buf_size_ = size;
-  }
-  trans_->readAll(string_buf_, size);
-  str.assign((const char*)string_buf_, size);
+  rsize += size;
 
-  return rsize + (uint32_t)size;
+  str.clear();
+  while (size > 0) {
+    // Protect against malformed input and avoid pre-allocating
+    // requested size unless it is small
+    constexpr int32_t kMaxChunkSize = 1024 * 1024; // 1 MB
+    const int32_t chunk = std::min(size, kMaxChunkSize);
+    str.append(chunk, '\0');
+    trans_->readAll((uint8_t*)(&str.front() + str.size() - chunk), chunk);
+    size -= chunk;
+  }
+
+  return rsize;
 }
 
 /**

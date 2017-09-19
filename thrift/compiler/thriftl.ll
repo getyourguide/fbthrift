@@ -26,9 +26,15 @@
 
 %{
 
+// Flex normally adds: #include <unistd.h>. This include is not supported
+// by MSVC. With this, we get rid of that include to compile with MSVC.
+#ifdef _WIN32
+#  define YY_NO_UNISTD_H
+#endif
+
 #include <errno.h>
 
-#include "thrift/compiler/main.h"
+#include "thrift/compiler/common.h"
 #include "thrift/compiler/globals.h"
 #include "thrift/compiler/parse/t_program.h"
 
@@ -41,17 +47,17 @@
  */
 #include THRIFTY_HH
 
-void thrift_reserved_keyword(char* keyword) {
+static void thrift_reserved_keyword(char* keyword) {
   yyerror("Cannot use reserved language keyword: \"%s\"\n", keyword);
   exit(1);
 }
 
-void integer_overflow(char* text) {
+static void integer_overflow(char* text) {
   yyerror("This integer is too big: \"%s\"\n", text);
   exit(1);
 }
 
-void unexpected_token(char* text) {
+static void unexpected_token(char* text) {
   yyerror("Unexpected token in input: \"%s\"\n", text);
   exit(1);
 }
@@ -109,9 +115,13 @@ st_identifier ([a-zA-Z-][\.a-zA-Z_0-9-]*)
 }
 {symbol}             { return yytext[0];                }
 
+"false"              { yylval.iconst=0; return tok_bool_constant; }
+"true"               { yylval.iconst=1; return tok_bool_constant; }
+
 "namespace"          { return tok_namespace;            }
 "cpp_namespace"      { return tok_cpp_namespace;        }
 "cpp_include"        { return tok_cpp_include;          }
+"hs_include"         { return tok_hs_include;           }
 "cpp_type"           {
   yyerror("\"cpp_type\" is no longer allowed. "
     "Use the cpp.type annotation instead.\n");
@@ -126,11 +136,6 @@ st_identifier ([a-zA-Z-][\.a-zA-Z_0-9-]*)
 "ruby_namespace"     { return tok_ruby_namespace;       }
 "smalltalk_category" { return tok_smalltalk_category;   }
 "smalltalk_prefix"   { return tok_smalltalk_prefix;     }
-"xsd_all"            { return tok_xsd_all;              }
-"xsd_optional"       { return tok_xsd_optional;         }
-"xsd_nillable"       { return tok_xsd_nillable;         }
-"xsd_namespace"      { return tok_xsd_namespace;        }
-"xsd_attrs"          { return tok_xsd_attrs;            }
 "include"            { return tok_include;              }
 "void"               { return tok_void;                 }
 "bool"               { return tok_bool;                 }
@@ -143,7 +148,6 @@ st_identifier ([a-zA-Z-][\.a-zA-Z_0-9-]*)
 "string"             { return tok_string;               }
 "binary"             { return tok_binary;               }
 "slist"              { return tok_slist;                }
-"senum"              { return tok_senum;                }
 "map"                { return tok_map;                  }
 "hash_map"           { return tok_hash_map;             }
 "list"               { return tok_list;                 }
@@ -154,15 +158,14 @@ st_identifier ([a-zA-Z-][\.a-zA-Z_0-9-]*)
 "typedef"            { return tok_typedef;              }
 "struct"             { return tok_struct;               }
 "union"              { return tok_union;                }
-"view"               {
-  if (g_scope_level != 0) {
-    yylval.id = strdup(yytext);
-    return tok_identifier;
-  }
-  return tok_view;
-}
 "exception"          { return tok_xception;             }
 "extends"            { return tok_extends;              }
+"client throws"      {
+  /* this is a hack; lex doesn't allow whitespace in trailing context,
+   * so match entire "client throws" as a token
+   */
+  return tok_client;
+}
 "throws"             { return tok_throws;               }
 "service"            { return tok_service;              }
 "enum"               { return tok_enum;                 }
@@ -198,7 +201,6 @@ st_identifier ([a-zA-Z-][\.a-zA-Z_0-9-]*)
 "except"             { thrift_reserved_keyword(yytext); }
 "exec"               { thrift_reserved_keyword(yytext); }
 "extern"             { thrift_reserved_keyword(yytext); }
-"false"              { thrift_reserved_keyword(yytext); }
 "finally"            { thrift_reserved_keyword(yytext); }
 "for"                { thrift_reserved_keyword(yytext); }
 "foreach"            { thrift_reserved_keyword(yytext); }
@@ -238,7 +240,6 @@ st_identifier ([a-zA-Z-][\.a-zA-Z_0-9-]*)
 "this"               { thrift_reserved_keyword(yytext); }
 "throw"              { thrift_reserved_keyword(yytext); }
 "transient"          { thrift_reserved_keyword(yytext); }
-"true"               { thrift_reserved_keyword(yytext); }
 "try"                { thrift_reserved_keyword(yytext); }
 "unsigned"           { thrift_reserved_keyword(yytext); }
 "var"                { thrift_reserved_keyword(yytext); }

@@ -30,8 +30,8 @@
 #include <sys/stat.h>
 #include <stdexcept>
 
-#include "thrift/compiler/platform.h"
-#include "thrift/compiler/generate/t_oop_generator.h"
+#include <thrift/compiler/platform.h>
+#include <thrift/compiler/generate/t_oop_generator.h>
 
 /**
  * Java code generator.
@@ -42,7 +42,7 @@ class t_java_generator : public t_oop_generator {
   t_java_generator(
       t_program* program,
       const std::map<std::string, std::string>& parsed_options,
-      const std::string& option_string)
+      const std::string& /*option_string*/)
     : t_oop_generator(program)
   {
     std::map<std::string, std::string>::const_iterator iter;
@@ -81,16 +81,18 @@ class t_java_generator : public t_oop_generator {
   void generate_default_toString(ofstream&, t_struct*);
   void generate_toString_prettyprint(std::ofstream&);
 
-  virtual void print_const_value(std::ostream& out,
-                                 std::string name,
-                                 t_type* type,
-                                 t_const_value* value,
-                                 bool in_static,
-                                 bool defval=false);
-  virtual std::string render_const_value(std::ostream& out,
-                                        std::string name,
-                                        t_type* type,
-                                        t_const_value* value);
+  virtual void print_const_value(
+      std::ostream& out,
+      std::string name,
+      t_type* type,
+      const t_const_value* value,
+      bool in_static,
+      bool defval=false);
+  virtual std::string render_const_value(
+      std::ostream& out,
+      std::string name,
+      t_type* type,
+      const t_const_value* value);
 
   /**
    * Service-level generation functions

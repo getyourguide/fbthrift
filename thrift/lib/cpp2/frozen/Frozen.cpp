@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,16 +33,16 @@ std::ostream& operator<<(std::ostream& os, const LayoutBase& layout) {
   return os;
 }
 
-bool LayoutBase::resize(FieldPosition after, bool inlined) {
+bool LayoutBase::resize(FieldPosition after, bool _inlined) {
   bool resized = false;
-  this->inlined = (this->size == 0 && inlined);
-  if (!this->inlined) {
-    if (after.offset > this->size) {
+  inlined = (this->size == 0 && _inlined);
+  if (!inlined) {
+    if (static_cast<size_t>(after.offset) > this->size) {
       this->size = after.offset;
       resized = true;
     }
   }
-  if (after.bitOffset > this->bits) {
+  if (static_cast<size_t>(after.bitOffset) > this->bits) {
     this->bits = after.bitOffset;
     resized = true;
   }
@@ -70,7 +70,37 @@ void LayoutBase::clear() {
   inlined = false;
 }
 
+void ByteRangeFreezer::doAppendBytes(
+    byte* origin,
+    size_t n,
+    folly::MutableByteRange& range,
+    size_t& distance,
+    size_t alignment) {
+  CHECK_LE(origin, write_.begin());
+  if (!n) {
+    distance = 0;
+    range.reset(nullptr, 0);
+    return;
+  }
+  auto start = reinterpret_cast<intptr_t>(write_.begin());
+  auto aligned = alignBy(start, alignment);
+  auto padding = aligned - start;
+  if (padding + n > write_.size()) {
+    throw std::length_error("Insufficient buffer allocated");
+  }
+  range.reset(write_.begin() + padding, n);
+  write_.advance(padding + n);
+  distance = range.begin() - origin;
+}
+
 namespace detail {
+
+FieldPosition BlockLayout::maximize() {
+  FieldPosition pos = startFieldPosition();
+  FROZEN_MAXIMIZE_FIELD(mask);
+  FROZEN_MAXIMIZE_FIELD(offset);
+  return pos;
+}
 
 FieldPosition BlockLayout::layout(LayoutRoot& root,
                                   const T& x,
@@ -115,4 +145,7 @@ void BufferHelpers<std::unique_ptr<folly::IOBuf>>::thawTo(
   dst = folly::IOBuf::copyBuffer(src.begin(), src.size());
 }
 
-}}}}
+} // namespace detail
+}
+}
+}

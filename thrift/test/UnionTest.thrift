@@ -25,8 +25,8 @@ struct OneOfEach {
   // to test exception handling in union code
   1: required bool im_true,
   2: bool im_false,
-  3: byte a_bite = 200,
-  4: i16 integer16 = 33000,
+  3: byte a_bite = 100,
+  4: i16 integer16 = 23000,
   5: i32 integer32,
   6: i64 integer64 = 10000000000,
   7: double double_precision,
@@ -69,3 +69,19 @@ struct StructWithUnionAndOther {
   1: TestUnion test_union;
   2: string string_field;
 }
+
+const list<StructWithUnionAndOther> NESTED = [
+  {
+    "test_union": {
+      "i32_field": 3,
+    },
+  },
+  {
+    "string_field": "hello",
+  }
+  {
+    "test_union": {
+      "other_i32_field": 4,
+    },
+  },
+];

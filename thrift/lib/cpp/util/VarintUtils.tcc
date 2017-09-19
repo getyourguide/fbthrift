@@ -54,7 +54,7 @@ uint8_t readVarintSlow(CursorT& c, T& value) {
 // This is a simple function that just throws an exception. It is defined out
 // line to make the caller (readVarint) smaller and simpler (assembly-wise),
 // which gives us 5% perf win (even when the exception is not actually thrown).
-void throwInvalidVarint();
+[[noreturn]] void throwInvalidVarint();
 
 template <class T, class CursorT,
           typename std::enable_if<
@@ -203,11 +203,11 @@ inline int64_t zigzagToI64(uint64_t n) {
 }
 
 inline uint32_t i32ToZigzag(const int32_t n) {
-  return (n << 1) ^ (n >> 31);
+  return (static_cast<uint32_t>(n) << 1) ^ static_cast<uint32_t>(n >> 31);
 }
 
 inline uint64_t i64ToZigzag(const int64_t l) {
-  return (l << 1) ^ (l >> 63);
+  return (static_cast<uint64_t>(l) << 1) ^ static_cast<uint64_t>(l >> 63);
 }
 
 }}} // apache::thrift::util

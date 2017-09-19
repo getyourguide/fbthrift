@@ -21,26 +21,9 @@
 
 #include "common/fb303/cpp/FacebookBase2.h"
 
-#include "thrift/perf/if/gen-cpp2/LoadTest.h"
-
-#include <thrift/lib/cpp/async/TEventServer.h>
-
-using apache::thrift::async::TEventServer;
+#include <thrift/perf/if/gen-cpp2/LoadTest.h>
 
 namespace apache { namespace thrift {
-
-// Using classes as callbacks is _much_ faster than std::function
-class FastNoopCallback
-    : public apache::thrift::async::TEventBase::LoopCallback {
- public:
-  FastNoopCallback(std::unique_ptr<HandlerCallback<void>> callback)
-      : callback_(std::move(callback)) {}
-  void runLoopCallback() noexcept override {
-    callback_->done();
-    delete this;
-  }
-  std::unique_ptr<HandlerCallback<void>> callback_;
-};
 
 class AsyncLoadHandler2 : public LoadTestSvIf
                         , public facebook::fb303::FacebookBase2 {
@@ -50,7 +33,7 @@ class AsyncLoadHandler2 : public LoadTestSvIf
     return facebook::fb303::cpp2::fb_status::ALIVE;
   }
 
-  explicit AsyncLoadHandler2(TEventServer* server = nullptr)
+  explicit AsyncLoadHandler2()
     : FacebookBase2("AsyncLoadHandler2") {}
 
   void async_eb_noop(std::unique_ptr<HandlerCallback<void>> callback) override;
@@ -95,6 +78,15 @@ class AsyncLoadHandler2 : public LoadTestSvIf
   void async_eb_add(std::unique_ptr<HandlerCallback<int64_t>>,
                     int64_t a,
                     int64_t b) override;
+  void async_eb_largeContainer(
+      std::unique_ptr<HandlerCallback<void>> callback,
+      std::unique_ptr<std::vector<BigStruct>> items) override;
+
+  void async_eb_iterAllFields(
+    std::unique_ptr<HandlerCallback<std::unique_ptr<std::vector<BigStruct>>>>
+      callback,
+    std::unique_ptr<std::vector<BigStruct>> items) override;
+
 };
 
 }} // apache::thrift

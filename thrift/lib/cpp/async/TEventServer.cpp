@@ -17,6 +17,7 @@
 #include <thrift/lib/cpp/async/TEventServer.h>
 
 #include <folly/ScopeGuard.h>
+#include <folly/portability/Sockets.h>
 #include <thrift/lib/cpp/async/TEventConnection.h>
 #include <thrift/lib/cpp/async/TEventWorker.h>
 #include <thrift/lib/cpp/async/TEventTask.h>
@@ -25,10 +26,6 @@
 #include <boost/thread/barrier.hpp>
 
 #include <iostream>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <netdb.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <assert.h>
@@ -45,7 +42,7 @@ using std::shared_ptr;
 using apache::thrift::concurrency::PosixThreadFactory;
 using apache::thrift::concurrency::ThreadFactory;
 
-void TEventServer::useExistingSocket(TAsyncServerSocket::UniquePtr socket) {
+void TEventServer::useExistingSocket(folly::AsyncServerSocket::UniquePtr socket) {
   if (!socket_) {
     socket_ = std::move(socket);
   }
@@ -53,7 +50,7 @@ void TEventServer::useExistingSocket(TAsyncServerSocket::UniquePtr socket) {
 
 void TEventServer::useExistingSocket(int socket) {
   if (!socket_) {
-    socket_.reset(new TAsyncServerSocket());
+    socket_.reset(new folly::AsyncServerSocket());
     socket_->useExistingSocket(socket);
   }
 }
@@ -87,7 +84,7 @@ void TEventServer::setupWorkers() {
 
     // Create the worker threads.
     workers_.reserve(nWorkers_);
-    for (uint32_t n = 0; n < nWorkers_; ++n) {
+    for (int n = 0; n < nWorkers_; ++n) {
       addWorker();
       workers_[n].worker->getEventBase()->runInLoop([b](){
         b->wait();
@@ -122,12 +119,14 @@ void TEventServer::setupServerSocket() {
   bool eventBaseAttached = false;
 
   try {
+#ifndef _MSC_VER
     // We check for write success so we don't need or want SIGPIPEs.
     signal(SIGPIPE, sigNoOp);
+#endif
 
     // bind to the socket
     if (!socket_) {
-      socket_.reset(new TAsyncServerSocket());
+      socket_.reset(new folly::AsyncServerSocket());
       socket_->bind(port_);
     }
 
@@ -214,7 +213,7 @@ void TEventServer::stop() {
   // the compiler doesn't optimize out eventBase.  In practice, most users will
   // only call stop() when the server is actually serving, so this shouldn't be
   // much of an issue.
-  TEventBase* eventBase = serveEventBase_;
+  folly::EventBase* eventBase = serveEventBase_;
   if (eventBase) {
     eventBase->terminateLoopSoon();
   }

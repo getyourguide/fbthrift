@@ -17,7 +17,8 @@
 #include <thrift/lib/cpp/util/PausableTimer.h>
 
 #include <stdint.h>
-#include <sys/time.h>
+
+#include <folly/portability/SysTime.h>
 
 namespace apache { namespace thrift { namespace util {
 
@@ -30,8 +31,8 @@ PausableTimer::PausableTimer(int timeLimit) {
 
 void PausableTimer::reset() {
   if (isTimeLimitFinite_) {
-    totalTimed_ = (struct timeval){ 0 };
-    lastRunningTime_ = (struct timeval){ 0 };
+    totalTimed_ = timeval{};
+    lastRunningTime_ = timeval{};
     paused_ = true;
   }
 }

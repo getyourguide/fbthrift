@@ -26,9 +26,17 @@ from .TProtocol import TProtocolBase, TProtocolException
 from thrift.Thrift import TApplicationException, TMessageType
 from .TBinaryProtocol import TBinaryProtocolAccelerated
 from .TCompactProtocol import TCompactProtocolAccelerated
-from thrift.transport.THeaderTransport import THeaderTransport
+from thrift.transport.THeaderTransport import THeaderTransport, CLIENT_TYPE
 
-class THeaderProtocol(TProtocolBase):
+
+class THeaderProtocolAccelerate(object):
+
+    """Base class for pass through header protocols"""
+    def get_protocol_id(self):
+        raise NotImplementedError()
+
+
+class THeaderProtocol(TProtocolBase, THeaderProtocolAccelerate):
 
     """Pass through header protocol (transport can set)"""
     T_BINARY_PROTOCOL = 0
@@ -57,28 +65,34 @@ class THeaderProtocol(TProtocolBase):
                                         "Unknown protocol requested")
         self.__proto_id = proto_id
 
-    def __init__(self, trans, strictRead=False, client_types=None):
+    def __init__(self, trans, strictRead=False,
+                 client_types=None, client_type=None):
         """Create a THeaderProtocol instance
 
         @param transport(TTransport) The underlying transport.
         @param strictRead(bool) Turn on strictRead if using TBinaryProtocol
-        @param client_types([THeaderTransport.HEADERS_CLIENT_TYPE, ...])
+        @param client_types([CLIENT_TYPE.HEADER, ...])
                    List of client types to support.  Defaults to
-                   HEADERS_CLIENT_TYPE only.
+                   CLIENT_TYPE.HEADER only.
         """
 
         if isinstance(trans, THeaderTransport):
             trans._THeaderTransport__supported_client_types = set(
-                    client_types or (THeaderTransport.HEADERS_CLIENT_TYPE,))
+                client_types or (CLIENT_TYPE.HEADER,))
+            if client_type is not None:
+                trans._THeaderTransport__client_type = client_type
             htrans = trans
         else:
-            htrans = THeaderTransport(trans, client_types)
+            htrans = THeaderTransport(trans, client_types, client_type)
         TProtocolBase.__init__(self, htrans)
         self.strictRead = strictRead
         self.reset_protocol()
 
     def writeMessageBegin(self, name, type, seqid):
         self.__proto.writeMessageBegin(name, type, seqid)
+        if type == TMessageType.CALL or type == TMessageType.ONEWAY:
+            # All client to server coms should have a unique seq_id in HEADER
+            self.trans.seq_id = seqid
 
     def writeMessageEnd(self):
         self.__proto.writeMessageEnd()
@@ -211,10 +225,12 @@ class THeaderProtocol(TProtocolBase):
         return self.__proto.readString()
 
 class THeaderProtocolFactory(object):
-    def __init__(self, strictRead=False, client_types=None):
+    def __init__(self, strictRead=False, client_types=None, client_type=None):
         self.strictRead = strictRead
         self.client_types = client_types
+        self.client_type = client_type
 
     def getProtocol(self, trans):
-        prot = THeaderProtocol(trans, self.strictRead, self.client_types)
+        prot = THeaderProtocol(trans, self.strictRead, self.client_types,
+                self.client_type)
         return prot

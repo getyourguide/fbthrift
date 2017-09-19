@@ -52,7 +52,7 @@ class TTransportException(TException):
         self.type = type
 
 
-class TTransportBase:
+class TTransportBase(object):
 
     """Base class for Thrift transport layer."""
 
@@ -69,16 +69,16 @@ class TTransportBase:
         pass
 
     def readAll(self, sz):
-        buff = bytearray(0)
+        chunks = []
         need = sz
         while need:
             chunk = self.read(need)
             if not chunk:
                 raise TTransportException(TTransportException.END_OF_FILE,
                                           "End of file reading from transport")
-            buff += chunk
+            chunks.append(chunk)
             need -= len(chunk)
-        return bytes(buff)
+        return b''.join(chunks)
 
     def write(self, buf):
         pass
@@ -341,7 +341,7 @@ class TFramedTransport(TTransportBase, CReadableTransport):
         return self.__rbuf
 
     def cstringio_refill(self, prefix, reqlen):
-        # self.__rbuf will already be empty here because fastbinary doesn't
+        # self.__rbuf will already be empty here because fastproto doesn't
         # ask for a refill until the previous buffer is empty.  Therefore,
         # we can start reading new frames immediately.
         while len(prefix) < reqlen:

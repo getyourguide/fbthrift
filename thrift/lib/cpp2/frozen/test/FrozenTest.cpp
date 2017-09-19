@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp/protocol/TCompactProtocol.h>
 #include <thrift/lib/cpp/protocol/TDebugProtocol.h>
@@ -31,7 +30,24 @@ using namespace apache::thrift;
 using namespace frozen;
 using namespace util;
 
-example2::EveryLayout stressValue = [] {
+example1::EveryLayout stressValue1 = [] {
+  example1::EveryLayout x;
+  x.aBool = true;
+  x.aInt = 2;
+  x.aList = {3, 5};
+  x.aSet = {7, 11};
+  x.aHashSet = {13, 17};
+  x.aMap = {{19, 23}, {29, 31}};
+  x.aHashMap = {{37, 41}, {43, 47}};
+  x.optInt = 53;
+  x.__isset.optInt = true;
+  x.aFloat = 59.61;
+  x.optMap = {{2, 4}, {3, 9}};
+  x.__isset.optMap = true;
+  return x;
+}();
+
+example2::EveryLayout stressValue2 = [] {
   example2::EveryLayout x;
   x.aBool = true;
   x.aInt = 2;
@@ -51,6 +67,13 @@ example2::EveryLayout stressValue = [] {
 template <class T>
 Layout<T>&& layout(const T& x, Layout<T>&& layout = Layout<T>()) {
   size_t size = LayoutRoot::layout(x, layout);
+  return std::move(layout);
+}
+
+template <class T>
+Layout<T> layout(const T& x, size_t& size) {
+  Layout<T> layout;
+  size = LayoutRoot::layout(x, layout);
   return std::move(layout);
 }
 
@@ -93,7 +116,7 @@ TEST(Frozen, EndToEnd) {
   auto& pets = tom1.pets;
   auto fpets = view.pets();
   ASSERT_EQ(pets.size(), fpets.size());
-  for (int i = 0; i < tom1.pets.size(); ++i) {
+  for (size_t i = 0; i < tom1.pets.size(); ++i) {
     EXPECT_EQ(pets[i].name, fpets[i].name());
   }
   Layout<example2::Person1> layout;
@@ -132,15 +155,17 @@ TEST(Frozen, Compatibility) {
 
   std::string storage(size, 'X');
   folly::MutableStringPiece charRange(&storage.front(), size);
-  folly::MutableByteRange bytes(charRange);
+  const folly::MutableByteRange bytes(charRange);
+  folly::MutableByteRange freezeRange = bytes;
 
-  ByteRangeFreezer::freeze(person1cpp2, tom1, bytes);
+  ByteRangeFreezer::freeze(person1cpp2, tom1, freezeRange);
   auto view12 = person1cpp2.view({bytes.begin(), 0});
   auto view21 = person2cpp1.view({bytes.begin(), 0});
   EXPECT_EQ(view12.name(), view21.name());
   EXPECT_EQ(view12.age(), view21.age());
   EXPECT_TRUE(view12.height());
   EXPECT_FALSE(view21.weight());
+  ASSERT_GE(view12.pets().size(), 2);
   EXPECT_EQ(view12.pets()[0].name(), view21.pets()[0].name());
   EXPECT_EQ(view12.pets()[1].name(), view21.pets()[1].name());
 }
@@ -205,6 +230,51 @@ TEST(Frozen, NoLayout) {
   EXPECT_EQ(std::set<int>(), Layout<std::set<int>>().view(null).thaw());
   EXPECT_EQ((std::map<int, int>()),
             (Layout<std::map<int, int>>().view(null).thaw()));
+
+  Layout<example2::Person1> emptyPersonLayout;
+  std::array<uint8_t, 100> storage;
+  folly::MutableByteRange bytes(storage.begin(), storage.end());
+  EXPECT_THROW(
+      ByteRangeFreezer::freeze(emptyPersonLayout, tom1, bytes),
+      LayoutException);
+}
+
+template<class T>
+void testMaxLayout(const T& value) {
+  auto minLayout = Layout<T>();
+  auto valLayout = minLayout;
+  auto maxLayout = maximumLayout<T>();
+  LayoutRoot::layout(value, valLayout);
+  EXPECT_GT(valLayout.size, 0);
+  ASSERT_GT(maxLayout.size, 0);
+  std::array<uint8_t, 1000> storage;
+  folly::MutableByteRange bytes(storage.begin(), storage.end());
+  EXPECT_THROW(
+      ByteRangeFreezer::freeze(minLayout, value, bytes),
+      LayoutException);
+  auto f = ByteRangeFreezer::freeze(maxLayout, value, bytes);
+  auto check = f.thaw();
+  EXPECT_EQ(value, check);
+}
+
+TEST(Frozen, MaxLayoutVector) {
+  testMaxLayout(std::vector<int>{99, 24});
+}
+
+TEST(Frozen, MaxLayoutPairTree) {
+  using std::make_pair;
+  auto p1 = make_pair(5, 2.3);
+  auto p2 = make_pair(4, p1);
+  auto p3 = make_pair(3, p2);
+  auto p4 = make_pair(2, p3);
+  auto p5 = make_pair(1, p4);
+  auto p6 = make_pair(0, p5);
+  testMaxLayout(p6);
+}
+
+TEST(Frozen, MaxLayoutStress) {
+  testMaxLayout(stressValue1);
+  testMaxLayout(stressValue2);
 }
 
 TEST(Frozen, String) {
@@ -223,19 +293,12 @@ TEST(Frozen, VectorString) {
   std::vector<std::string> check;
 }
 
-TEST(Frozen, VectorVectorInt) {
-  std::vector<std::vector<int>> vvi{{2, 3, 5, 7}, {11, 13, 17, 19}};
-  auto fvvi = freeze(vvi);
-  auto tvvi = fvvi.thaw();
-  EXPECT_EQ(tvvi, vvi);
-}
-
 TEST(Frozen, BigMap) {
   example2::PlaceTest t;
   for (int i = 0; i < 1000; ++i) {
     auto& place = t.places[i * i * i % 757368944];
     place.name = folly::to<std::string>(i);
-    for (int i = 0; i < 200; ++i) {
+    for (int j = 0; j < 200; ++j) {
       ++place.popularityByHour[rand() % (24 * 7)];
     }
   }
@@ -243,7 +306,7 @@ TEST(Frozen, BigMap) {
   CompactSerializer::serialize(t, &bq);
   auto compactSize = bq.chainLength();
   auto frozenSize = ::frozenSize(t);
-  EXPECT_EQ(t, freeze(t)->thaw());
+  EXPECT_EQ(t, freeze(t).thaw());
   EXPECT_LT(frozenSize, compactSize * 0.7);
 }
 example2::Tiny tiny1 = [] {
@@ -278,17 +341,12 @@ std::string toString(const T& x) {
   return xStr.str();
 }
 
-#define EXPECT_PRINTED_EQ(a, b)                                           \
-  {                                                                       \
-    auto aStr = toString(a), bStr = toString(b);                          \
-    EXPECT_TRUE(aStr == bStr) << "\n" << #a << ": " << aStr << "\n" << #b \
-                              << ": " << bStr;                            \
-  }
+#define EXPECT_PRINTED_EQ(a, b) EXPECT_EQ(toString(a), toString(b))
 
 TEST(Frozen, SchemaSaving) {
   // calculate a layout
   Layout<example2::EveryLayout> stressLayoutCalculated;
-  CHECK(LayoutRoot::layout(stressValue, stressLayoutCalculated));
+  CHECK(LayoutRoot::layout(stressValue2, stressLayoutCalculated));
 
   // save it
   schema::MemorySchema schemaSaved;
@@ -320,7 +378,7 @@ TEST(Frozen, SchemaConversion) {
   schema::Schema schema;
 
   Layout<example2::EveryLayout> stressLayoutCalculated;
-  CHECK(LayoutRoot::layout(stressValue, stressLayoutCalculated));
+  CHECK(LayoutRoot::layout(stressValue2, stressLayoutCalculated));
 
   schema::MemorySchema schemaSaved;
   saveRoot(stressLayoutCalculated, schemaSaved);
@@ -354,16 +412,66 @@ TEST(Frozen, DedupedSchema) {
     EXPECT_LE(schema.getLayouts().size(), 7); // 13 layouts originally
   }
   {
-    auto l = layout(stressValue);
+    auto l = layout(stressValue2);
     schema::MemorySchema schema;
     saveRoot(l, schema);
     EXPECT_LE(schema.getLayouts().size(), 24); // 49 layouts originally
   }
 }
 
+TEST(Frozen, TypeHelpers) {
+  auto f = freeze(tom1);
+  View<example2::Pet1> m = f.pets()[0];
+  EXPECT_EQ(m.name(), "max");
+}
+
+TEST(Frozen, RangeTrivialRange) {
+  auto data = std::vector<float>{3.0, 4.0, 5.0};
+  auto view = freeze(data);
+  auto r = folly::Range<const float*>(view.range());
+  EXPECT_EQ(data, std::vector<float>(r.begin(), r.end()));
+}
+
+TEST(Frozen, PaddingLayout) {
+  using std::vector;
+  using std::pair;
+  // The 'distance' field of the vector<double> is small and sensitive to
+  // padding adjustments. If actual distances are returned in
+  // layoutBytesDistance instead of worst-case distances, the below structure
+  // will successfully freeze at offset zero but fail at later offsets.
+  vector<vector<vector<double>>> test(10);
+  test.push_back({{1.0}});
+  size_t size;
+  auto testLayout = layout(test, size);
+  for (size_t offset = 0; offset < 8; ++offset) {
+    std::unique_ptr<byte[]> store(new byte[size + offset + 16]);
+    folly::MutableByteRange bytes(store.get() + offset, size + 16);
+
+    auto view = ByteRangeFreezer::freeze(testLayout, test, bytes);
+    auto range = view[10][0].range();
+    EXPECT_EQ(range[0], 1.0);
+    EXPECT_EQ(reinterpret_cast<intptr_t>(range.begin()) % alignof(double), 0);
+  }
+}
+
+TEST(Frozen, Bundled) {
+  using String = Bundled<std::string>;
+  String s("Hello");
+
+  EXPECT_EQ("Hello", s);
+  EXPECT_FALSE(s.empty());
+  EXPECT_EQ(nullptr, s.findFirstOfType<int>());
+
+  s.hold(47);
+  s.hold(11);
+
+  EXPECT_EQ(47, *s.findFirstOfType<int>());
+  EXPECT_EQ(nullptr, s.findFirstOfType<std::string>());
+}
+
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   google::InitGoogleLogging(argv[0]);
-  google::ParseCommandLineFlags(&argc, &argv, true);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
   return RUN_ALL_TESTS();
 }

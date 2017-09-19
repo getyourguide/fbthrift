@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 namespace apache { namespace thrift { namespace frozen {
 
 namespace detail {
@@ -28,11 +29,15 @@ struct TrivialLayout : public LayoutBase {
   typedef LayoutBase Base;
   TrivialLayout() : LayoutBase(typeid(T)) {}
 
-  FieldPosition layout(LayoutRoot& root, const T& o, LayoutPosition start) {
+  FieldPosition maximize() {
     return FieldPosition(sizeof(T), 0);
   }
 
-  void freeze(FreezeRoot& root, const T& o, FreezePosition self) const {
+  FieldPosition layout(LayoutRoot&, const T&, LayoutPosition /* start */) {
+    return maximize();
+  }
+
+  void freeze(FreezeRoot&, const T& o, FreezePosition self) const {
     if (size == sizeof(T)) {
       *reinterpret_cast<T*>(self.start) = o;
     } else {

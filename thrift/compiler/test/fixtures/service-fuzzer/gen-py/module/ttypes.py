@@ -21,18 +21,13 @@ from thrift.protocol import TBinaryProtocol
 from thrift.protocol import TCompactProtocol
 from thrift.protocol import THeaderProtocol
 try:
-  from thrift.protocol import fastbinary
-  if fastbinary.version < 2:
-    fastbinary = None
-    warnings.warn("Disabling fastbinary, need at least version 2")
-except:
-  fastbinary = None
-try:
   from thrift.protocol import fastproto
 except:
   fastproto = None
 all_structs = []
 UTF8STRINGS = bool(0) or sys.version_info.major >= 3
+
+__all__ = ['UTF8STRINGS']
 
 fix_spec(all_structs)
 del all_structs

@@ -4,8 +4,7 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#ifndef  _module_TYPES_H
-#define  _module_TYPES_H
+#pragma once
 
 #include <thrift/lib/cpp/Thrift.h>
 #include <thrift/lib/cpp/TApplicationException.h>
@@ -21,26 +20,29 @@ class Schema;
 
 enum MyEnum {
   MyValue1 = 0,
-  MyValue2 = 1
+  MyValue2 = 1,
 };
 
-extern const std::map<int, const char*> _MyEnum_VALUES_TO_NAMES;
+using _MyEnum_EnumMapFactory = apache::thrift::detail::TEnumMapFactory<MyEnum, int>;
 
-extern const std::map<const char*, int, apache::thrift::ltstr> _MyEnum_NAMES_TO_VALUES;
+extern const _MyEnum_EnumMapFactory::ValuesToNamesMapType _MyEnum_VALUES_TO_NAMES;
+
+extern const _MyEnum_EnumMapFactory::NamesToValuesMapType _MyEnum_NAMES_TO_VALUES;
 
 
-namespace apache { namespace thrift { 
-template<>
-struct TEnumTraits< ::MyEnum> : public TEnumTraitsBase< ::MyEnum>
-{
-inline static constexpr  ::MyEnum min() {
+namespace apache { namespace thrift {
+template <> struct TEnumDataStorage< ::MyEnum>;
+template <> const std::size_t TEnumTraits< ::MyEnum>::size;
+template <> const folly::Range<const  ::MyEnum*> TEnumTraits< ::MyEnum>::values;
+template <> const folly::Range<const folly::StringPiece*> TEnumTraits< ::MyEnum>::names;
+template <> inline constexpr  ::MyEnum TEnumTraits< ::MyEnum>::min() {
 return  ::MyEnum::MyValue1;
 }
-inline static constexpr  ::MyEnum max() {
+template <> inline constexpr  ::MyEnum TEnumTraits< ::MyEnum>::max() {
 return  ::MyEnum::MyValue2;
 }
-};
-}} // apache:thrift
+}} // apache::thrift
+
 
 
 class MyStruct;
@@ -54,6 +56,32 @@ class MyStruct : public apache::thrift::TStructType<MyStruct> {
   static void _reflection_register(::apache::thrift::reflection::Schema&);
   MyStruct() : MyIntField(0) {
   }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyStruct(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyStruct(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    MyIntField = arg.move();
+    __isset.MyIntField = true;
+  }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit MyStruct(
+    ::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    MyStruct(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    MyStringField = arg.move();
+    __isset.MyStringField = true;
+  }
 
   MyStruct(const MyStruct&) = default;
   MyStruct& operator=(const MyStruct& src)= default;
@@ -62,7 +90,7 @@ class MyStruct : public apache::thrift::TStructType<MyStruct> {
 
   void __clear();
 
-  virtual ~MyStruct() throw() {}
+  virtual ~MyStruct() noexcept {}
 
   int64_t MyIntField;
   std::string MyStringField;
@@ -89,6 +117,10 @@ class MyStruct : public apache::thrift::TStructType<MyStruct> {
   template <class Protocol_>
   uint32_t write(Protocol_* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class MyStruct;
@@ -96,6 +128,5 @@ void merge(const MyStruct& from, MyStruct& to);
 void merge(MyStruct&& from, MyStruct& to);
 
 
-#include "module_types.tcc"
+#include "thrift/compiler/test/fixtures/basic-cpp-async/gen-cpp/module_types.tcc"
 
-#endif

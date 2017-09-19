@@ -18,7 +18,8 @@
  */
 #include <thrift/lib/cpp/test/loadgen/TerminalMonitor.h>
 
-#include <unistd.h>
+#include <folly/portability/Unistd.h>
+
 #include <sys/ioctl.h>
 
 namespace apache { namespace thrift { namespace loadgen {
@@ -36,7 +37,7 @@ void TerminalMonitor::initializeInfo() {
 
 void TerminalMonitor::redisplay(uint64_t intervalUsec) {
   // When the headers run off the top of the screen, reprint them
-  if (screenHeight_ > 0 && linesPrinted_ > screenHeight_) {
+  if (screenHeight_ > 0 && linesPrinted_ > static_cast<size_t>(screenHeight_)) {
     linesPrinted_ = printHeader();
   }
 

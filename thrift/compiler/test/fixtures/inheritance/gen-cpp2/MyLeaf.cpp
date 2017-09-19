@@ -4,21 +4,20 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "MyLeaf.h"
+#include "src/gen-cpp2/MyLeaf.h"
+#include "src/gen-cpp2/MyLeaf.tcc"
 
-#include "MyLeaf.tcc"
-
-#include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
-namespace cpp2 {
+#include <thrift/lib/cpp2/protocol/Protocol.h>
 
+namespace cpp2 {
 std::unique_ptr<apache::thrift::AsyncProcessor> MyLeafSvIf::getProcessor() {
-  return folly::make_unique<MyLeafAsyncProcessor>(this);
+  return std::make_unique<MyLeafAsyncProcessor>(this);
 }
 
 void MyLeafSvIf::do_leaf() {
-  throw apache::thrift::TApplicationException("Function do_leaf is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("do_leaf");
 }
 
 folly::Future<folly::Unit> MyLeafSvIf::future_do_leaf() {
@@ -39,7 +38,7 @@ folly::Optional<std::string> MyLeafAsyncProcessor::getCacheKey(folly::IOBuf* buf
   return apache::thrift::detail::ap::get_cache_key(buf, protType, cacheKeyMap_);
 }
 
-void MyLeafAsyncProcessor::process(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, apache::thrift::protocol::PROTOCOL_TYPES protType, apache::thrift::Cpp2RequestContext* context, apache::thrift::async::TEventBase* eb, apache::thrift::concurrency::ThreadManager* tm) {
+void MyLeafAsyncProcessor::process(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, apache::thrift::protocol::PROTOCOL_TYPES protType, apache::thrift::Cpp2RequestContext* context, folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm) {
   apache::thrift::detail::ap::process(this, std::move(req), std::move(buf), protType, context, eb, tm);
 }
 
@@ -53,15 +52,16 @@ const MyLeafAsyncProcessor::BinaryProtocolProcessMap& MyLeafAsyncProcessor::getB
   return binaryProcessMap_;
 }
 
-MyLeafAsyncProcessor::BinaryProtocolProcessMap MyLeafAsyncProcessor::binaryProcessMap_ {
-  {"do_leaf", &MyLeafAsyncProcessor::_processInThread_do_leaf<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>}
+const MyLeafAsyncProcessor::BinaryProtocolProcessMap MyLeafAsyncProcessor::binaryProcessMap_ {
+  {"do_leaf", &MyLeafAsyncProcessor::_processInThread_do_leaf<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
 };
+
 const MyLeafAsyncProcessor::CompactProtocolProcessMap& MyLeafAsyncProcessor::getCompactProtocolProcessMap() {
   return compactProcessMap_;
 }
 
-MyLeafAsyncProcessor::CompactProtocolProcessMap MyLeafAsyncProcessor::compactProcessMap_ {
-  {"do_leaf", &MyLeafAsyncProcessor::_processInThread_do_leaf<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>}
+const MyLeafAsyncProcessor::CompactProtocolProcessMap MyLeafAsyncProcessor::compactProcessMap_ {
+  {"do_leaf", &MyLeafAsyncProcessor::_processInThread_do_leaf<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
 };
 
 } // cpp2

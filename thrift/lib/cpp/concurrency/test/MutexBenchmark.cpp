@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ void grabLockNTimes(T& m, int64_t iters) {
   }
 }
 
-void runConcurrently(int64_t numThreads, std::function<void ()> fn) {
+static void runConcurrently(int64_t numThreads, std::function<void ()> fn) {
   std::atomic<bool> go(false);
   std::vector<std::thread> threads;
   BENCHMARK_SUSPEND {
@@ -143,7 +143,7 @@ BENCHMARK_RELATIVE(std_contended, iters) {
 }
 
 int main(int argc, char *argv[]) {
-  google::ParseCommandLineFlags(&argc, &argv, true);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
   folly::runBenchmarks();
   return 0;
 }

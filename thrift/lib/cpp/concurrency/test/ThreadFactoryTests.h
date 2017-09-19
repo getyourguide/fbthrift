@@ -22,9 +22,9 @@
 #include <thrift/lib/cpp/concurrency/PosixThreadFactory.h>
 #include <thrift/lib/cpp/concurrency/Monitor.h>
 #include <thrift/lib/cpp/concurrency/Util.h>
+#include <folly/portability/Unistd.h>
 
 #include <assert.h>
-#include <unistd.h>
 #include <iostream>
 #include <set>
 
@@ -345,7 +345,7 @@ public:
     const size_t _id;
   };
 
-  void foo(PosixThreadFactory *tf) {
+  void foo(PosixThreadFactory* /*tf*/) {
   }
 
   bool floodNTest(size_t loop=1, size_t count=100000) {

@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +18,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /*
  * This file is programmatically sanitized for style:
  * astyle --style=1tbs -f -p -H -j -U t_go_generator.cc
@@ -25,9 +26,10 @@
  * guide for ensuring uniformity and readability.
  */
 
-#include <string>
 #include <fstream>
 #include <iostream>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <stdlib.h>
@@ -37,7 +39,8 @@
 #include <algorithm>
 #include <clocale>
 #include "t_generator.h"
-#include "thrift/compiler/platform.h"
+#include <thrift/compiler/platform.h>
+#include <thrift/compiler/generate/t_concat_generator.h>
 
 using std::map;
 using std::ofstream;
@@ -54,12 +57,12 @@ static std::string package_flag;
 /**
  * Go code generator.
  */
-class t_go_generator : public t_generator {
+class t_go_generator : public t_concat_generator {
 public:
   t_go_generator(t_program* program,
                  const std::map<std::string, std::string>& parsed_options,
                  const std::string& option_string)
-    : t_generator(program) {
+    : t_concat_generator(program) {
     (void)option_string;
     std::map<std::string, std::string>::const_iterator iter;
     out_dir_base_ = "gen-go";
@@ -102,7 +105,10 @@ public:
   void generate_xception(t_struct* txception) override;
   void generate_service(t_service* tservice) override;
 
-  std::string render_const_value(t_type* type, t_const_value* value, const string& name);
+  std::string render_const_value(
+      t_type* type,
+      const t_const_value* value,
+      const string& name);
 
   /**
    * Struct generation code
@@ -135,9 +141,10 @@ public:
                                  bool is_result = false,
                                  bool uses_countsetfields = false);
   void generate_go_function_helpers(t_function* tfunction);
-  void get_publicized_name_and_def_value(t_field* tfield,
-                                         string* OUT_pub_name,
-                                         t_const_value** OUT_def_value) const;
+  void get_publicized_name_and_def_value(
+      t_field* tfield,
+      string* OUT_pub_name,
+      const t_const_value** OUT_def_value) const;
 
   /**
    * Service-level generation functions
@@ -280,6 +287,7 @@ private:
 
   std::string package_name_;
   std::string package_dir_;
+  unordered_map<std::string, std::string> package_identifiers;
 
   std::set<std::string> commonInitialisms;
 
@@ -296,7 +304,7 @@ private:
 // returns true if field initialization can be omitted since it has corresponding go type zero value
 // or default value is not set
 bool t_go_generator::omit_initialization(t_field* tfield) {
-  t_const_value* value = tfield->get_value();
+  const t_const_value* value = tfield->get_value();
   if (!value) {
     return true;
   }
@@ -323,15 +331,12 @@ bool t_go_generator::omit_initialization(t_field* tfield) {
     case t_base_type::TYPE_I64:
       return value->get_integer() == 0;
     case t_base_type::TYPE_DOUBLE:
+    case t_base_type::TYPE_FLOAT:
       if (value->get_type() == t_const_value::CV_INTEGER) {
         return value->get_integer() == 0;
       } else {
         return value->get_double() == 0.;
       }
-
-    case t_base_type::TYPE_FLOAT:
-      throw "Float type not supported";
-
     }
   }
   return false;
@@ -384,10 +389,8 @@ bool t_go_generator::is_pointer_field(t_field* tfield, bool in_container_value) 
     case t_base_type::TYPE_I32:
     case t_base_type::TYPE_I64:
     case t_base_type::TYPE_DOUBLE:
-      return !has_default;
-
     case t_base_type::TYPE_FLOAT:
-      throw "Float type not supported";
+      return !has_default;
     }
   } else if (type->is_enum()) {
     return !has_default;
@@ -674,7 +677,7 @@ void t_go_generator::init_generator() {
 
   while (true) {
     // TODO: Do better error checking here.
-    MKDIR(package_dir_.c_str());
+    make_dir(package_dir_.c_str());
 
     if (module.empty()) {
       break;
@@ -712,7 +715,7 @@ void t_go_generator::init_generator() {
 
   for (sv_iter = services.begin(); sv_iter != services.end(); ++sv_iter) {
     string service_dir = package_dir_ + "/" + underscore((*sv_iter)->get_name()) + "-remote";
-    MKDIR(service_dir.c_str());
+    make_dir(service_dir.c_str());
   }
 
   // Print header
@@ -734,17 +737,26 @@ string t_go_generator::render_includes() {
 
   for (size_t i = 0; i < includes.size(); ++i) {
     string go_module = get_real_go_module(includes[i]);
+    string go_path = go_module;
     size_t found = 0;
     for (size_t j = 0; j < go_module.size(); j++) {
       // Import statement uses slashes ('/') in namespace
       if (go_module[j] == '.') {
-        go_module[j] = '/';
+        go_path[j] = '/';
         found = j + 1;
       }
     }
 
-    result += "\t\"" + gen_package_prefix_ + go_module + "\"\n";
-    unused_prot += "var _ = " + go_module.substr(found) + ".GoUnusedProtection__\n";
+    auto it = package_identifiers.find(go_module);
+    if (it == package_identifiers.end()) {
+      auto value = tmp(go_module.substr(found));
+      it = package_identifiers.emplace(go_module, std::move(value)).first;
+    }
+    auto const& package_identifier = it->second;
+
+    result += "\t" + package_identifier + " \"" + gen_package_prefix_ +
+        go_path + "\"\n";
+    unused_prot += "var _ = " + package_identifier + ".GoUnusedProtection__\n";
   }
 
   if (includes.size() > 0) {
@@ -772,7 +784,8 @@ string t_go_generator::go_autogen_comment() {
   return
         std::string() +
         "// Autogenerated by Thrift Compiler (" + THRIFT_VERSION + ")\n"
-        "// DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING\n\n";
+        "// DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING\n"
+        "// @""generated\n\n";
 }
 
 /**
@@ -848,17 +861,16 @@ void t_go_generator::generate_typedef(t_typedef* ttypedef) {
  * @param tenum The enumeration
  */
 void t_go_generator::generate_enum(t_enum* tenum) {
-  std::ostringstream to_string_mapping, from_string_mapping;
+  std::ostringstream name_mapping, value_mapping;
   std::string tenum_name(publicize(tenum->get_name()));
   generate_go_docstring(f_types_, tenum);
   f_types_ << "type " << tenum_name << " int64" << endl << "const (" << endl;
 
-  to_string_mapping << indent() << "func (p " << tenum_name << ") String() string {" << endl;
-  to_string_mapping << indent() << "  switch p {" << endl;
+  name_mapping << indent() << "var " << tenum_name << "ToName = map["
+               << tenum_name << "]string {" << endl;
 
-  from_string_mapping << indent() << "func " << tenum_name << "FromString(s string) (" << tenum_name
-                      << ", error) {" << endl;
-  from_string_mapping << indent() << "  switch s {" << endl;
+  value_mapping << indent() << "var " << tenum_name << "ToValue = map[string]"
+                << tenum_name << " {" << endl;
 
   vector<t_enum_value*> constants = tenum->get_constants();
   vector<t_enum_value*>::iterator c_iter;
@@ -875,32 +887,42 @@ void t_go_generator::generate_enum(t_enum* tenum) {
 
     // Only add a to_string_mapping if there isn't a duplicate of the value
     if (seen.find(value) == seen.end()) {
-    // Dictionaries to/from string names of enums
-    to_string_mapping << indent() << "  case " << tenum_name << "_" << iter_name
-                      << ": return \"" << iter_std_name << "\"" << endl;
+      // Dictionaries to/from string names of enums
+      name_mapping << indent() << "  " << tenum_name << "_" << iter_name
+                   << ": \"" << iter_std_name << "\"," << endl;
     }
 
+    value_mapping << indent() << "  \"" << iter_std_name << "\": " << tenum_name
+                  << "_" << iter_name << "," << endl;
     if (iter_std_name != escape_string(iter_name)) {
-      from_string_mapping << indent() << "  case \"" << iter_std_name << "\", \""
-                          << escape_string(iter_name) << "\": return " << tenum_name
-                          << "_" << iter_name << ", nil " << endl;
-    } else {
-      from_string_mapping << indent() << "  case \"" << iter_std_name << "\": return "
-                          << tenum_name << "_" << iter_name << ", nil " << endl;
+      value_mapping << indent() << "  \"" << escape_string(iter_std_name)
+                    << "\": " << tenum_name << "_" << iter_name << "," << endl;
     }
     seen.insert(value);
   }
 
-  to_string_mapping << indent() << "  }" << endl;
-  to_string_mapping << indent() << "  return \"<UNSET>\"" << endl;
-  to_string_mapping << indent() << "}" << endl;
-  from_string_mapping << indent() << "  }" << endl;
-  from_string_mapping << indent() << "  return " << tenum_name << "(0),"
-                      << " fmt.Errorf(\"not a valid " << tenum_name << " string\")" << endl;
-  from_string_mapping << indent() << "}" << endl;
+  name_mapping << indent() << "}" << endl;
+  value_mapping << indent() << "}" << endl;
 
-  f_types_ << ")" << endl << endl << to_string_mapping.str() << endl << from_string_mapping.str()
-           << endl << endl;
+  f_types_ << ")" << endl << endl;
+  f_types_ << name_mapping.str() << endl;
+  f_types_ << value_mapping.str() << endl;
+  f_types_ << "func (p " << tenum_name << ") String() string {" << endl
+           << "  if v, ok := " << tenum_name << "ToName[p]; ok {" << endl
+           << "    return v" << endl
+           << "  }" << endl
+           << "  return \"<UNSET>\"" << endl
+           << "}" << endl
+           << endl;
+  f_types_ << "func " << tenum_name << "FromString(s string) (" << tenum_name
+           << ", error) {" << endl
+           << "  if v, ok := " << tenum_name << "ToValue[s]; ok {" << endl
+           << "    return v, nil" << endl
+           << "  }" << endl
+           << "  return " << tenum_name << "(0),"
+           << " fmt.Errorf(\"not a valid " << tenum_name << " string\")" << endl
+           << "}" << endl
+           << endl;
 
   // Generate a convenience function that converts an instance of an enum
   // (which may be a constant) into a pointer to an instance of that enum
@@ -932,7 +954,10 @@ void t_go_generator::generate_const(t_const* tconst) {
  * is NOT performed in this function as it is always run beforehand using the
  * validate_types method in main.cc
  */
-string t_go_generator::render_const_value(t_type* type, t_const_value* value, const string& name) {
+string t_go_generator::render_const_value(
+    t_type* type,
+    const t_const_value* value,
+    const string& name) {
   type = get_true_type(type);
   std::ostringstream out;
 
@@ -961,6 +986,7 @@ string t_go_generator::render_const_value(t_type* type, t_const_value* value, co
       break;
 
     case t_base_type::TYPE_DOUBLE:
+    case t_base_type::TYPE_FLOAT:
       if (value->get_type() == t_const_value::CV_INTEGER) {
         out << value->get_integer();
       } else {
@@ -977,10 +1003,11 @@ string t_go_generator::render_const_value(t_type* type, t_const_value* value, co
   } else if (type->is_struct() || type->is_xception()) {
     out << "&" << publicize(type_name(type)) << "{";
     indent_up();
+    out << endl;
     const vector<t_field*>& fields = ((t_struct*)type)->get_members();
     vector<t_field*>::const_iterator f_iter;
-    const map<t_const_value*, t_const_value*>& val = value->get_map();
-    map<t_const_value*, t_const_value*>::const_iterator v_iter;
+    const vector<pair<t_const_value*, t_const_value*>>& val = value->get_map();
+    vector<pair<t_const_value*, t_const_value*>>::const_iterator v_iter;
 
     for (v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
       t_type* field_type = nullptr;
@@ -995,28 +1022,20 @@ string t_go_generator::render_const_value(t_type* type, t_const_value* value, co
         throw "type error: " + type->get_name() + " has no field " + v_iter->first->get_string();
       }
 
-      if (field_type->is_base_type() || field_type->is_enum()) {
-        out << endl << indent() << publicize(v_iter->first->get_string()) << ": "
-            << render_const_value(field_type, v_iter->second, name) << ",";
-      } else {
-        string k(tmp("k"));
-        string v(tmp("v"));
-        out << endl << indent() << v << " := " << render_const_value(field_type, v_iter->second, v)
-            << endl << indent() << name << "." << publicize(v_iter->first->get_string()) << " = "
-            << v;
-      }
+      out << indent() << publicize(v_iter->first->get_string()) << ": "
+          << render_const_value(field_type, v_iter->second, name) << ","
+          << endl;
     }
-
-    out << "}";
-
     indent_down();
+    out << indent() << "}";
+
   } else if (type->is_map()) {
     t_type* ktype = ((t_map*)type)->get_key_type();
     t_type* vtype = ((t_map*)type)->get_val_type();
-    const map<t_const_value*, t_const_value*>& val = value->get_map();
+    const vector<pair<t_const_value*, t_const_value*>>& val = value->get_map();
     out << "map[" << type_to_go_type(ktype) << "]" << type_to_go_type(vtype, true) << "{" << endl;
     indent_up();
-    map<t_const_value*, t_const_value*>::const_iterator v_iter;
+    vector<pair<t_const_value*, t_const_value*>>::const_iterator v_iter;
 
     for (v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
       out << indent() << render_const_value(ktype, v_iter->first, name) << ": "
@@ -1033,7 +1052,8 @@ string t_go_generator::render_const_value(t_type* type, t_const_value* value, co
     vector<t_const_value*>::const_iterator v_iter;
 
     for (v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
-      out << indent() << render_const_value(etype, *v_iter, name) << ", ";
+      out << indent() << render_const_value(etype, *v_iter, name) << ","
+          << endl;
     }
 
     indent_down();
@@ -1082,9 +1102,10 @@ void t_go_generator::generate_go_struct(t_struct* tstruct, bool is_exception) {
   generate_go_struct_definition(f_types_, tstruct, is_exception);
 }
 
-void t_go_generator::get_publicized_name_and_def_value(t_field* tfield,
-                                                       string* OUT_pub_name,
-                                                       t_const_value** OUT_def_value) const {
+void t_go_generator::get_publicized_name_and_def_value(
+    t_field* tfield,
+    string* OUT_pub_name,
+    const t_const_value** OUT_def_value) const {
   const string base_field_name = tfield->get_name();
   const string escaped_field_name = escape_string(base_field_name);
   *OUT_pub_name = publicize(escaped_field_name);
@@ -1100,7 +1121,7 @@ void t_go_generator::generate_go_struct_initializer(ofstream& out,
        ++m_iter) {
     bool pointer_field = is_pointer_field(*m_iter);
     string publicized_name;
-    t_const_value* def_value;
+    const t_const_value* def_value;
     get_publicized_name_and_def_value(*m_iter, &publicized_name, &def_value);
     if (!pointer_field && def_value != nullptr &&
         !omit_initialization(*m_iter)) {
@@ -1179,12 +1200,14 @@ void t_go_generator::generate_go_struct_definition(ofstream& out,
 
       t_type* fieldType = (*m_iter)->get_type();
       string goType = type_to_go_type_with_opt(fieldType, is_pointer_field(*m_iter));
-      string gotag;
+      string gotag = "db:\"" + escape_string((*m_iter)->get_name())  + "\" ";
       if ((*m_iter)->get_req() == t_field::T_OPTIONAL) {
-        gotag = "json:\"" + escape_string((*m_iter)->get_name()) + ",omitempty\"";
+        gotag += "json:\"" + escape_string((*m_iter)->get_name()) + ",omitempty\"";
       } else {
-        gotag = "json:\"" + escape_string((*m_iter)->get_name()) + "\"";
+        gotag += "json:\"" + escape_string((*m_iter)->get_name()) + "\"";
       }
+
+      // Check for user override of db and json tags using "go.tag"
       std::map<string, string>::iterator it = (*m_iter)->annotations_.find("go.tag");
       if (it != (*m_iter)->annotations_.end()) {
         gotag = it->second;
@@ -1217,7 +1240,7 @@ void t_go_generator::generate_go_struct_definition(ofstream& out,
   // Default values for optional fields
   for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
     string publicized_name;
-    t_const_value* def_value;
+    const t_const_value* def_value;
     get_publicized_name_and_def_value(*m_iter, &publicized_name, &def_value);
     t_type* fieldType = (*m_iter)->get_type();
     string goType = type_to_go_type_with_opt(fieldType, false);
@@ -1493,7 +1516,7 @@ void t_go_generator::generate_go_struct_reader(ofstream& out,
     string field_type_name(publicize((*f_iter)->get_type()->get_name()));
     string field_name(publicize((*f_iter)->get_name()));
     string field_method_prefix("ReadField");
-    int32_t field_id = (*f_iter)->get_key();
+    field_id = (*f_iter)->get_key();
 
     if (field_id < 0) {
       field_method_prefix += "_";
@@ -1522,8 +1545,8 @@ void t_go_generator::generate_go_struct_writer(ofstream& out,
   indent(out) << "func (p *" << tstruct_name << ") Write(oprot thrift.TProtocol) error {" << endl;
   indent_up();
   if (tstruct->is_union() && uses_countsetfields) {
-    std::string tstruct_name(publicize(tstruct->get_name()));
-    out << indent() << "if c := p.CountSetFields" << tstruct_name << "(); c != 1 {" << endl
+    std::string pub_tstruct_name(publicize(tstruct->get_name()));
+    out << indent() << "if c := p.CountSetFields" << pub_tstruct_name << "(); c != 1 {" << endl
         << indent() << "  return fmt.Errorf(\"%T write union: exactly one field must be set (%d set).\", p, c)" << endl
         << indent() << "}" << endl;
   }
@@ -2290,6 +2313,15 @@ void t_go_generator::generate_service_remote(t_service* tservice) {
           f_remote << indent() << "}" << endl;
           break;
 
+        case t_base_type::TYPE_FLOAT:
+          f_remote << indent() << "argvalue" << i << ", " << err
+                   << " := (strconv.ParseFloat(flag.Arg(" << flagArg << "), 32))" << endl;
+          f_remote << indent() << "if " << err << " != nil {" << endl;
+          f_remote << indent() << "  Usage()" << endl;
+          f_remote << indent() << "  return" << endl;
+          f_remote << indent() << "}" << endl;
+          break;
+
         default:
           throw("Invalid base type in generate_service_remote");
         }
@@ -2393,6 +2425,7 @@ void t_go_generator::generate_service_remote(t_service* tservice) {
         case t_base_type::TYPE_I32:
         case t_base_type::TYPE_I64:
         case t_base_type::TYPE_DOUBLE:
+        case t_base_type::TYPE_FLOAT:
           f_remote << "value" << i;
           break;
 
@@ -2421,17 +2454,12 @@ void t_go_generator::generate_service_remote(t_service* tservice) {
   f_remote << indent() << "}" << endl;
   indent_down();
   f_remote << indent() << "}" << endl;
+
   // Close service file
   f_remote.close();
-#ifndef _MSC_VER
+
   // Make file executable, love that bitwise OR action
-  chmod(f_remote_name.c_str(),
-        S_IRUSR | S_IWUSR | S_IXUSR
-#ifndef _WIN32
-        | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH
-#endif
-        );
-#endif
+  chmod_to_755(f_remote_name.c_str());
 }
 
 /**
@@ -2753,7 +2781,6 @@ void t_go_generator::generate_deserialize_field(ofstream& out,
       switch (tbase) {
       case t_base_type::TYPE_VOID:
         throw "compiler error: cannot serialize void field in a struct: " + name;
-        break;
 
       case t_base_type::TYPE_STRING:
         if (((t_base_type*)type)->is_binary() && !inkey) {
@@ -2786,6 +2813,10 @@ void t_go_generator::generate_deserialize_field(ofstream& out,
 
       case t_base_type::TYPE_DOUBLE:
         out << "ReadDouble()";
+        break;
+
+      case t_base_type::TYPE_FLOAT:
+        out << "ReadFloat()";
         break;
 
       default:
@@ -2833,8 +2864,14 @@ void t_go_generator::generate_deserialize_struct(ofstream& out,
                                                  string prefix) {
   string eq(declare ? " := " : " = ");
 
-  out << indent() << prefix << eq << (pointer_field ? "&" : "");
-  generate_go_struct_initializer(out, tstruct);
+  out << indent() << prefix << eq << (pointer_field ? "" : "*");
+
+  const t_program* program = tstruct->get_program();
+  if (program != nullptr && program != program_) {
+    out << package_identifiers[get_real_go_module(program)] << ".";
+  }
+  out << "New" << publicize(tstruct->get_name()) << "()" << endl;
+
   out << indent() << "if err := " << prefix << ".Read(iprot); err != nil {" << endl;
   out << indent() << "  return thrift.PrependError(fmt.Sprintf(\"%T error reading struct: \", "
       << prefix << "), err)" << endl;
@@ -3005,7 +3042,6 @@ void t_go_generator::generate_serialize_field(ofstream& out,
       switch (tbase) {
       case t_base_type::TYPE_VOID:
         throw "compiler error: cannot serialize void field in a struct: " + name;
-        break;
 
       case t_base_type::TYPE_STRING:
         if (((t_base_type*)type)->is_binary() && !inkey) {
@@ -3038,6 +3074,10 @@ void t_go_generator::generate_serialize_field(ofstream& out,
 
       case t_base_type::TYPE_DOUBLE:
         out << "WriteDouble(float64(" << name << "))";
+        break;
+
+      case t_base_type::TYPE_FLOAT:
+        out << "WriteFloat(float32(" << name << "))";
         break;
 
       default:
@@ -3349,16 +3389,11 @@ string t_go_generator::argument_list(t_struct* tstruct) {
 }
 
 string t_go_generator::type_name(t_type* ttype) {
-  t_program* program = ttype->get_program();
+  const t_program* program = ttype->get_program();
 
   if (program != nullptr && program != program_) {
     string module(get_real_go_module(program));
-    // for namespaced includes, only keep part after dot.
-    size_t dot = module.rfind('.');
-    if (dot != string::npos) {
-      module = module.substr(dot + 1);
-    }
-    return module + "." + ttype->get_name();
+    return package_identifiers[module] + "." + ttype->get_name();
   }
 
   return ttype->get_name();
@@ -3404,7 +3439,7 @@ string t_go_generator::type_to_enum(t_type* type) {
       return "thrift.DOUBLE";
 
     case t_base_type::TYPE_FLOAT:
-      throw "Float type not supported.";
+      return "thrift.FLOAT";
     }
   } else if (type->is_enum()) {
     return "thrift.I32";
@@ -3491,7 +3526,7 @@ string t_go_generator::type_to_go_type_with_opt(t_type* type,
       return maybe_pointer + "float64";
 
     case t_base_type::TYPE_FLOAT:
-      throw "Float type not supported.";
+      return maybe_pointer + "float32";
     }
   } else if (type->is_enum()) {
     return maybe_pointer + publicize(type_name(type));

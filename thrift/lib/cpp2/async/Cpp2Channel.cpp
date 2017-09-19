@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #include <thrift/lib/cpp2/async/Cpp2Channel.h>
 #include <thrift/lib/cpp/transport/TTransportException.h>
 #include <thrift/lib/cpp/concurrency/Util.h>
+#include <thrift/lib/cpp2/async/PcapLoggingHandler.h>
 
 #include <folly/io/IOBufQueue.h>
 #include <folly/io/Cursor.h>
@@ -30,32 +31,47 @@ using folly::IOBuf;
 using folly::IOBufQueue;
 using namespace folly::io;
 using namespace apache::thrift::transport;
-using apache::thrift::async::TEventBase;
+using folly::EventBase;
 using namespace apache::thrift::concurrency;
 using apache::thrift::async::TAsyncTransport;
 
 namespace apache { namespace thrift {
 
 Cpp2Channel::Cpp2Channel(
-  const std::shared_ptr<TAsyncTransport>& transport,
-  std::unique_ptr<FramingHandler> framingHandler,
-  std::unique_ptr<ProtectionHandler> protectionHandler)
-    : transport_(transport)
-    , queue_(new IOBufQueue(IOBufQueue::cacheChainLength()))
-    , recvCallback_(nullptr)
-    , eofInvoked_(false)
-    , protectionHandler_(std::move(protectionHandler))
-    , framingHandler_(std::move(framingHandler)) {
+    const std::shared_ptr<TAsyncTransport>& transport,
+    std::unique_ptr<FramingHandler> framingHandler,
+    std::unique_ptr<ProtectionHandler> protectionHandler,
+    std::unique_ptr<SaslNegotiationHandler> saslNegotiationHandler)
+    : transport_(transport),
+      queue_(new IOBufQueue(IOBufQueue::cacheChainLength())),
+      recvCallback_(nullptr),
+      eofInvoked_(false),
+      outputBufferingHandler_(
+          std::make_shared<wangle::OutputBufferingHandler>()),
+      protectionHandler_(std::move(protectionHandler)),
+      framingHandler_(std::move(framingHandler)),
+      saslNegotiationHandler_(std::move(saslNegotiationHandler)) {
   if (!protectionHandler_) {
     protectionHandler_.reset(new ProtectionHandler);
   }
   framingHandler_->setProtectionHandler(protectionHandler_.get());
-  pipeline_.reset(new Pipeline(
+
+  if (!saslNegotiationHandler_) {
+    saslNegotiationHandler_ = std::make_unique<DummySaslNegotiationHandler>();
+  }
+  saslNegotiationHandler_->setProtectionHandler(protectionHandler_.get());
+  auto pcapLoggingHandler = std::make_shared<PcapLoggingHandler>([this]{
+      return protectionHandler_->getProtectionState() ==
+          ProtectionHandler::ProtectionState::VALID;
+  });
+  pipeline_ = Pipeline::create(
       TAsyncTransportHandler(transport),
-      wangle::OutputBufferingHandler(),
+      outputBufferingHandler_,
       protectionHandler_,
+      pcapLoggingHandler,
       framingHandler_,
-      this));
+      saslNegotiationHandler_,
+      this);
   // Let the pipeline know that this handler owns the pipeline itself.
   // The pipeline will then avoid destruction order issues.
   // CHECK that this operation is successful.
@@ -96,22 +112,24 @@ void Cpp2Channel::destroy() {
 }
 
 void Cpp2Channel::attachEventBase(
-  TEventBase* eventBase) {
+  EventBase* eventBase) {
   transportHandler_->attachEventBase(eventBase);
 }
 
 void Cpp2Channel::detachEventBase() {
+  getEventBase()->dcheckIsInEventBaseThread();
+  outputBufferingHandler_->cleanUp();
   transportHandler_->detachEventBase();
 }
 
-TEventBase* Cpp2Channel::getEventBase() {
+EventBase* Cpp2Channel::getEventBase() {
   return transport_->getEventBase();
 }
 
 void Cpp2Channel::read(
-    Context* ctx,
-    std::pair<std::unique_ptr<folly::IOBuf>,
-              std::unique_ptr<THeader>> bufAndHeader) {
+    Context*,
+    std::pair<std::unique_ptr<folly::IOBuf>, std::unique_ptr<THeader>>
+        bufAndHeader) {
   DestructorGuard dg(this);
 
   if (recvCallback_ && recvCallback_->shouldSample() && !sample_) {
@@ -133,11 +151,11 @@ void Cpp2Channel::read(
                                  std::move(sample_));
 }
 
-void Cpp2Channel::readEOF(Context* ctx) {
+void Cpp2Channel::readEOF(Context*) {
   processReadEOF();
 }
 
-void Cpp2Channel::readException(Context* ctx, folly::exception_wrapper e)  {
+void Cpp2Channel::readException(Context*, folly::exception_wrapper e) {
   DestructorGuard dg(this);
   VLOG(5) << "Got a read error: " << folly::exceptionStr(e);
   if (recvCallback_) {
@@ -157,8 +175,9 @@ void Cpp2Channel::writeSuccess() noexcept {
   sendCallbacks_.pop_front();
 }
 
-void Cpp2Channel::writeError(size_t bytesWritten,
-                               const TTransportException& ex) noexcept {
+void Cpp2Channel::writeError(
+    size_t /* bytesWritten */,
+    const TTransportException& ex) noexcept {
   assert(sendCallbacks_.size() > 0);
 
   // Pop last write request, call error callback

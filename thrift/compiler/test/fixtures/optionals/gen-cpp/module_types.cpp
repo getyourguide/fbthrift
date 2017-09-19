@@ -4,43 +4,40 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "module_types.h"
+#include "thrift/compiler/test/fixtures/optionals/gen-cpp/module_types.h"
+#include "thrift/compiler/test/fixtures/optionals/gen-cpp/module_data.h"
 
-#include "module_reflection.h"
+#include "thrift/compiler/test/fixtures/optionals/gen-cpp/module_reflection.h"
 
 #include <algorithm>
 #include <string.h>
 
+#include <folly/Indestructible.h>
 
 
-int _kAnimalValues[] = {
-  DOG,
-  CAT,
-  TARANTULA
-};
 
-const char* _kAnimalNames[] = {
-  "DOG",
-  "CAT",
-  "TARANTULA"
-};
+const typename _Animal_EnumMapFactory::ValuesToNamesMapType _Animal_VALUES_TO_NAMES = _Animal_EnumMapFactory::makeValuesToNamesMap();
 
-const std::map<int, const char*> _Animal_VALUES_TO_NAMES(apache::thrift::TEnumIterator<int>(3, _kAnimalValues, _kAnimalNames), apache::thrift::TEnumIterator<int>(-1, NULL, NULL));
-
-const std::map<const char*, int, apache::thrift::ltstr> _Animal_NAMES_TO_VALUES(apache::thrift::TEnumInverseIterator<int>(3, _kAnimalValues, _kAnimalNames), apache::thrift::TEnumInverseIterator<int>(-1, NULL, NULL));
+const typename _Animal_EnumMapFactory::NamesToValuesMapType _Animal_NAMES_TO_VALUES = _Animal_EnumMapFactory::makeNamesToValuesMap();
 
 
 namespace apache { namespace thrift {
-template<>
-const char* TEnumTraitsBase< ::Animal>::findName( ::Animal value) {
-return findName( ::_Animal_VALUES_TO_NAMES, value);
-} 
+template <>const std::size_t TEnumTraits< ::Animal>::size = 3;
+template <>const folly::Range<const  ::Animal*> TEnumTraits< ::Animal>::values = folly::range( ::_AnimalEnumDataStorage::values);
+template <>const folly::Range<const folly::StringPiece*> TEnumTraits< ::Animal>::names = folly::range( ::_AnimalEnumDataStorage::names);
 
 template<>
-bool TEnumTraitsBase< ::Animal>::findValue(const char* name,  ::Animal* out) {
-return findValue( ::_Animal_NAMES_TO_VALUES, name, out);
-} 
-}} // apache::thrift 
+const char* TEnumTraits< ::Animal>::findName( ::Animal value) {
+  static const auto map = folly::Indestructible< ::_Animal_EnumMapFactory::ValuesToNamesMapType>{ ::_Animal_EnumMapFactory::makeValuesToNamesMap()};
+  return findName(*map, value);
+}
+
+template<>
+bool TEnumTraits< ::Animal>::findValue(const char* name,  ::Animal* out) {
+  static const auto map = folly::Indestructible< ::_Animal_EnumMapFactory::NamesToValuesMapType>{ ::_Animal_EnumMapFactory::makeNamesToValuesMap()};
+  return findValue(*map, name, out);
+}
+}} // apache::thrift
 
 
 const uint64_t Color::_reflection_id;
@@ -60,11 +57,34 @@ bool Color::operator == (const Color & rhs) const {
   return true;
 }
 
+void Color::translateFieldName(
+    FOLLY_MAYBE_UNUSED folly::StringPiece _fname,
+    FOLLY_MAYBE_UNUSED int16_t& fid,
+    FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "red") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_DOUBLE;
+  }
+  else if (_fname == "green") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_DOUBLE;
+  }
+  else if (_fname == "blue") {
+    fid = 3;
+    _ftype = apache::thrift::protocol::T_DOUBLE;
+  }
+  else if (_fname == "alpha") {
+    fid = 4;
+    _ftype = apache::thrift::protocol::T_DOUBLE;
+  }
+};
+
 uint32_t Color::read(apache::thrift::protocol::TProtocol* iprot) {
 
   uint32_t xfer = 0;
-  std::string fname;
-  apache::thrift::protocol::TType ftype;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
   int16_t fid;
 
   ::apache::thrift::reflection::Schema * schema = iprot->getSchema();
@@ -72,7 +92,7 @@ uint32_t Color::read(apache::thrift::protocol::TProtocol* iprot) {
      ::module_reflection_::reflectionInitializer_11194926431654439212(*schema);
     iprot->setNextStructType(Color::_reflection_id);
   }
-  xfer += iprot->readStructBegin(fname);
+  xfer += iprot->readStructBegin(_fname);
 
   using apache::thrift::protocol::TProtocolException;
 
@@ -80,46 +100,46 @@ uint32_t Color::read(apache::thrift::protocol::TProtocol* iprot) {
 
   while (true)
   {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == apache::thrift::protocol::T_STOP) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
       break;
     }
     switch (fid)
     {
       case 1:
-        if (ftype == apache::thrift::protocol::T_DOUBLE) {
+        if (_ftype == apache::thrift::protocol::T_DOUBLE) {
           xfer += iprot->readDouble(this->red);
           this->__isset.red = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 2:
-        if (ftype == apache::thrift::protocol::T_DOUBLE) {
+        if (_ftype == apache::thrift::protocol::T_DOUBLE) {
           xfer += iprot->readDouble(this->green);
           this->__isset.green = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 3:
-        if (ftype == apache::thrift::protocol::T_DOUBLE) {
+        if (_ftype == apache::thrift::protocol::T_DOUBLE) {
           xfer += iprot->readDouble(this->blue);
           this->__isset.blue = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 4:
-        if (ftype == apache::thrift::protocol::T_DOUBLE) {
+        if (_ftype == apache::thrift::protocol::T_DOUBLE) {
           xfer += iprot->readDouble(this->alpha);
           this->__isset.alpha = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       default:
-        xfer += iprot->skip(ftype);
+        xfer += iprot->skip(_ftype);
         break;
     }
     xfer += iprot->readFieldEnd();
@@ -170,42 +190,26 @@ void swap(Color &a, Color &b) {
 
 void merge(const Color& from, Color& to) {
   using apache::thrift::merge;
-  if (from.__isset.red) {
-    merge(from.red, to.red);
-    to.__isset.red = true;
-  }
-  if (from.__isset.green) {
-    merge(from.green, to.green);
-    to.__isset.green = true;
-  }
-  if (from.__isset.blue) {
-    merge(from.blue, to.blue);
-    to.__isset.blue = true;
-  }
-  if (from.__isset.alpha) {
-    merge(from.alpha, to.alpha);
-    to.__isset.alpha = true;
-  }
+  merge(from.red, to.red);
+  to.__isset.red = to.__isset.red || from.__isset.red;
+  merge(from.green, to.green);
+  to.__isset.green = to.__isset.green || from.__isset.green;
+  merge(from.blue, to.blue);
+  to.__isset.blue = to.__isset.blue || from.__isset.blue;
+  merge(from.alpha, to.alpha);
+  to.__isset.alpha = to.__isset.alpha || from.__isset.alpha;
 }
 
 void merge(Color&& from, Color& to) {
   using apache::thrift::merge;
-  if (from.__isset.red) {
-    merge(std::move(from.red), to.red);
-    to.__isset.red = true;
-  }
-  if (from.__isset.green) {
-    merge(std::move(from.green), to.green);
-    to.__isset.green = true;
-  }
-  if (from.__isset.blue) {
-    merge(std::move(from.blue), to.blue);
-    to.__isset.blue = true;
-  }
-  if (from.__isset.alpha) {
-    merge(std::move(from.alpha), to.alpha);
-    to.__isset.alpha = true;
-  }
+  merge(std::move(from.red), to.red);
+  to.__isset.red = to.__isset.red || from.__isset.red;
+  merge(std::move(from.green), to.green);
+  to.__isset.green = to.__isset.green || from.__isset.green;
+  merge(std::move(from.blue), to.blue);
+  to.__isset.blue = to.__isset.blue || from.__isset.blue;
+  merge(std::move(from.alpha), to.alpha);
+  to.__isset.alpha = to.__isset.alpha || from.__isset.alpha;
 }
 
 const uint64_t Vehicle::_reflection_id;
@@ -228,14 +232,45 @@ bool Vehicle::operator == (const Vehicle & rhs) const {
     return false;
   else if (__isset.name && !(name == rhs.name))
     return false;
+  if (__isset.hasAC != rhs.__isset.hasAC)
+    return false;
+  else if (__isset.hasAC && !(hasAC == rhs.hasAC))
+    return false;
   return true;
 }
+
+void Vehicle::translateFieldName(
+    FOLLY_MAYBE_UNUSED folly::StringPiece _fname,
+    FOLLY_MAYBE_UNUSED int16_t& fid,
+    FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "color") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_STRUCT;
+  }
+  else if (_fname == "licensePlate") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "description") {
+    fid = 3;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "name") {
+    fid = 4;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "hasAC") {
+    fid = 5;
+    _ftype = apache::thrift::protocol::T_BOOL;
+  }
+};
 
 uint32_t Vehicle::read(apache::thrift::protocol::TProtocol* iprot) {
 
   uint32_t xfer = 0;
-  std::string fname;
-  apache::thrift::protocol::TType ftype;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
   int16_t fid;
 
   ::apache::thrift::reflection::Schema * schema = iprot->getSchema();
@@ -243,7 +278,7 @@ uint32_t Vehicle::read(apache::thrift::protocol::TProtocol* iprot) {
      ::module_reflection_::reflectionInitializer_11029503283921871788(*schema);
     iprot->setNextStructType(Vehicle::_reflection_id);
   }
-  xfer += iprot->readStructBegin(fname);
+  xfer += iprot->readStructBegin(_fname);
 
   using apache::thrift::protocol::TProtocolException;
 
@@ -251,46 +286,54 @@ uint32_t Vehicle::read(apache::thrift::protocol::TProtocol* iprot) {
 
   while (true)
   {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == apache::thrift::protocol::T_STOP) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
       break;
     }
     switch (fid)
     {
       case 1:
-        if (ftype == apache::thrift::protocol::T_STRUCT) {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
           xfer += this->color.read(iprot);
           this->__isset.color = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 2:
-        if (ftype == apache::thrift::protocol::T_STRING) {
+        if (_ftype == apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->licensePlate);
           this->__isset.licensePlate = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 3:
-        if (ftype == apache::thrift::protocol::T_STRING) {
+        if (_ftype == apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->description);
           this->__isset.description = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 4:
-        if (ftype == apache::thrift::protocol::T_STRING) {
+        if (_ftype == apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->name);
           this->__isset.name = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      case 5:
+        if (_ftype == apache::thrift::protocol::T_BOOL) {
+          xfer += iprot->readBool(this->hasAC);
+          this->__isset.hasAC = true;
+        } else {
+          xfer += iprot->skip(_ftype);
         }
         break;
       default:
-        xfer += iprot->skip(ftype);
+        xfer += iprot->skip(_ftype);
         break;
     }
     xfer += iprot->readFieldEnd();
@@ -306,6 +349,7 @@ void Vehicle::__clear() {
   licensePlate = "";
   description = "";
   name = "";
+  hasAC = false;
   __isset.__clear();
 }
 uint32_t Vehicle::write(apache::thrift::protocol::TProtocol* oprot) const {
@@ -329,6 +373,11 @@ uint32_t Vehicle::write(apache::thrift::protocol::TProtocol* oprot) const {
     xfer += oprot->writeString(this->name);
     xfer += oprot->writeFieldEnd();
   }
+  if (this->__isset.hasAC) {
+    xfer += oprot->writeFieldBegin("hasAC", apache::thrift::protocol::T_BOOL, 5);
+    xfer += oprot->writeBool(this->hasAC);
+    xfer += oprot->writeFieldEnd();
+  }
   xfer += oprot->writeFieldStop();
   xfer += oprot->writeStructEnd();
   return xfer;
@@ -342,15 +391,14 @@ void swap(Vehicle &a, Vehicle &b) {
   swap(a.licensePlate, b.licensePlate);
   swap(a.description, b.description);
   swap(a.name, b.name);
+  swap(a.hasAC, b.hasAC);
   swap(a.__isset, b.__isset);
 }
 
 void merge(const Vehicle& from, Vehicle& to) {
   using apache::thrift::merge;
-  if (from.__isset.color) {
-    merge(from.color, to.color);
-    to.__isset.color = true;
-  }
+  merge(from.color, to.color);
+  to.__isset.color = to.__isset.color || from.__isset.color;
   if (from.__isset.licensePlate) {
     merge(from.licensePlate, to.licensePlate);
     to.__isset.licensePlate = true;
@@ -363,14 +411,16 @@ void merge(const Vehicle& from, Vehicle& to) {
     merge(from.name, to.name);
     to.__isset.name = true;
   }
+  if (from.__isset.hasAC) {
+    merge(from.hasAC, to.hasAC);
+    to.__isset.hasAC = true;
+  }
 }
 
 void merge(Vehicle&& from, Vehicle& to) {
   using apache::thrift::merge;
-  if (from.__isset.color) {
-    merge(std::move(from.color), to.color);
-    to.__isset.color = true;
-  }
+  merge(std::move(from.color), to.color);
+  to.__isset.color = to.__isset.color || from.__isset.color;
   if (from.__isset.licensePlate) {
     merge(std::move(from.licensePlate), to.licensePlate);
     to.__isset.licensePlate = true;
@@ -382,6 +432,10 @@ void merge(Vehicle&& from, Vehicle& to) {
   if (from.__isset.name) {
     merge(std::move(from.name), to.name);
     to.__isset.name = true;
+  }
+  if (from.__isset.hasAC) {
+    merge(std::move(from.hasAC), to.hasAC);
+    to.__isset.hasAC = true;
   }
 }
 
@@ -430,11 +484,58 @@ bool Person::operator == (const Person & rhs) const {
   return true;
 }
 
+void Person::translateFieldName(
+    FOLLY_MAYBE_UNUSED folly::StringPiece _fname,
+    FOLLY_MAYBE_UNUSED int16_t& fid,
+    FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "id") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I64;
+  }
+  else if (_fname == "name") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "age") {
+    fid = 3;
+    _ftype = apache::thrift::protocol::T_I16;
+  }
+  else if (_fname == "address") {
+    fid = 4;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "favoriteColor") {
+    fid = 5;
+    _ftype = apache::thrift::protocol::T_STRUCT;
+  }
+  else if (_fname == "friends") {
+    fid = 6;
+    _ftype = apache::thrift::protocol::T_SET;
+  }
+  else if (_fname == "bestFriend") {
+    fid = 7;
+    _ftype = apache::thrift::protocol::T_I64;
+  }
+  else if (_fname == "petNames") {
+    fid = 8;
+    _ftype = apache::thrift::protocol::T_MAP;
+  }
+  else if (_fname == "afraidOfAnimal") {
+    fid = 9;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+  else if (_fname == "vehicles") {
+    fid = 10;
+    _ftype = apache::thrift::protocol::T_LIST;
+  }
+};
+
 uint32_t Person::read(apache::thrift::protocol::TProtocol* iprot) {
 
   uint32_t xfer = 0;
-  std::string fname;
-  apache::thrift::protocol::TType ftype;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
   int16_t fid;
 
   ::apache::thrift::reflection::Schema * schema = iprot->getSchema();
@@ -442,7 +543,7 @@ uint32_t Person::read(apache::thrift::protocol::TProtocol* iprot) {
      ::module_reflection_::reflectionInitializer_17004913262661492556(*schema);
     iprot->setNextStructType(Person::_reflection_id);
   }
-  xfer += iprot->readStructBegin(fname);
+  xfer += iprot->readStructBegin(_fname);
 
   using apache::thrift::protocol::TProtocolException;
 
@@ -450,54 +551,54 @@ uint32_t Person::read(apache::thrift::protocol::TProtocol* iprot) {
 
   while (true)
   {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == apache::thrift::protocol::T_STOP) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
       break;
     }
     switch (fid)
     {
       case 1:
-        if (ftype == apache::thrift::protocol::T_I64) {
+        if (_ftype == apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->id);
           this->__isset.id = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 2:
-        if (ftype == apache::thrift::protocol::T_STRING) {
+        if (_ftype == apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->name);
           this->__isset.name = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 3:
-        if (ftype == apache::thrift::protocol::T_I16) {
+        if (_ftype == apache::thrift::protocol::T_I16) {
           xfer += iprot->readI16(this->age);
           this->__isset.age = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 4:
-        if (ftype == apache::thrift::protocol::T_STRING) {
+        if (_ftype == apache::thrift::protocol::T_STRING) {
           xfer += iprot->readString(this->address);
           this->__isset.address = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 5:
-        if (ftype == apache::thrift::protocol::T_STRUCT) {
+        if (_ftype == apache::thrift::protocol::T_STRUCT) {
           xfer += this->favoriteColor.read(iprot);
           this->__isset.favoriteColor = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 6:
-        if (ftype == apache::thrift::protocol::T_SET) {
+        if (_ftype == apache::thrift::protocol::T_SET) {
           {
             this->friends.clear();
             uint32_t _size3;
@@ -505,116 +606,116 @@ uint32_t Person::read(apache::thrift::protocol::TProtocol* iprot) {
             apache::thrift::protocol::TType _etype7;
             xfer += iprot->readSetBegin(_etype7, _size3, _sizeUnknown4);
             if (!_sizeUnknown4) {
-              uint32_t _i8;
-              for (_i8 = 0; _i8 < _size3; ++_i8)
-              {
-                PersonID _elem9;
-                xfer += iprot->readI64(_elem9);
-                this->friends.insert(_elem9);
-              }
-            } else {
-              while (iprot->peekSet())
+              uint32_t _i9;
+              for (_i9 = 0; _i9 < _size3; ++_i9)
               {
                 PersonID _elem10;
                 xfer += iprot->readI64(_elem10);
                 this->friends.insert(_elem10);
+              }
+            } else {
+              while (iprot->peekSet())
+              {
+                PersonID _elem11;
+                xfer += iprot->readI64(_elem11);
+                this->friends.insert(_elem11);
               }
             }
             xfer += iprot->readSetEnd();
           }
           this->__isset.friends = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 7:
-        if (ftype == apache::thrift::protocol::T_I64) {
+        if (_ftype == apache::thrift::protocol::T_I64) {
           xfer += iprot->readI64(this->bestFriend);
           this->__isset.bestFriend = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 8:
-        if (ftype == apache::thrift::protocol::T_MAP) {
+        if (_ftype == apache::thrift::protocol::T_MAP) {
           {
             this->petNames.clear();
-            uint32_t _size11;
-            bool _sizeUnknown12;
-            apache::thrift::protocol::TType _ktype13;
-            apache::thrift::protocol::TType _vtype14;
-            xfer += iprot->readMapBegin(_ktype13, _vtype14, _size11, _sizeUnknown12);
-            if (!_sizeUnknown12) {
-              uint32_t _i16;
-              for (_i16 = 0; _i16 < _size11; ++_i16)
+            uint32_t _size12;
+            bool _sizeUnknown13;
+            apache::thrift::protocol::TType _ktype14;
+            apache::thrift::protocol::TType _vtype15;
+            xfer += iprot->readMapBegin(_ktype14, _vtype15, _size12, _sizeUnknown13);
+            if (!_sizeUnknown13) {
+              uint32_t _i18;
+              for (_i18 = 0; _i18 < _size12; ++_i18)
               {
-                Animal _key17;
-                int32_t ecast19;
-                xfer += iprot->readI32(ecast19);
-                _key17 = (Animal)ecast19;
-                std::string& _val18 = this->petNames[_key17];
-                xfer += iprot->readString(_val18);
+                Animal _key19;
+                int32_t ecast21;
+                xfer += iprot->readI32(ecast21);
+                _key19 = (Animal)ecast21;
+                std::string& _val20 = this->petNames[_key19];
+                xfer += iprot->readString(_val20);
               }
             } else {
               while (iprot->peekMap())
               {
-                Animal _key20;
-                int32_t ecast22;
-                xfer += iprot->readI32(ecast22);
-                _key20 = (Animal)ecast22;
-                std::string& _val21 = this->petNames[_key20];
-                xfer += iprot->readString(_val21);
+                Animal _key22;
+                int32_t ecast24;
+                xfer += iprot->readI32(ecast24);
+                _key22 = (Animal)ecast24;
+                std::string& _val23 = this->petNames[_key22];
+                xfer += iprot->readString(_val23);
               }
             }
             xfer += iprot->readMapEnd();
           }
           this->__isset.petNames = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 9:
-        if (ftype == apache::thrift::protocol::T_I32) {
-          int32_t ecast23;
-          xfer += iprot->readI32(ecast23);
-          this->afraidOfAnimal = (Animal)ecast23;
+        if (_ftype == apache::thrift::protocol::T_I32) {
+          int32_t ecast25;
+          xfer += iprot->readI32(ecast25);
+          this->afraidOfAnimal = (Animal)ecast25;
           this->__isset.afraidOfAnimal = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       case 10:
-        if (ftype == apache::thrift::protocol::T_LIST) {
+        if (_ftype == apache::thrift::protocol::T_LIST) {
           {
             this->vehicles.clear();
-            uint32_t _size24;
-            bool _sizeUnknown25;
-            apache::thrift::protocol::TType _etype28;
-            xfer += iprot->readListBegin(_etype28, _size24, _sizeUnknown25);
-            if (!_sizeUnknown25) {
-              this->vehicles.resize(_size24);
-              uint32_t _i29;
-              for (_i29 = 0; _i29 < _size24; ++_i29)
+            uint32_t _size26;
+            bool _sizeUnknown27;
+            apache::thrift::protocol::TType _etype30;
+            xfer += iprot->readListBegin(_etype30, _size26, _sizeUnknown27);
+            if (!_sizeUnknown27) {
+              this->vehicles.resize(_size26);
+              uint32_t _i32;
+              for (_i32 = 0; _i32 < _size26; ++_i32)
               {
-                xfer += this->vehicles[_i29].read(iprot);
+                xfer += this->vehicles[_i32].read(iprot);
               }
             } else {
               while (iprot->peekList())
               {
-                Vehicle _elem30;
-                xfer += _elem30.read(iprot);
-                this->vehicles.push_back(_elem30);
+                Vehicle _elem33;
+                xfer += _elem33.read(iprot);
+                this->vehicles.push_back(_elem33);
               }
             }
             xfer += iprot->readListEnd();
           }
           this->__isset.vehicles = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       default:
-        xfer += iprot->skip(ftype);
+        xfer += iprot->skip(_ftype);
         break;
     }
     xfer += iprot->readFieldEnd();
@@ -666,10 +767,10 @@ uint32_t Person::write(apache::thrift::protocol::TProtocol* oprot) const {
     xfer += oprot->writeFieldBegin("friends", apache::thrift::protocol::T_SET, 6);
     {
       xfer += oprot->writeSetBegin(apache::thrift::protocol::T_I64, this->friends.size());
-      std::set<PersonID> ::const_iterator _iter31;
-      for (_iter31 = this->friends.begin(); _iter31 != this->friends.end(); ++_iter31)
+      std::set<PersonID> ::const_iterator _iter34;
+      for (_iter34 = this->friends.begin(); _iter34 != this->friends.end(); ++_iter34)
       {
-        xfer += oprot->writeI64((*_iter31));
+        xfer += oprot->writeI64((*_iter34));
       }
       xfer += oprot->writeSetEnd();
     }
@@ -684,11 +785,11 @@ uint32_t Person::write(apache::thrift::protocol::TProtocol* oprot) const {
     xfer += oprot->writeFieldBegin("petNames", apache::thrift::protocol::T_MAP, 8);
     {
       xfer += oprot->writeMapBegin(apache::thrift::protocol::T_I32, apache::thrift::protocol::T_STRING, this->petNames.size());
-      std::map<Animal, std::string> ::const_iterator _iter32;
-      for (_iter32 = this->petNames.begin(); _iter32 != this->petNames.end(); ++_iter32)
+      std::map<Animal, std::string> ::const_iterator _iter35;
+      for (_iter35 = this->petNames.begin(); _iter35 != this->petNames.end(); ++_iter35)
       {
-        xfer += oprot->writeI32((int32_t)_iter32->first);
-        xfer += oprot->writeString(_iter32->second);
+        xfer += oprot->writeI32((int32_t)_iter35->first);
+        xfer += oprot->writeString(_iter35->second);
       }
       xfer += oprot->writeMapEnd();
     }
@@ -703,10 +804,10 @@ uint32_t Person::write(apache::thrift::protocol::TProtocol* oprot) const {
     xfer += oprot->writeFieldBegin("vehicles", apache::thrift::protocol::T_LIST, 10);
     {
       xfer += oprot->writeListBegin(apache::thrift::protocol::T_STRUCT, this->vehicles.size());
-      std::vector<Vehicle> ::const_iterator _iter33;
-      for (_iter33 = this->vehicles.begin(); _iter33 != this->vehicles.end(); ++_iter33)
+      std::vector<Vehicle> ::const_iterator _iter36;
+      for (_iter36 = this->vehicles.begin(); _iter36 != this->vehicles.end(); ++_iter36)
       {
-        xfer += (*_iter33).write(oprot);
+        xfer += (*_iter36).write(oprot);
       }
       xfer += oprot->writeListEnd();
     }
@@ -736,14 +837,10 @@ void swap(Person &a, Person &b) {
 
 void merge(const Person& from, Person& to) {
   using apache::thrift::merge;
-  if (from.__isset.id) {
-    merge(from.id, to.id);
-    to.__isset.id = true;
-  }
-  if (from.__isset.name) {
-    merge(from.name, to.name);
-    to.__isset.name = true;
-  }
+  merge(from.id, to.id);
+  to.__isset.id = to.__isset.id || from.__isset.id;
+  merge(from.name, to.name);
+  to.__isset.name = to.__isset.name || from.__isset.name;
   if (from.__isset.age) {
     merge(from.age, to.age);
     to.__isset.age = true;
@@ -780,14 +877,10 @@ void merge(const Person& from, Person& to) {
 
 void merge(Person&& from, Person& to) {
   using apache::thrift::merge;
-  if (from.__isset.id) {
-    merge(std::move(from.id), to.id);
-    to.__isset.id = true;
-  }
-  if (from.__isset.name) {
-    merge(std::move(from.name), to.name);
-    to.__isset.name = true;
-  }
+  merge(std::move(from.id), to.id);
+  to.__isset.id = to.__isset.id || from.__isset.id;
+  merge(std::move(from.name), to.name);
+  to.__isset.name = to.__isset.name || from.__isset.name;
   if (from.__isset.age) {
     merge(std::move(from.age), to.age);
     to.__isset.age = true;

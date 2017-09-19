@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp2/async/RequestChannel.h>
 #include <thrift/lib/cpp2/async/FutureRequest.h>
@@ -25,14 +24,13 @@
 #include <thrift/lib/cpp2/async/DuplexChannel.h>
 
 #include <thrift/lib/cpp/util/ScopedServerThread.h>
-#include <thrift/lib/cpp/async/TEventBase.h>
+#include <folly/io/async/EventBase.h>
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
 
 #include <thrift/lib/cpp2/async/StubSaslClient.h>
 #include <thrift/lib/cpp2/async/StubSaslServer.h>
-#include <thrift/lib/cpp2/TestServer.h>
+#include <thrift/lib/cpp2/test/util/TestThriftServerFactory.h>
 
-#include <boost/cast.hpp>
 #include <boost/lexical_cast.hpp>
 #include <memory>
 #include <atomic>
@@ -57,7 +55,7 @@ public:
     auto callbackp = callback.release();
     EXPECT_EQ(currentIndex, expectIndex_);
     expectIndex_++;
-    TEventBase *eb = callbackp->getEventBase();
+    EventBase *eb = callbackp->getEventBase();
     callbackp->resultInThread(currentIndex);
     if (expectIndex_ == lastIndex_) {
       success_ = true;
@@ -73,7 +71,7 @@ private:
 class Updater {
 public:
   Updater(shared_ptr<DuplexClientAsyncClient> client,
-          TEventBase* eb,
+          EventBase* eb,
           int32_t startIndex,
           int32_t numUpdates,
           int32_t interval)
@@ -102,7 +100,7 @@ public:
   }
 private:
   shared_ptr<DuplexClientAsyncClient> client_;
-  TEventBase* eb_;
+  EventBase* eb_;
   int32_t startIndex_;
   int32_t numUpdates_;
   int32_t interval_;
@@ -138,7 +136,7 @@ TEST(Duplex, DuplexTest) {
   apache::thrift::TestThriftServerFactory<DuplexServiceInterface> factory;
   factory.duplex(true);
   ScopedServerThread sst(factory.create());
-  TEventBase base;
+  EventBase base;
 
   std::shared_ptr<TAsyncSocket> socket(
     TAsyncSocket::newSocket(&base, *sst.getAddress()));
@@ -160,7 +158,7 @@ TEST(Duplex, DuplexTest) {
   }, START, COUNT, INTERVAL);
 
   // fail on time out
-  base.tryRunAfterDelay([] {EXPECT_TRUE(false);}, 5000);
+  base.tryRunAfterDelay([] { ADD_FAILURE(); }, 5000);
 
   base.loopForever();
 
@@ -192,13 +190,4 @@ TEST(Duplex, TestFramed) {
 
 TEST(Duplex, TestUnframed) {
   testNonHeader<apache::thrift::transport::TBufferedTransport>();
-}
-
-
-int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
-  google::InitGoogleLogging(argv[0]);
-  google::ParseCommandLineFlags(&argc, &argv, true);
-
-  return RUN_ALL_TESTS();
 }

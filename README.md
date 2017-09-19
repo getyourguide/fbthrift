@@ -1,9 +1,9 @@
-FBThrift: Facebook's branch of apache thrift
+FBThrift: Facebook's branch of apache thrift [![Build Status](https://travis-ci.org/facebook/fbthrift.svg?branch=master)](https://travis-ci.org/facebook/fbthrift)
 --------------------------------------------
 
 The main focus of this package is the new C++ server, under thrift/lib/cpp2.  This repo also contains a branch of the rest of apache thrift's repo with any changes Facebook has made, however the build system only supports cpp2.
 
-Apache thrift is at http://thrift.apache.org/
+Apache thrift is at https://thrift.apache.org/
 
 Building
 --------
@@ -13,7 +13,7 @@ Note that under GCC, you probably need at least 2GB of memory to compile fbthrif
 Dependencies
 ------------
 
- - Facebook's folly library: http://www.github.com/facebook/folly
+ - Facebook's folly library: https://github.com/facebook/folly
 
  - In addition to the packages required for building folly, Ubuntu 13.10 and
    14.04 require the following packages (feel free to cut and paste the apt-get
@@ -50,7 +50,7 @@ dependencies (like `folly`).
     - autoconf
     - libtool
     - g++
-    - libboost-dev-all
+    - libboost-all-dev
     - libevent-dev
     - flex
     - bison
@@ -61,12 +61,15 @@ dependencies (like `folly`).
     - libsnappy-dev
     - libsasl2-dev
 
+[Mstch](https://github.com/no1msd/mstch) also needs to be installed.
+
 Docs
 ----
 
 Some docs on the new cpp2 server are at:
 https://github.com/facebook/fbthrift/blob/master/thrift/doc/Cpp2.md
 
+<<<<<<< HEAD
 
 ## Notes
 
@@ -77,3 +80,9 @@ The changes that were made was implementing `writeFloat` and marking `readFloat`
 Commit that we extracted from: https://github.com/apache/thrift/tree/84d6af4cf903571319e0ebddd7beb12bc93fb752
 
 This is only in the PHP implementation.
+=======
+C++ Static Reflection
+---------------------
+
+Information regarding C++ Static Reflection support can be found under the [static reflection library directory](thrift/lib/cpp2/fatal/), in the corresponding [`README` file](thrift/lib/cpp2/fatal/README.md).
+>>>>>>> master

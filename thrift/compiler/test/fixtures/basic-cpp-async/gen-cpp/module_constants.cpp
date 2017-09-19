@@ -4,19 +4,14 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "module_constants.h"
+#include "thrift/compiler/test/fixtures/basic-cpp-async/gen-cpp/module_constants.h"
+
+#include <folly/Indestructible.h>
 
 
 
 
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
-moduleConstants::moduleConstants() {
-}
-
-#pragma GCC diagnostic pop
 
 
 

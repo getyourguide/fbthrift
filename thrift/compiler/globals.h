@@ -1,30 +1,25 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements. See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership. The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * Copyright 2016-present Facebook, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+#pragma once
 
-#ifndef T_GLOBALS_H
-#define T_GLOBALS_H
-
-#include <set>
+#include <map>
 #include <queue>
 #include <stack>
-#include <vector>
 #include <string>
+#include <vector>
 
 /**
  * This module contains all the global variables (slap on the wrist) that are
@@ -54,6 +49,22 @@ enum PARSE_MODE {
 };
 
 /**
+ * Expected to be defined by Flex/Bison
+ */
+extern "C" {
+  int yylex(void);
+  int yyparse(void);
+  void yyerror(const char* fmt, ...);
+}
+
+/**
+ * Flex utilities
+ */
+extern int   yylineno;
+extern char  yytext[];
+extern FILE* yyin;
+
+/**
  * Strictness level
  */
 extern int g_strict;
@@ -63,6 +74,11 @@ extern int g_strict;
  * to build up the program elements.
  */
 extern t_program* g_program;
+
+/**
+ * A global map that holds a pointer to all programs already cached
+ */
+extern std::map<std::string, t_program*> program_cache;
 
 /**
  * Global types for the parser to be able to reference
@@ -81,19 +97,9 @@ extern t_base_type* g_type_double;
 extern t_base_type* g_type_float;
 
 /**
- * The scope that we are currently parsing into
+ * The scope that holds a cache of all g_scopes for faster compilations
  */
-extern t_scope* g_scope;
-
-/**
- * The parent scope to also load symbols into
- */
-extern t_scope* g_parent_scope;
-
-/**
- * The prefix for the parent scope entries
- */
-extern std::string g_parent_prefix;
+extern t_scope* g_scope_cache;
 
 /**
  * The parsing pass that we are on. We do different things on each pass.
@@ -144,5 +150,3 @@ extern int g_allow_neg_enum_vals;
  * languages.
  */
 extern int g_allow_64bit_consts;
-
-#endif
