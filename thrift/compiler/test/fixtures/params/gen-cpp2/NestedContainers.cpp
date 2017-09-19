@@ -4,21 +4,20 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "NestedContainers.h"
+#include "src/gen-cpp2/NestedContainers.h"
+#include "src/gen-cpp2/NestedContainers.tcc"
 
-#include "NestedContainers.tcc"
-
-#include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
-namespace cpp2 {
+#include <thrift/lib/cpp2/protocol/Protocol.h>
 
+namespace cpp2 {
 std::unique_ptr<apache::thrift::AsyncProcessor> NestedContainersSvIf::getProcessor() {
-  return folly::make_unique<NestedContainersAsyncProcessor>(this);
+  return std::make_unique<NestedContainersAsyncProcessor>(this);
 }
 
 void NestedContainersSvIf::mapList(std::unique_ptr<std::map<int32_t, std::vector<int32_t>>> /*foo*/) {
-  throw apache::thrift::TApplicationException("Function mapList is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("mapList");
 }
 
 folly::Future<folly::Unit> NestedContainersSvIf::future_mapList(std::unique_ptr<std::map<int32_t, std::vector<int32_t>>> foo) {
@@ -30,7 +29,7 @@ void NestedContainersSvIf::async_tm_mapList(std::unique_ptr<apache::thrift::Hand
 }
 
 void NestedContainersSvIf::mapSet(std::unique_ptr<std::map<int32_t, std::set<int32_t>>> /*foo*/) {
-  throw apache::thrift::TApplicationException("Function mapSet is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("mapSet");
 }
 
 folly::Future<folly::Unit> NestedContainersSvIf::future_mapSet(std::unique_ptr<std::map<int32_t, std::set<int32_t>>> foo) {
@@ -42,7 +41,7 @@ void NestedContainersSvIf::async_tm_mapSet(std::unique_ptr<apache::thrift::Handl
 }
 
 void NestedContainersSvIf::listMap(std::unique_ptr<std::vector<std::map<int32_t, int32_t>>> /*foo*/) {
-  throw apache::thrift::TApplicationException("Function listMap is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("listMap");
 }
 
 folly::Future<folly::Unit> NestedContainersSvIf::future_listMap(std::unique_ptr<std::vector<std::map<int32_t, int32_t>>> foo) {
@@ -54,7 +53,7 @@ void NestedContainersSvIf::async_tm_listMap(std::unique_ptr<apache::thrift::Hand
 }
 
 void NestedContainersSvIf::listSet(std::unique_ptr<std::vector<std::set<int32_t>>> /*foo*/) {
-  throw apache::thrift::TApplicationException("Function listSet is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("listSet");
 }
 
 folly::Future<folly::Unit> NestedContainersSvIf::future_listSet(std::unique_ptr<std::vector<std::set<int32_t>>> foo) {
@@ -66,7 +65,7 @@ void NestedContainersSvIf::async_tm_listSet(std::unique_ptr<apache::thrift::Hand
 }
 
 void NestedContainersSvIf::turtles(std::unique_ptr<std::vector<std::vector<std::map<int32_t, std::map<int32_t, std::set<int32_t>>>>>> /*foo*/) {
-  throw apache::thrift::TApplicationException("Function turtles is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("turtles");
 }
 
 folly::Future<folly::Unit> NestedContainersSvIf::future_turtles(std::unique_ptr<std::vector<std::vector<std::map<int32_t, std::map<int32_t, std::set<int32_t>>>>>> foo) {
@@ -109,23 +108,24 @@ const NestedContainersAsyncProcessor::BinaryProtocolProcessMap& NestedContainers
   return binaryProcessMap_;
 }
 
-NestedContainersAsyncProcessor::BinaryProtocolProcessMap NestedContainersAsyncProcessor::binaryProcessMap_ {
+const NestedContainersAsyncProcessor::BinaryProtocolProcessMap NestedContainersAsyncProcessor::binaryProcessMap_ {
   {"mapList", &NestedContainersAsyncProcessor::_processInThread_mapList<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"mapSet", &NestedContainersAsyncProcessor::_processInThread_mapSet<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"listMap", &NestedContainersAsyncProcessor::_processInThread_listMap<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"listSet", &NestedContainersAsyncProcessor::_processInThread_listSet<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
-  {"turtles", &NestedContainersAsyncProcessor::_processInThread_turtles<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>}
+  {"turtles", &NestedContainersAsyncProcessor::_processInThread_turtles<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
 };
+
 const NestedContainersAsyncProcessor::CompactProtocolProcessMap& NestedContainersAsyncProcessor::getCompactProtocolProcessMap() {
   return compactProcessMap_;
 }
 
-NestedContainersAsyncProcessor::CompactProtocolProcessMap NestedContainersAsyncProcessor::compactProcessMap_ {
+const NestedContainersAsyncProcessor::CompactProtocolProcessMap NestedContainersAsyncProcessor::compactProcessMap_ {
   {"mapList", &NestedContainersAsyncProcessor::_processInThread_mapList<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"mapSet", &NestedContainersAsyncProcessor::_processInThread_mapSet<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"listMap", &NestedContainersAsyncProcessor::_processInThread_listMap<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"listSet", &NestedContainersAsyncProcessor::_processInThread_listSet<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
-  {"turtles", &NestedContainersAsyncProcessor::_processInThread_turtles<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>}
+  {"turtles", &NestedContainersAsyncProcessor::_processInThread_turtles<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
 };
 
 } // cpp2

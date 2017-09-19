@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <gtest/gtest.h>
 
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
@@ -49,7 +48,7 @@ class TestServiceHandler : public TestServiceIf {
     _return = req + "ccccccccccccccccccccccccccccccccccccccccccccc";
   }
 
-  void serializationTest(string& _return, bool inEventBase) override {
+  void serializationTest(string& _return, bool /* inEventBase */) override {
     _return = string(4096, 'a');
   }
 
@@ -57,6 +56,7 @@ class TestServiceHandler : public TestServiceIf {
 
   void notCalledBack() override {}
   void voidResponse() override {}
+  int32_t processHeader() override { return 1; }
   void echoIOBuf(string& /*_return*/, const string& /*req*/) override {}
 };
 
@@ -71,7 +71,7 @@ std::unique_ptr<ScopedServerThread> createHttpServer() {
                                        0,
                                        transportFactory,
                                        protocolFactory);
-  return folly::make_unique<ScopedServerThread>(&serverCreator);
+  return std::make_unique<ScopedServerThread>(&serverCreator);
 }
 
 TEST(HeaderClientChannelHttpTest, SimpleTest) {
@@ -80,34 +80,26 @@ TEST(HeaderClientChannelHttpTest, SimpleTest) {
   folly::EventBase eb;
   const folly::SocketAddress* addr = serverThread->getAddress();
   std::shared_ptr<TAsyncSocket> socket = TAsyncSocket::newSocket(&eb, *addr);
-  std::unique_ptr<HeaderClientChannel, folly::DelayedDestruction::Destructor> channel(
-      new HeaderClientChannel(socket));
+  auto channel = HeaderClientChannel::newChannel(socket);
   channel->useAsHttpClient("127.0.0.1", "meh");
+  channel->setProtocolId(T_BINARY_PROTOCOL);
   TestServiceAsyncClient client(std::move(channel));
   client.sendResponse(
-    [] (apache::thrift::ClientReceiveState&& state) {
-      if (state.exception()) {
-        try {
-          std::rethrow_exception(state.exception());
-        } catch (const std::exception& e) {
-          LOG(INFO) << e.what();
-        }
-      }
-      EXPECT_TRUE(state.exception() == nullptr);
-      std::string res;
-      TestServiceAsyncClient::recv_sendResponse(res, state);
-      EXPECT_EQ(res, "test24");
-    },
-    24);
+      [](apache::thrift::ClientReceiveState&& state) {
+        EXPECT_FALSE(state.exception()) << state.exception();
+        std::string res;
+        TestServiceAsyncClient::recv_sendResponse(res, state);
+        EXPECT_EQ(res, "test24");
+      },
+      24);
   eb.loop();
 
-  client.eventBaseAsync(
-    [] (apache::thrift::ClientReceiveState&& state) {
-      EXPECT_TRUE(state.exception() == nullptr);
-      std::string res;
-      TestServiceAsyncClient::recv_eventBaseAsync(res, state);
-      EXPECT_EQ(res, "hello world");
-    });
+  client.eventBaseAsync([](apache::thrift::ClientReceiveState&& state) {
+    EXPECT_FALSE(state.exception()) << state.exception();
+    std::string res;
+    TestServiceAsyncClient::recv_eventBaseAsync(res, state);
+    EXPECT_EQ(res, "hello world");
+  });
   eb.loop();
 }
 
@@ -117,24 +109,18 @@ TEST(HeaderClientChannel, LongResponse) {
   folly::EventBase eb;
   const folly::SocketAddress* addr = serverThread->getAddress();
   std::shared_ptr<TAsyncSocket> socket = TAsyncSocket::newSocket(&eb, *addr);
-  std::unique_ptr<HeaderClientChannel, folly::DelayedDestruction::Destructor> channel(
-      new HeaderClientChannel(socket));
+  auto channel = HeaderClientChannel::newChannel(socket);
   channel->useAsHttpClient("127.0.0.1", "meh");
+  channel->setProtocolId(T_BINARY_PROTOCOL);
   TestServiceAsyncClient client(std::move(channel));
 
   client.serializationTest(
-    [] (apache::thrift::ClientReceiveState&& state) {
-      EXPECT_TRUE(state.exception() == nullptr);
-      std::string res;
-      TestServiceAsyncClient::recv_serializationTest(res, state);
-      EXPECT_EQ(res, string(4096, 'a'));
-    },
-    true);
+      [](apache::thrift::ClientReceiveState&& state) {
+        EXPECT_FALSE(state.exception()) << state.exception();
+        std::string res;
+        TestServiceAsyncClient::recv_serializationTest(res, state);
+        EXPECT_EQ(res, string(4096, 'a'));
+      },
+      true);
   eb.loop();
-}
-
-int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
 }

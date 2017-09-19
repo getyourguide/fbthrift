@@ -35,7 +35,6 @@ using std::unordered_set;
 
 namespace {
 
-// TODO(chaoyc): kill this after D434776
 void setAll(Xtruct& xtruct) {
   xtruct.__isset.string_thing = true;
   xtruct.__isset.byte_thing = true;
@@ -123,9 +122,9 @@ TEST(MergeTest, Container) {
 
   map<Numberz, UserId> expectedUserMap(
     {
-      {ONE, 1},     // old
-      {TWO, 2},    // overwrite
-      {THREE, 2},  // new
+      {Numberz::ONE, 1},     // old
+      {Numberz::TWO, 2},    // overwrite
+      {Numberz::THREE, 2},  // new
     });
   EXPECT_EQ(expectedUserMap, mergeTo.userMap);
   ASSERT_TRUE(mergeTo.__isset.userMap);
@@ -139,7 +138,7 @@ TEST(MergeTest, Container) {
   ASSERT_TRUE(mergeTo.__isset.str2str);
 
   ASSERT_EQ(1 + 2, mergeTo.xtructs.size());
-  for (int i = 0; i < mergeTo.xtructs.size(); i++) {
+  for (size_t i = 0; i < mergeTo.xtructs.size(); i++) {
     int8_t insanity = i == 0 ? 1 : 2;
     string string_thing = folly::format("insanity.xtruct.{}",  insanity).str();
     EXPECT_EQ(string_thing, mergeTo.xtructs[i].string_thing);
@@ -188,16 +187,20 @@ TEST(MergeTest, OptionalField) {
   mergeFrom.im_optional = 2;
 
   merge(mergeFrom, mergeTo);
+  EXPECT_EQ(mergeFrom.im_default, mergeTo.im_default);
   EXPECT_EQ(mergeFrom.im_required, mergeTo.im_required);
-  // ignored because !__isset
-  EXPECT_EQ(1, mergeTo.im_default);
   EXPECT_EQ(1, mergeTo.im_optional);
+  EXPECT_FALSE(mergeTo.__isset.im_default);
+  EXPECT_FALSE(mergeTo.__isset.im_optional);
 
-  mergeFrom.__isset.im_optional = true;
   mergeFrom.__isset.im_default = true;
+  mergeFrom.__isset.im_optional = true;
   merge(mergeFrom, mergeTo);
   EXPECT_EQ(mergeFrom.im_default, mergeTo.im_default);
+  EXPECT_EQ(mergeFrom.im_required, mergeTo.im_required);
   EXPECT_EQ(mergeFrom.im_optional, mergeTo.im_optional);
+  EXPECT_TRUE(mergeTo.__isset.im_default);
+  EXPECT_TRUE(mergeTo.__isset.im_optional);
 }
 
 namespace {

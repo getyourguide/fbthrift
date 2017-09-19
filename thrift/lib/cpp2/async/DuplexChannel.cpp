@@ -20,7 +20,7 @@
 using std::shared_ptr;
 using std::unique_ptr;
 using std::make_shared;
-using folly::make_unique;
+using std::make_unique;
 using folly::io::RWPrivateCursor;
 using folly::io::Cursor;
 using folly::IOBuf;
@@ -33,9 +33,10 @@ namespace apache { namespace thrift {
 DuplexChannel::DuplexChannel(Who::WhoEnum who,
                              const shared_ptr<TAsyncTransport>& transport)
   : cpp2Channel_(new DuplexCpp2Channel(
-                     *this, transport,
+                     who, transport,
                      make_unique<DuplexFramingHandler>(*this),
-                     make_unique<DuplexProtectionHandler>(*this)),
+                     make_unique<DuplexProtectionHandler>(*this),
+                     make_unique<DuplexSaslNegotiationHandler>(*this)),
                  folly::DelayedDestruction::Destructor())
   , clientChannel_(new DuplexClientChannel(*this, cpp2Channel_),
                    folly::DelayedDestruction::Destructor())
@@ -60,7 +61,6 @@ FramingHandler& DuplexChannel::DuplexFramingHandler::getHandler(
     return duplex_.serverFramingHandler_;
   default:
     CHECK(false);
-    return *static_cast<FramingHandler*>(nullptr);
   }
 }
 

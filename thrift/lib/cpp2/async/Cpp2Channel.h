@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +34,8 @@
 #include <wangle/channel/OutputBufferingHandler.h>
 #include <thrift/lib/cpp2/async/FramingHandler.h>
 #include <thrift/lib/cpp2/async/ProtectionHandler.h>
+#include <thrift/lib/cpp2/async/SaslNegotiationHandler.h>
+#include <thrift/lib/cpp2/async/PcapLoggingHandler.h>
 #include <memory>
 
 #include <deque>
@@ -54,7 +58,8 @@ class Cpp2Channel
   explicit Cpp2Channel(
     const std::shared_ptr<apache::thrift::async::TAsyncTransport>& transport,
     std::unique_ptr<FramingHandler> framingHandler,
-    std::unique_ptr<ProtectionHandler> protectionHandler = nullptr);
+    std::unique_ptr<ProtectionHandler> protectionHandler = nullptr,
+    std::unique_ptr<SaslNegotiationHandler> saslNegotiationHandler = nullptr);
 
   // TODO(jsedgwick) This should be protected, but wangle::StaticPipeline
   // will encase this in a folly::Optional, which requires a public destructor.
@@ -65,12 +70,15 @@ class Cpp2Channel
                          folly::DelayedDestruction::Destructor>
   newChannel(
       const std::shared_ptr<apache::thrift::async::TAsyncTransport>& transport,
-      std::unique_ptr<FramingHandler> framingHandler) {
+      std::unique_ptr<FramingHandler> framingHandler,
+      std::unique_ptr<SaslNegotiationHandler> saslHandler = nullptr) {
     return std::unique_ptr<Cpp2Channel,
       folly::DelayedDestruction::Destructor>(
-      new Cpp2Channel(transport, std::move(framingHandler)));
+      new Cpp2Channel(transport,
+                      std::move(framingHandler),
+                      nullptr,
+                      std::move(saslHandler)));
   }
-
   void closeNow();
 
   void setTransport(
@@ -131,11 +139,18 @@ class Cpp2Channel
     return protectionHandler_.get();
   }
 
-  void setReadBufferSize(uint32_t readBufferSize) {
-    framingHandler_->setReadBufferSize(readBufferSize);
+  /**
+   * Set read buffer size.
+   *
+   * @param readBufferSize   The read buffer size to set
+   * @param strict           True means given size will always be used; false
+   *                         means given size may not be used if it is too small
+   */
+  void setReadBufferSize(uint32_t readBufferSize, bool strict = false) {
+    framingHandler_->setReadBufferSize(readBufferSize, strict);
   }
 
-private:
+ private:
   std::shared_ptr<apache::thrift::async::TAsyncTransport> transport_;
   std::unique_ptr<folly::IOBufQueue> queue_;
   std::deque<SendCallback*> sendCallbacks_;
@@ -145,8 +160,10 @@ private:
 
   std::unique_ptr<RecvCallback::sample> sample_;
 
+  std::shared_ptr<wangle::OutputBufferingHandler> outputBufferingHandler_;
   std::shared_ptr<ProtectionHandler> protectionHandler_;
   std::shared_ptr<FramingHandler> framingHandler_;
+  std::shared_ptr<SaslNegotiationHandler> saslNegotiationHandler_;
 
   typedef wangle::StaticPipeline<
     folly::IOBufQueue&,
@@ -155,7 +172,9 @@ private:
     TAsyncTransportHandler,
     wangle::OutputBufferingHandler,
     ProtectionHandler,
+    PcapLoggingHandler,
     FramingHandler,
+    SaslNegotiationHandler,
     Cpp2Channel>
   Pipeline;
   std::shared_ptr<Pipeline> pipeline_;

@@ -4,19 +4,14 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "includes_constants.h"
+#include "thrift/compiler/test/fixtures/refs/gen-cpp/includes_constants.h"
+
+#include <folly/Indestructible.h>
+
 
 namespace cpp1 {
 
 
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
-includesConstants::includesConstants() {
-}
-
-#pragma GCC diagnostic pop
 
 } // namespace
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,12 +22,12 @@
 #include <vector>
 
 #include <folly/Optional.h>
+#include <folly/String.h>
+#include <folly/portability/Unistd.h>
 #include <thrift/lib/cpp/protocol/TProtocolTypes.h>
 #include <thrift/lib/cpp/concurrency/Thread.h>
 
 #include <bitset>
-#include <pwd.h>
-#include <unistd.h>
 #include <chrono>
 
 // Don't include the unknown client.
@@ -44,6 +44,7 @@ enum CLIENT_TYPE {
   THRIFT_HEADER_SASL_CLIENT_TYPE = 6,
   THRIFT_HTTP_GET_CLIENT_TYPE = 7,
   THRIFT_UNKNOWN_CLIENT_TYPE = 8,
+  THRIFT_UNFRAMED_COMPACT_DEPRECATED = 9,
 };
 
 // These appear on the wire.
@@ -72,7 +73,7 @@ using apache::thrift::protocol::T_BINARY_PROTOCOL;
  * Class that will take an IOBuf and wrap it in some thrift headers.
  * see thrift/doc/HeaderFormat.txt for details.
  *
- * Supports transforms: zlib snappy qlz
+ * Supports transforms: zlib snappy zstd
  * Supports headers: http-style key/value per request and per connection
  * other: Protocol Id and seq ID in header.
  *
@@ -148,7 +149,12 @@ class THeader {
     std::vector<uint16_t>& writeTrans,
     size_t minCompressBytes);
 
-  uint16_t getNumTransforms(std::vector<uint16_t>& transforms) const {
+  /**
+   * Clone a new THeader. Metadata is copied, but not headers.
+   */
+  std::unique_ptr<THeader> clone();
+
+  static uint16_t getNumTransforms(const std::vector<uint16_t>& transforms) {
     return transforms.size();
   }
 
@@ -169,16 +175,25 @@ class THeader {
 
   // these work with write headers
   void setHeader(const std::string& key, const std::string& value);
+  void setHeader(const std::string& key, std::string&& value);
+  void setHeader(const char* key, size_t keyLength, const char* value,
+                 size_t valueLength);
   void setHeaders(StringToStringMap&&);
   void clearHeaders();
-  StringToStringMap& getWriteHeaders() { return writeHeaders_; }
+  bool isWriteHeadersEmpty() {
+    return writeHeaders_.empty();
+  }
 
   StringToStringMap&& releaseWriteHeaders() {
     return std::move(writeHeaders_);
   }
+  const StringToStringMap& getWriteHeaders() const {
+    return writeHeaders_;
+  }
 
   // these work with read headers
   void setReadHeaders(StringToStringMap&&);
+  void eraseReadHeader(const std::string& key);
   const StringToStringMap& getHeaders() const { return readHeaders_; }
 
   StringToStringMap releaseHeaders() {
@@ -190,6 +205,9 @@ class THeader {
   void setExtraWriteHeaders(StringToStringMap* extraWriteHeaders) {
     extraWriteHeaders_ = extraWriteHeaders;
   }
+  StringToStringMap* getExtraWriteHeaders() const {
+    return extraWriteHeaders_;
+  }
 
   std::string getPeerIdentity();
   void setIdentity(const std::string& identity);
@@ -199,11 +217,15 @@ class THeader {
   void setSequenceNumber(uint32_t sid) { this->seqId = sid; }
 
   enum TRANSFORMS {
-    NONE = 0x0,
+    NONE = 0x00,
     ZLIB_TRANSFORM = 0x01,
-    HMAC_TRANSFORM = 0x02, // Deprecated and no longer supported
+    HMAC_TRANSFORM = 0x02,         // Deprecated and no longer supported
     SNAPPY_TRANSFORM = 0x03,
-    QLZ_TRANSFORM = 0x04,
+    QLZ_TRANSFORM = 0x04,          // Deprecated and no longer supported
+    ZSTD_TRANSFORM = 0x05,
+
+    // DO NOT USE. Sentinel value for enum count. Always keep as last value.
+    TRANSFORM_LAST_FIELD = 0x06,
   };
 
   /* IOBuf interface */
@@ -253,10 +275,20 @@ class THeader {
 
   apache::thrift::concurrency::PRIORITY getCallPriority();
 
+  std::chrono::milliseconds getTimeoutFromHeader(
+    const std::string header
+  ) const;
+
   std::chrono::milliseconds getClientTimeout() const;
+
+  std::chrono::milliseconds getClientQueueTimeout() const;
 
   void setHttpClientParser(
       std::shared_ptr<apache::thrift::util::THttpClientParser>);
+
+  // Utility method for converting TRANSFORMS enum to string
+  static const folly::StringPiece getStringTransform(
+      const TRANSFORMS transform);
 
   static CLIENT_TYPE getClientType(uint32_t f, uint32_t s);
 
@@ -272,7 +304,8 @@ class THeader {
 
   static const uint32_t MAX_FRAME_SIZE = 0x3FFFFFFF;
   static const std::string PRIORITY_HEADER;
-  static const std::string CLIENT_TIMEOUT_HEADER;
+  static const std::string& CLIENT_TIMEOUT_HEADER;
+  static const std::string QUEUE_TIMEOUT_HEADER;
 
  protected:
   bool isFramed(CLIENT_TYPE clientType);
@@ -287,6 +320,9 @@ class THeader {
                                                 size_t& needed,
                                                 CLIENT_TYPE clientType,
                                                 uint32_t sz);
+
+  template<template <class BaseProt> class ProtocolClass,
+           protocol::PROTOCOL_TYPES ProtocolID>
   std::unique_ptr<folly::IOBuf> removeUnframed(folly::IOBufQueue* queue,
                                                size_t& needed);
   std::unique_ptr<folly::IOBuf> removeHttpServer(folly::IOBufQueue* queue);
@@ -324,8 +360,6 @@ class THeader {
   static const std::string ID_VERSION_HEADER;
   static const std::string ID_VERSION;
 
-  static std::string s_identity;
-
   uint32_t minCompressBytes_;
   bool allowBigFrames_;
 
@@ -350,6 +384,7 @@ class THeader {
       END        // signal the end of infoIds we can handle
     };
   };
+
 };
 
 }}} // apache::thrift::transport

@@ -19,6 +19,8 @@
 
 #include <stdio.h>
 
+#include <folly/init/Init.h>
+
 #include <thrift/lib/cpp/protocol/THeaderProtocol.h>
 #include <thrift/lib/cpp/protocol/TBinaryProtocol.h>
 #include <thrift/lib/cpp/protocol/TCompactProtocol.h>
@@ -27,12 +29,14 @@
 #include "AllProtocolTests.tcc"
 
 using namespace apache::thrift;
+using namespace apache::thrift::test;
 using namespace apache::thrift::protocol;
-using namespace apache::thrift::transport;
 
 char errorMessage[ERR_LEN];
 
 int main(int argc, char** argv) {
+  folly::init(&argc, &argv);
+
   try {
     testProtocol<TBinaryProtocol>("TBinaryProtocol");
     testProtocol<TCompactProtocol>("TCompactProtocol");

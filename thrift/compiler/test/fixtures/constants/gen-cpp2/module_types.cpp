@@ -4,89 +4,96 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "module_types.h"
-
-#include "module_types.tcc"
+#include "src/gen-cpp2/module_types.h"
+#include "src/gen-cpp2/module_types.tcc"
 
 #include <algorithm>
+#include <folly/Indestructible.h>
+
+#include "src/gen-cpp2/module_data.h"
 
 namespace cpp2 {
 
-City _kCityValues[] = {
-  City::NYC,
-  City::MPK,
-  City::SEA,
-  City::LON
-};
-
-const char* _kCityNames[] = {
-  "NYC",
-  "MPK",
-  "SEA",
-  "LON"
-};
-
-const std::map<City, const char*> _City_VALUES_TO_NAMES(apache::thrift::TEnumIterator<City>(4, _kCityValues, _kCityNames), apache::thrift::TEnumIterator<City>(-1, nullptr, nullptr));
-const std::map<const char*, City, apache::thrift::ltstr> _City_NAMES_TO_VALUES(apache::thrift::TEnumInverseIterator<City>(4, _kCityValues, _kCityNames), apache::thrift::TEnumInverseIterator<City>(-1, nullptr, nullptr));
+const _EmptyEnum_EnumMapFactory::ValuesToNamesMapType _EmptyEnum_VALUES_TO_NAMES = _EmptyEnum_EnumMapFactory::makeValuesToNamesMap();
+const _EmptyEnum_EnumMapFactory::NamesToValuesMapType _EmptyEnum_NAMES_TO_VALUES = _EmptyEnum_EnumMapFactory::makeNamesToValuesMap();
 
 } // cpp2
+namespace std {
+
+} // std
 namespace apache { namespace thrift {
 
-template <> const char* TEnumTraitsBase< ::cpp2::City>::findName( ::cpp2::City value) {
-  return findName( ::cpp2::_City_VALUES_TO_NAMES, value);
+template <> const std::size_t TEnumTraits< ::cpp2::EmptyEnum>::size = 0;
+template <> const folly::Range<const  ::cpp2::EmptyEnum*> TEnumTraits< ::cpp2::EmptyEnum>::values = {};
+template <> const folly::Range<const folly::StringPiece*> TEnumTraits< ::cpp2::EmptyEnum>::names = {};
+template <> const char* TEnumTraits< ::cpp2::EmptyEnum>::findName( ::cpp2::EmptyEnum value) {
+  static auto const map = folly::Indestructible< ::cpp2::_EmptyEnum_EnumMapFactory::ValuesToNamesMapType>{ ::cpp2::_EmptyEnum_EnumMapFactory::makeValuesToNamesMap()};
+  return findName(*map, value);
 }
 
-template <> bool TEnumTraitsBase< ::cpp2::City>::findValue(const char* name,  ::cpp2::City* outValue) {
-  return findValue( ::cpp2::_City_NAMES_TO_VALUES, name, outValue);
+template <> bool TEnumTraits< ::cpp2::EmptyEnum>::findValue(const char* name,  ::cpp2::EmptyEnum* outValue) {
+  static auto const map = folly::Indestructible< ::cpp2::_EmptyEnum_EnumMapFactory::NamesToValuesMapType>{ ::cpp2::_EmptyEnum_EnumMapFactory::makeNamesToValuesMap()};
+  return findValue(*map, name, outValue);
 }
 
 }} // apache::thrift
 namespace cpp2 {
 
-Company _kCompanyValues[] = {
-  Company::FACEBOOK,
-  Company::WHATSAPP,
-  Company::OCULUS,
-  Company::INSTAGRAM
-};
-
-const char* _kCompanyNames[] = {
-  "FACEBOOK",
-  "WHATSAPP",
-  "OCULUS",
-  "INSTAGRAM"
-};
-
-const std::map<Company, const char*> _Company_VALUES_TO_NAMES(apache::thrift::TEnumIterator<Company>(4, _kCompanyValues, _kCompanyNames), apache::thrift::TEnumIterator<Company>(-1, nullptr, nullptr));
-const std::map<const char*, Company, apache::thrift::ltstr> _Company_NAMES_TO_VALUES(apache::thrift::TEnumInverseIterator<Company>(4, _kCompanyValues, _kCompanyNames), apache::thrift::TEnumInverseIterator<Company>(-1, nullptr, nullptr));
+const _City_EnumMapFactory::ValuesToNamesMapType _City_VALUES_TO_NAMES = _City_EnumMapFactory::makeValuesToNamesMap();
+const _City_EnumMapFactory::NamesToValuesMapType _City_NAMES_TO_VALUES = _City_EnumMapFactory::makeNamesToValuesMap();
 
 } // cpp2
+namespace std {
+
+} // std
 namespace apache { namespace thrift {
 
-template <> const char* TEnumTraitsBase< ::cpp2::Company>::findName( ::cpp2::Company value) {
-  return findName( ::cpp2::_Company_VALUES_TO_NAMES, value);
+template <> const std::size_t TEnumTraits< ::cpp2::City>::size = 4;
+template <> const folly::Range<const  ::cpp2::City*> TEnumTraits< ::cpp2::City>::values = folly::range( ::cpp2::_CityEnumDataStorage::values);
+template <> const folly::Range<const folly::StringPiece*> TEnumTraits< ::cpp2::City>::names = folly::range( ::cpp2::_CityEnumDataStorage::names);
+template <> const char* TEnumTraits< ::cpp2::City>::findName( ::cpp2::City value) {
+  static auto const map = folly::Indestructible< ::cpp2::_City_EnumMapFactory::ValuesToNamesMapType>{ ::cpp2::_City_EnumMapFactory::makeValuesToNamesMap()};
+  return findName(*map, value);
 }
 
-template <> bool TEnumTraitsBase< ::cpp2::Company>::findValue(const char* name,  ::cpp2::Company* outValue) {
-  return findValue( ::cpp2::_Company_NAMES_TO_VALUES, name, outValue);
+template <> bool TEnumTraits< ::cpp2::City>::findValue(const char* name,  ::cpp2::City* outValue) {
+  static auto const map = folly::Indestructible< ::cpp2::_City_EnumMapFactory::NamesToValuesMapType>{ ::cpp2::_City_EnumMapFactory::makeNamesToValuesMap()};
+  return findValue(*map, name, outValue);
 }
 
 }} // apache::thrift
 namespace cpp2 {
 
-template uint32_t Internship::read<apache::thrift::BinaryProtocolReader>(apache::thrift::BinaryProtocolReader*);
-template uint32_t Internship::write<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Internship::serializedSize<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Internship::serializedSizeZC<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Internship::read<apache::thrift::CompactProtocolReader>(apache::thrift::CompactProtocolReader*);
-template uint32_t Internship::write<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Internship::serializedSize<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Internship::serializedSizeZC<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
+const _Company_EnumMapFactory::ValuesToNamesMapType _Company_VALUES_TO_NAMES = _Company_EnumMapFactory::makeValuesToNamesMap();
+const _Company_EnumMapFactory::NamesToValuesMapType _Company_NAMES_TO_VALUES = _Company_EnumMapFactory::makeNamesToValuesMap();
+
+} // cpp2
+namespace std {
+
+} // std
+namespace apache { namespace thrift {
+
+template <> const std::size_t TEnumTraits< ::cpp2::Company>::size = 4;
+template <> const folly::Range<const  ::cpp2::Company*> TEnumTraits< ::cpp2::Company>::values = folly::range( ::cpp2::_CompanyEnumDataStorage::values);
+template <> const folly::Range<const folly::StringPiece*> TEnumTraits< ::cpp2::Company>::names = folly::range( ::cpp2::_CompanyEnumDataStorage::names);
+template <> const char* TEnumTraits< ::cpp2::Company>::findName( ::cpp2::Company value) {
+  static auto const map = folly::Indestructible< ::cpp2::_Company_EnumMapFactory::ValuesToNamesMapType>{ ::cpp2::_Company_EnumMapFactory::makeValuesToNamesMap()};
+  return findName(*map, value);
+}
+
+template <> bool TEnumTraits< ::cpp2::Company>::findValue(const char* name,  ::cpp2::Company* outValue) {
+  static auto const map = folly::Indestructible< ::cpp2::_Company_EnumMapFactory::NamesToValuesMapType>{ ::cpp2::_Company_EnumMapFactory::makeNamesToValuesMap()};
+  return findValue(*map, name, outValue);
+}
+
+}} // apache::thrift
+namespace cpp2 {
 
 void Internship::__clear() {
+  // clear all fields
   weeks = 0;
-  title = std::string();
-  employer =  ::cpp2::Company();
+  title = apache::thrift::StringTraits< std::string>::fromStringLiteral("");
+  employer =  ::cpp2::Company::FACEBOOK;
   __isset.__clear();
 }
 
@@ -106,6 +113,22 @@ bool Internship::operator==(const Internship& rhs) const {
   return true;
 }
 
+void Internship::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "weeks") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+  else if (_fname == "title") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "employer") {
+    fid = 3;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+}
+
 void swap(Internship& a, Internship& b) {
   using ::std::swap;
   swap(a.weeks, b.weeks);
@@ -114,22 +137,59 @@ void swap(Internship& a, Internship& b) {
   swap(a.__isset, b.__isset);
 }
 
-} // cpp2
-namespace apache { namespace thrift {
+template uint32_t Internship::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t Internship::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t Internship::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Internship::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Internship::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t Internship::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t Internship::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t Internship::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
-}} // apache::thrift
+} // cpp2
 namespace cpp2 {
 
-template uint32_t Range::read<apache::thrift::BinaryProtocolReader>(apache::thrift::BinaryProtocolReader*);
-template uint32_t Range::write<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Range::serializedSize<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Range::serializedSizeZC<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Range::read<apache::thrift::CompactProtocolReader>(apache::thrift::CompactProtocolReader*);
-template uint32_t Range::write<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Range::serializedSize<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Range::serializedSizeZC<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
+void UnEnumStruct::__clear() {
+  // clear all fields
+  city = static_cast< ::cpp2::City>(-1);
+  __isset.__clear();
+}
+
+bool UnEnumStruct::operator==(const UnEnumStruct& rhs) const {
+  if (!((city == rhs.city))) {
+    return false;
+  }
+  return true;
+}
+
+void UnEnumStruct::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "city") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+}
+
+void swap(UnEnumStruct& a, UnEnumStruct& b) {
+  using ::std::swap;
+  swap(a.city, b.city);
+  swap(a.__isset, b.__isset);
+}
+
+template uint32_t UnEnumStruct::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t UnEnumStruct::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t UnEnumStruct::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t UnEnumStruct::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t UnEnumStruct::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t UnEnumStruct::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t UnEnumStruct::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t UnEnumStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
+
+} // cpp2
+namespace cpp2 {
 
 void Range::__clear() {
+  // clear all fields
   min = 0;
   max = 0;
 }
@@ -144,16 +204,392 @@ bool Range::operator==(const Range& rhs) const {
   return true;
 }
 
+void Range::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "min") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+  else if (_fname == "max") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+}
+
 void swap(Range& a, Range& b) {
   using ::std::swap;
   swap(a.min, b.min);
   swap(a.max, b.max);
 }
 
-} // cpp2
-namespace apache { namespace thrift {
+template uint32_t Range::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t Range::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t Range::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Range::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Range::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t Range::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t Range::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t Range::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
-}} // apache::thrift
+} // cpp2
 namespace cpp2 {
+
+void struct1::__clear() {
+  // clear all fields
+  a = 1234567;
+  b = apache::thrift::StringTraits< std::string>::fromStringLiteral("<uninitialized>");
+  __isset.__clear();
+}
+
+bool struct1::operator==(const struct1& rhs) const {
+  if (!((a == rhs.a))) {
+    return false;
+  }
+  if (!((b == rhs.b))) {
+    return false;
+  }
+  return true;
+}
+
+void struct1::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "a") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+  else if (_fname == "b") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+}
+
+void swap(struct1& a, struct1& b) {
+  using ::std::swap;
+  swap(a.a, b.a);
+  swap(a.b, b.b);
+  swap(a.__isset, b.__isset);
+}
+
+template uint32_t struct1::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t struct1::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t struct1::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t struct1::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t struct1::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t struct1::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t struct1::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t struct1::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
+
+} // cpp2
+namespace cpp2 {
+
+void struct2::__clear() {
+  // clear all fields
+  a = 0;
+  b = apache::thrift::StringTraits< std::string>::fromStringLiteral("");
+  ::apache::thrift::Cpp2Ops<  ::cpp2::struct1>::clear(&c);
+  d.clear();
+  __isset.__clear();
+}
+
+bool struct2::operator==(const struct2& rhs) const {
+  if (!((a == rhs.a))) {
+    return false;
+  }
+  if (!((b == rhs.b))) {
+    return false;
+  }
+  if (!((c == rhs.c))) {
+    return false;
+  }
+  if (!((d == rhs.d))) {
+    return false;
+  }
+  return true;
+}
+
+const  ::cpp2::struct1& struct2::get_c() const& {
+  return c;
+}
+
+ ::cpp2::struct1 struct2::get_c() && {
+  return std::move(c);
+}
+
+const std::vector<int32_t>& struct2::get_d() const& {
+  return d;
+}
+
+std::vector<int32_t> struct2::get_d() && {
+  return std::move(d);
+}
+
+void struct2::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "a") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+  else if (_fname == "b") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "c") {
+    fid = 3;
+    _ftype = apache::thrift::protocol::T_STRUCT;
+  }
+  else if (_fname == "d") {
+    fid = 4;
+    _ftype = apache::thrift::protocol::T_LIST;
+  }
+}
+
+void swap(struct2& a, struct2& b) {
+  using ::std::swap;
+  swap(a.a, b.a);
+  swap(a.b, b.b);
+  swap(a.c, b.c);
+  swap(a.d, b.d);
+  swap(a.__isset, b.__isset);
+}
+
+template uint32_t struct2::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t struct2::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t struct2::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t struct2::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t struct2::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t struct2::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t struct2::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t struct2::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
+
+} // cpp2
+namespace cpp2 {
+
+void struct3::__clear() {
+  // clear all fields
+  a = apache::thrift::StringTraits< std::string>::fromStringLiteral("");
+  b = 0;
+  ::apache::thrift::Cpp2Ops<  ::cpp2::struct2>::clear(&c);
+  __isset.__clear();
+}
+
+bool struct3::operator==(const struct3& rhs) const {
+  if (!((a == rhs.a))) {
+    return false;
+  }
+  if (!((b == rhs.b))) {
+    return false;
+  }
+  if (!((c == rhs.c))) {
+    return false;
+  }
+  return true;
+}
+
+const  ::cpp2::struct2& struct3::get_c() const& {
+  return c;
+}
+
+ ::cpp2::struct2 struct3::get_c() && {
+  return std::move(c);
+}
+
+void struct3::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "a") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "b") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+  else if (_fname == "c") {
+    fid = 3;
+    _ftype = apache::thrift::protocol::T_STRUCT;
+  }
+}
+
+void swap(struct3& a, struct3& b) {
+  using ::std::swap;
+  swap(a.a, b.a);
+  swap(a.b, b.b);
+  swap(a.c, b.c);
+  swap(a.__isset, b.__isset);
+}
+
+template uint32_t struct3::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t struct3::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t struct3::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t struct3::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t struct3::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t struct3::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t struct3::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t struct3::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
+
+} // cpp2
+namespace cpp2 {
+
+void union1::__clear() {
+  // clear all fields
+  if (type_ == Type::__EMPTY__) { return; }
+  switch(type_) {
+    case Type::i:
+    {
+      destruct(value_.i);
+      break;
+    }
+    case Type::d:
+    {
+      destruct(value_.d);
+      break;
+    }
+    default:
+    {
+      assert(false);
+      break;
+    }
+  }
+  type_ = Type::__EMPTY__;
+}
+
+bool union1::operator==(const union1& rhs) const {
+  if (type_ != rhs.type_) { return false; }
+  switch(type_) {
+    case Type::i:
+    {
+      return value_.i == rhs.value_.i;
+    }
+    case Type::d:
+    {
+      return value_.d == rhs.value_.d;
+    }
+    default:
+    {
+      return true;
+    }
+  }
+}
+void union1::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "i") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+  else if (_fname == "d") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_DOUBLE;
+  }
+}
+
+void swap(union1& a, union1& b) {
+  union1 temp(std::move(a));
+  a = std::move(b);
+  b = std::move(temp);
+}
+
+template uint32_t union1::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t union1::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t union1::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t union1::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t union1::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t union1::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t union1::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t union1::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
+
+} // cpp2
+namespace cpp2 {
+
+void union2::__clear() {
+  // clear all fields
+  if (type_ == Type::__EMPTY__) { return; }
+  switch(type_) {
+    case Type::i:
+    {
+      destruct(value_.i);
+      break;
+    }
+    case Type::d:
+    {
+      destruct(value_.d);
+      break;
+    }
+    case Type::s:
+    {
+      destruct(value_.s);
+      break;
+    }
+    case Type::u:
+    {
+      destruct(value_.u);
+      break;
+    }
+    default:
+    {
+      assert(false);
+      break;
+    }
+  }
+  type_ = Type::__EMPTY__;
+}
+
+bool union2::operator==(const union2& rhs) const {
+  if (type_ != rhs.type_) { return false; }
+  switch(type_) {
+    case Type::i:
+    {
+      return value_.i == rhs.value_.i;
+    }
+    case Type::d:
+    {
+      return value_.d == rhs.value_.d;
+    }
+    case Type::s:
+    {
+      return value_.s == rhs.value_.s;
+    }
+    case Type::u:
+    {
+      return value_.u == rhs.value_.u;
+    }
+    default:
+    {
+      return true;
+    }
+  }
+}
+void union2::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "i") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+  else if (_fname == "d") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_DOUBLE;
+  }
+  else if (_fname == "s") {
+    fid = 3;
+    _ftype = apache::thrift::protocol::T_STRUCT;
+  }
+  else if (_fname == "u") {
+    fid = 4;
+    _ftype = apache::thrift::protocol::T_STRUCT;
+  }
+}
+
+void swap(union2& a, union2& b) {
+  union2 temp(std::move(a));
+  a = std::move(b);
+  b = std::move(temp);
+}
+
+template uint32_t union2::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t union2::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t union2::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t union2::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t union2::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t union2::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t union2::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t union2::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 } // cpp2

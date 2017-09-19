@@ -1,95 +1,94 @@
-# @lint-avoid-pyflakes2
-# @lint-avoid-python-3-compatibility-imports
+#!/usr/bin/env python3
 
 import asyncio
-import contextlib
 
-from thrift.Thrift import TMessageType, TApplicationException, TType
-import thrift.server.TAsyncioServer as TAsyncioServer
-
-def process_main(func):
-    """Decorator for process method."""
-
-    def nested(self, iprot, oprot, server_ctx=None):
-        name, _, seqid = iprot.readMessageBegin()
-        if isinstance(name, bytes):
-            name = name.decode('utf8')
-        if name not in self._processMap:
-            iprot.skip(TType.STRUCT)
-            iprot.readMessageEnd()
-            x = TApplicationException(
-                TApplicationException.UNKNOWN_METHOD,
-                'Unknown function {!r}'.format(name),
-            )
-            oprot.writeMessageBegin(name, TMessageType.EXCEPTION, seqid)
-            x.write(oprot)
-            oprot.writeMessageEnd()
-            oprot.trans.flush()
-        else:
-            yield from self._processMap[name](
-                self, seqid, iprot, oprot, server_ctx,
-            )
-    return nested
+from thrift.server.TAsyncioServer import ThriftClientProtocolFactory
+from thrift.util.Decorators import protocol_manager
 
 
-def process_method(argtype, oneway=False):
-    """Decorator for process_xxx methods for asyncio."""
-    def _decorator(func):
-        def nested(self, seqid, iprot, oprot, server_ctx):
-            fn_name = func.__name__.split('_', 1)[-1]
-            handler_ctx = self._event_handler.getHandlerContext(
-                fn_name, server_ctx,
-            )
-            args = argtype()
-            reply_type = TMessageType.REPLY
-            self._event_handler.preRead(handler_ctx, fn_name, args)
-            args.read(iprot)
-            iprot.readMessageEnd()
-            self._event_handler.postRead(handler_ctx, fn_name, args)
+class async_protocol_manager:
+    def __init__(self, coro):
+        """
+        Given a coro from create_connection create a context manager
+        around the protocol returned
+        """
+        self.coro = coro
 
-            result = yield from func(self, args, handler_ctx)
-            if not oneway:
-                if isinstance(result, TApplicationException):
-                    reply_type = TMessageType.EXCEPTION
-                self._event_handler.preWrite(handler_ctx, fn_name, result)
-                oprot.writeMessageBegin(fn_name, reply_type, seqid)
-                result.write(oprot)
-                oprot.writeMessageEnd()
-                oprot.trans.flush()
-                self._event_handler.postWrite(handler_ctx, fn_name, result)
-        return nested
-    return _decorator
+    def __await__(self):
+        async def as_protocol_manager():
+            _, protocol = await self.coro
+            return protocol_manager(protocol)
+
+        return as_protocol_manager().__await__()
+
+    __iter__ = __await__
+
+    async def __aenter__(self):
+        _, self.protocol = await self.coro
+        return self.protocol.client
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self.protocol.close()
 
 
-def run_on_thread(func):
-    func._run_on_thread = True
-    return func
-
-
-def should_run_on_thread(func):
-    return getattr(func, "_run_on_thread", False)
-
-
-@contextlib.contextmanager
-def protocol_manager(protocol):
-    yield protocol.client
-    protocol.close()
-
-
-@asyncio.coroutine
-def create_client(client_klass, *, host=None, port=None, loop=None):
+def create_client(
+        client_klass,
+        *,
+        host=None,
+        port=None,
+        sock=None,
+        loop=None,
+        timeouts=None,
+        client_type=None
+):
     """
-    create a asyncio thrift client and return a context manager for it
-    This is a coroutine
+    create an asyncio thrift client and return an async context
+    manager that can be used as follows:
+
+    async with create_client(smc2_client, port=1421) as smc:
+        await smc.getStatus()
+
+    This can be used in the old way:
+
+    with (await create_client(smc2_client, port=1421)) as smc:
+        await smc.getStatus()
+
+    or even the old deprecated way:
+
+    with (yield from create_client(smc2_client, port=1421) as smc:
+        yield from smc.getStatus()
+
     :param client_klass: thrift Client class
     :param host: hostname/ip, None = loopback
     :param port: port number
+    :param sock: socket.socket object
     :param loop: asyncio event loop
-    :returns: a Context manager which provides the thrift client
+    :returns: an Async Context Manager
     """
     if not loop:
         loop = asyncio.get_event_loop()
-    transport, protocol = yield from loop.create_connection(
-        TAsyncioServer.ThriftClientProtocolFactory(client_klass),
-        host=host, port=port)
-    return protocol_manager(protocol)
+
+    coro = loop.create_connection(
+        ThriftClientProtocolFactory(
+            client_klass,
+            loop=loop,
+            timeouts=timeouts,
+            client_type=client_type,
+        ),
+        host=host,
+        port=port,
+        sock=sock,
+    )
+    return async_protocol_manager(coro)
+
+
+def call_as_future(f, loop, *args, **kwargs):
+    """call_as_future(callable, *args, **kwargs) -> asyncio.Task
+
+    Like asyncio.ensure_future() but takes any callable and converts
+    it to a coroutine function first.
+    """
+    if not asyncio.iscoroutinefunction(f):
+        f = asyncio.coroutine(f)
+
+    return asyncio.ensure_future(f(*args, **kwargs), loop=loop)

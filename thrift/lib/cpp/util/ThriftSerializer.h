@@ -31,7 +31,6 @@
 #include <thrift/lib/cpp/protocol/TCompactProtocol.h>  // for serialization
 #include <thrift/lib/cpp/protocol/TJSONProtocol.h>    // for serialization
 #include <thrift/lib/cpp/protocol/TSimpleJSONProtocol.h>    // for serialization
-#include <thrift/lib/cpp/transport/TTransportUtils.h> // for serialization
 
 namespace apache { namespace thrift { namespace util {
 
@@ -88,6 +87,9 @@ class ThriftSerializer {
   , lastDeserialized_(false)
   , setVersion_(false)
   , serializeVersion_(false) {}
+
+  template <typename T>
+  using is_legacy_struct = std::is_base_of<TStructType<T>, T>;
 
   /**
    * Serializes the passed type into the passed string.

@@ -4,9 +4,9 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "service3.h"
+#include "thrift/compiler/test/fixtures/fatal/gen-cpp2/service3.h"
 
-#include "service3.tcc"
+#include "thrift/compiler/test/fixtures/fatal/gen-cpp2/service3.tcc"
 
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
@@ -18,26 +18,30 @@ const char* service3AsyncClient::getServiceName() {
 
 void service3AsyncClient::methodA(std::unique_ptr<apache::thrift::RequestCallback> callback) {
   ::apache::thrift::RpcOptions rpcOptions;
-  methodA(rpcOptions, std::move(callback));
+  methodAImpl(false, rpcOptions, std::move(callback));
 }
 
 void service3AsyncClient::methodA(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
+  methodAImpl(false, rpcOptions, std::move(callback));
+}
+
+void service3AsyncClient::methodAImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      methodAT(&writer, rpcOptions, std::move(callback));
+      methodAT(&writer, useSync, rpcOptions, std::move(callback));
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      methodAT(&writer, rpcOptions, std::move(callback));
+      methodAT(&writer, useSync, rpcOptions, std::move(callback));
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -49,9 +53,8 @@ void service3AsyncClient::sync_methodA() {
 
 void service3AsyncClient::sync_methodA(apache::thrift::RpcOptions& rpcOptions) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback189 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  methodA(rpcOptions, std::move(callback189));
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  methodAImpl(true, rpcOptions, std::move(callback));
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -59,7 +62,7 @@ void service3AsyncClient::sync_methodA(apache::thrift::RpcOptions& rpcOptions) {
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   recv_methodA(_returnState);
 }
@@ -70,29 +73,28 @@ folly::Future<folly::Unit> service3AsyncClient::future_methodA() {
 }
 
 folly::Future<folly::Unit> service3AsyncClient::future_methodA(apache::thrift::RpcOptions& rpcOptions) {
-  folly::Promise<folly::Unit> promise190;
-  auto future191 = promise190.getFuture();
-  auto callback192 = folly::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(promise190), recv_wrapped_methodA, channel_);
-  methodA(rpcOptions, std::move(callback192));
-  return future191;
+  folly::Promise<folly::Unit> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_methodA, channel_);
+  methodA(rpcOptions, std::move(callback));
+  return _future;
 }
 
 folly::Future<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> service3AsyncClient::header_future_methodA(apache::thrift::RpcOptions& rpcOptions) {
-  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> promise193;
-  auto future194 = promise193.getFuture();
-  auto callback195 = folly::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(promise193), recv_wrapped_methodA, channel_);
-  methodA(rpcOptions, std::move(callback195));
-  return future194;
+  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_methodA, channel_);
+  methodA(rpcOptions, std::move(callback));
+  return _future;
 }
 
-void service3AsyncClient::methodA(std::function<void (::apache::thrift::ClientReceiveState&&)> callback) {
-  methodA(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)));
+void service3AsyncClient::methodA(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback) {
+  methodA(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)));
 }
 
 folly::exception_wrapper service3AsyncClient::recv_wrapped_methodA(::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -118,7 +120,7 @@ folly::exception_wrapper service3AsyncClient::recv_wrapped_methodA(::apache::thr
 void service3AsyncClient::recv_methodA(::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_methodA(state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 
@@ -132,26 +134,30 @@ folly::exception_wrapper service3AsyncClient::recv_instance_wrapped_methodA(::ap
 
 void service3AsyncClient::methodB(std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t x, const  ::test_cpp2::cpp_reflection::struct1& y, double z) {
   ::apache::thrift::RpcOptions rpcOptions;
-  methodB(rpcOptions, std::move(callback), x, y, z);
+  methodBImpl(false, rpcOptions, std::move(callback), x, y, z);
 }
 
 void service3AsyncClient::methodB(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t x, const  ::test_cpp2::cpp_reflection::struct1& y, double z) {
+  methodBImpl(false, rpcOptions, std::move(callback), x, y, z);
+}
+
+void service3AsyncClient::methodBImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t x, const  ::test_cpp2::cpp_reflection::struct1& y, double z) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      methodBT(&writer, rpcOptions, std::move(callback), x, y, z);
+      methodBT(&writer, useSync, rpcOptions, std::move(callback), x, y, z);
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      methodBT(&writer, rpcOptions, std::move(callback), x, y, z);
+      methodBT(&writer, useSync, rpcOptions, std::move(callback), x, y, z);
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -163,9 +169,8 @@ void service3AsyncClient::sync_methodB(int32_t x, const  ::test_cpp2::cpp_reflec
 
 void service3AsyncClient::sync_methodB(apache::thrift::RpcOptions& rpcOptions, int32_t x, const  ::test_cpp2::cpp_reflection::struct1& y, double z) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback196 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  methodB(rpcOptions, std::move(callback196), x, y, z);
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  methodBImpl(true, rpcOptions, std::move(callback), x, y, z);
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -173,7 +178,7 @@ void service3AsyncClient::sync_methodB(apache::thrift::RpcOptions& rpcOptions, i
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   recv_methodB(_returnState);
 }
@@ -184,29 +189,28 @@ folly::Future<folly::Unit> service3AsyncClient::future_methodB(int32_t x, const 
 }
 
 folly::Future<folly::Unit> service3AsyncClient::future_methodB(apache::thrift::RpcOptions& rpcOptions, int32_t x, const  ::test_cpp2::cpp_reflection::struct1& y, double z) {
-  folly::Promise<folly::Unit> promise197;
-  auto future198 = promise197.getFuture();
-  auto callback199 = folly::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(promise197), recv_wrapped_methodB, channel_);
-  methodB(rpcOptions, std::move(callback199), x, y, z);
-  return future198;
+  folly::Promise<folly::Unit> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_methodB, channel_);
+  methodB(rpcOptions, std::move(callback), x, y, z);
+  return _future;
 }
 
 folly::Future<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> service3AsyncClient::header_future_methodB(apache::thrift::RpcOptions& rpcOptions, int32_t x, const  ::test_cpp2::cpp_reflection::struct1& y, double z) {
-  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> promise200;
-  auto future201 = promise200.getFuture();
-  auto callback202 = folly::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(promise200), recv_wrapped_methodB, channel_);
-  methodB(rpcOptions, std::move(callback202), x, y, z);
-  return future201;
+  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_methodB, channel_);
+  methodB(rpcOptions, std::move(callback), x, y, z);
+  return _future;
 }
 
-void service3AsyncClient::methodB(std::function<void (::apache::thrift::ClientReceiveState&&)> callback, int32_t x, const  ::test_cpp2::cpp_reflection::struct1& y, double z) {
-  methodB(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)),x,y,z);
+void service3AsyncClient::methodB(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback, int32_t x, const  ::test_cpp2::cpp_reflection::struct1& y, double z) {
+  methodB(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)), x, y, z);
 }
 
 folly::exception_wrapper service3AsyncClient::recv_wrapped_methodB(::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -232,7 +236,7 @@ folly::exception_wrapper service3AsyncClient::recv_wrapped_methodB(::apache::thr
 void service3AsyncClient::recv_methodB(::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_methodB(state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 
@@ -246,26 +250,30 @@ folly::exception_wrapper service3AsyncClient::recv_instance_wrapped_methodB(::ap
 
 void service3AsyncClient::methodC(std::unique_ptr<apache::thrift::RequestCallback> callback) {
   ::apache::thrift::RpcOptions rpcOptions;
-  methodC(rpcOptions, std::move(callback));
+  methodCImpl(false, rpcOptions, std::move(callback));
 }
 
 void service3AsyncClient::methodC(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
+  methodCImpl(false, rpcOptions, std::move(callback));
+}
+
+void service3AsyncClient::methodCImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      methodCT(&writer, rpcOptions, std::move(callback));
+      methodCT(&writer, useSync, rpcOptions, std::move(callback));
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      methodCT(&writer, rpcOptions, std::move(callback));
+      methodCT(&writer, useSync, rpcOptions, std::move(callback));
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -277,9 +285,8 @@ int32_t service3AsyncClient::sync_methodC() {
 
 int32_t service3AsyncClient::sync_methodC(apache::thrift::RpcOptions& rpcOptions) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback203 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  methodC(rpcOptions, std::move(callback203));
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  methodCImpl(true, rpcOptions, std::move(callback));
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -287,7 +294,7 @@ int32_t service3AsyncClient::sync_methodC(apache::thrift::RpcOptions& rpcOptions
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   return recv_methodC(_returnState);
 }
@@ -298,29 +305,28 @@ folly::Future<int32_t> service3AsyncClient::future_methodC() {
 }
 
 folly::Future<int32_t> service3AsyncClient::future_methodC(apache::thrift::RpcOptions& rpcOptions) {
-  folly::Promise<int32_t> promise204;
-  auto future205 = promise204.getFuture();
-  auto callback206 = folly::make_unique<apache::thrift::FutureCallback<int32_t>>(std::move(promise204), recv_wrapped_methodC, channel_);
-  methodC(rpcOptions, std::move(callback206));
-  return future205;
+  folly::Promise<int32_t> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback<int32_t>>(std::move(_promise), recv_wrapped_methodC, channel_);
+  methodC(rpcOptions, std::move(callback));
+  return _future;
 }
 
 folly::Future<std::pair<int32_t, std::unique_ptr<apache::thrift::transport::THeader>>> service3AsyncClient::header_future_methodC(apache::thrift::RpcOptions& rpcOptions) {
-  folly::Promise<std::pair<int32_t, std::unique_ptr<apache::thrift::transport::THeader>>> promise207;
-  auto future208 = promise207.getFuture();
-  auto callback209 = folly::make_unique<apache::thrift::HeaderFutureCallback<int32_t>>(std::move(promise207), recv_wrapped_methodC, channel_);
-  methodC(rpcOptions, std::move(callback209));
-  return future208;
+  folly::Promise<std::pair<int32_t, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback<int32_t>>(std::move(_promise), recv_wrapped_methodC, channel_);
+  methodC(rpcOptions, std::move(callback));
+  return _future;
 }
 
-void service3AsyncClient::methodC(std::function<void (::apache::thrift::ClientReceiveState&&)> callback) {
-  methodC(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)));
+void service3AsyncClient::methodC(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback) {
+  methodC(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)));
 }
 
 folly::exception_wrapper service3AsyncClient::recv_wrapped_methodC(int32_t& _return, ::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -347,7 +353,7 @@ int32_t service3AsyncClient::recv_methodC(::apache::thrift::ClientReceiveState& 
   int32_t _return;
   auto ew = recv_wrapped_methodC(_return, state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
   return _return;
 }
@@ -362,26 +368,30 @@ folly::exception_wrapper service3AsyncClient::recv_instance_wrapped_methodC(int3
 
 void service3AsyncClient::methodD(std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t i, const  ::test_cpp2::cpp_reflection::struct1& j, double k) {
   ::apache::thrift::RpcOptions rpcOptions;
-  methodD(rpcOptions, std::move(callback), i, j, k);
+  methodDImpl(false, rpcOptions, std::move(callback), i, j, k);
 }
 
 void service3AsyncClient::methodD(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t i, const  ::test_cpp2::cpp_reflection::struct1& j, double k) {
+  methodDImpl(false, rpcOptions, std::move(callback), i, j, k);
+}
+
+void service3AsyncClient::methodDImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t i, const  ::test_cpp2::cpp_reflection::struct1& j, double k) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      methodDT(&writer, rpcOptions, std::move(callback), i, j, k);
+      methodDT(&writer, useSync, rpcOptions, std::move(callback), i, j, k);
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      methodDT(&writer, rpcOptions, std::move(callback), i, j, k);
+      methodDT(&writer, useSync, rpcOptions, std::move(callback), i, j, k);
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -393,9 +403,8 @@ int32_t service3AsyncClient::sync_methodD(int32_t i, const  ::test_cpp2::cpp_ref
 
 int32_t service3AsyncClient::sync_methodD(apache::thrift::RpcOptions& rpcOptions, int32_t i, const  ::test_cpp2::cpp_reflection::struct1& j, double k) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback210 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  methodD(rpcOptions, std::move(callback210), i, j, k);
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  methodDImpl(true, rpcOptions, std::move(callback), i, j, k);
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -403,7 +412,7 @@ int32_t service3AsyncClient::sync_methodD(apache::thrift::RpcOptions& rpcOptions
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   return recv_methodD(_returnState);
 }
@@ -414,29 +423,28 @@ folly::Future<int32_t> service3AsyncClient::future_methodD(int32_t i, const  ::t
 }
 
 folly::Future<int32_t> service3AsyncClient::future_methodD(apache::thrift::RpcOptions& rpcOptions, int32_t i, const  ::test_cpp2::cpp_reflection::struct1& j, double k) {
-  folly::Promise<int32_t> promise211;
-  auto future212 = promise211.getFuture();
-  auto callback213 = folly::make_unique<apache::thrift::FutureCallback<int32_t>>(std::move(promise211), recv_wrapped_methodD, channel_);
-  methodD(rpcOptions, std::move(callback213), i, j, k);
-  return future212;
+  folly::Promise<int32_t> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback<int32_t>>(std::move(_promise), recv_wrapped_methodD, channel_);
+  methodD(rpcOptions, std::move(callback), i, j, k);
+  return _future;
 }
 
 folly::Future<std::pair<int32_t, std::unique_ptr<apache::thrift::transport::THeader>>> service3AsyncClient::header_future_methodD(apache::thrift::RpcOptions& rpcOptions, int32_t i, const  ::test_cpp2::cpp_reflection::struct1& j, double k) {
-  folly::Promise<std::pair<int32_t, std::unique_ptr<apache::thrift::transport::THeader>>> promise214;
-  auto future215 = promise214.getFuture();
-  auto callback216 = folly::make_unique<apache::thrift::HeaderFutureCallback<int32_t>>(std::move(promise214), recv_wrapped_methodD, channel_);
-  methodD(rpcOptions, std::move(callback216), i, j, k);
-  return future215;
+  folly::Promise<std::pair<int32_t, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback<int32_t>>(std::move(_promise), recv_wrapped_methodD, channel_);
+  methodD(rpcOptions, std::move(callback), i, j, k);
+  return _future;
 }
 
-void service3AsyncClient::methodD(std::function<void (::apache::thrift::ClientReceiveState&&)> callback, int32_t i, const  ::test_cpp2::cpp_reflection::struct1& j, double k) {
-  methodD(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)),i,j,k);
+void service3AsyncClient::methodD(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback, int32_t i, const  ::test_cpp2::cpp_reflection::struct1& j, double k) {
+  methodD(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)), i, j, k);
 }
 
 folly::exception_wrapper service3AsyncClient::recv_wrapped_methodD(int32_t& _return, ::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -463,7 +471,7 @@ int32_t service3AsyncClient::recv_methodD(::apache::thrift::ClientReceiveState& 
   int32_t _return;
   auto ew = recv_wrapped_methodD(_return, state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
   return _return;
 }
@@ -478,26 +486,30 @@ folly::exception_wrapper service3AsyncClient::recv_instance_wrapped_methodD(int3
 
 void service3AsyncClient::methodE(std::unique_ptr<apache::thrift::RequestCallback> callback) {
   ::apache::thrift::RpcOptions rpcOptions;
-  methodE(rpcOptions, std::move(callback));
+  methodEImpl(false, rpcOptions, std::move(callback));
 }
 
 void service3AsyncClient::methodE(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
+  methodEImpl(false, rpcOptions, std::move(callback));
+}
+
+void service3AsyncClient::methodEImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      methodET(&writer, rpcOptions, std::move(callback));
+      methodET(&writer, useSync, rpcOptions, std::move(callback));
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      methodET(&writer, rpcOptions, std::move(callback));
+      methodET(&writer, useSync, rpcOptions, std::move(callback));
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -509,9 +521,8 @@ void service3AsyncClient::sync_methodE( ::test_cpp2::cpp_reflection::struct2& _r
 
 void service3AsyncClient::sync_methodE(apache::thrift::RpcOptions& rpcOptions,  ::test_cpp2::cpp_reflection::struct2& _return) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback217 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  methodE(rpcOptions, std::move(callback217));
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  methodEImpl(true, rpcOptions, std::move(callback));
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -519,7 +530,7 @@ void service3AsyncClient::sync_methodE(apache::thrift::RpcOptions& rpcOptions,  
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   recv_methodE(_return, _returnState);
 }
@@ -530,29 +541,28 @@ folly::Future< ::test_cpp2::cpp_reflection::struct2> service3AsyncClient::future
 }
 
 folly::Future< ::test_cpp2::cpp_reflection::struct2> service3AsyncClient::future_methodE(apache::thrift::RpcOptions& rpcOptions) {
-  folly::Promise< ::test_cpp2::cpp_reflection::struct2> promise218;
-  auto future219 = promise218.getFuture();
-  auto callback220 = folly::make_unique<apache::thrift::FutureCallback< ::test_cpp2::cpp_reflection::struct2>>(std::move(promise218), recv_wrapped_methodE, channel_);
-  methodE(rpcOptions, std::move(callback220));
-  return future219;
+  folly::Promise< ::test_cpp2::cpp_reflection::struct2> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback< ::test_cpp2::cpp_reflection::struct2>>(std::move(_promise), recv_wrapped_methodE, channel_);
+  methodE(rpcOptions, std::move(callback));
+  return _future;
 }
 
 folly::Future<std::pair< ::test_cpp2::cpp_reflection::struct2, std::unique_ptr<apache::thrift::transport::THeader>>> service3AsyncClient::header_future_methodE(apache::thrift::RpcOptions& rpcOptions) {
-  folly::Promise<std::pair< ::test_cpp2::cpp_reflection::struct2, std::unique_ptr<apache::thrift::transport::THeader>>> promise221;
-  auto future222 = promise221.getFuture();
-  auto callback223 = folly::make_unique<apache::thrift::HeaderFutureCallback< ::test_cpp2::cpp_reflection::struct2>>(std::move(promise221), recv_wrapped_methodE, channel_);
-  methodE(rpcOptions, std::move(callback223));
-  return future222;
+  folly::Promise<std::pair< ::test_cpp2::cpp_reflection::struct2, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback< ::test_cpp2::cpp_reflection::struct2>>(std::move(_promise), recv_wrapped_methodE, channel_);
+  methodE(rpcOptions, std::move(callback));
+  return _future;
 }
 
-void service3AsyncClient::methodE(std::function<void (::apache::thrift::ClientReceiveState&&)> callback) {
-  methodE(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)));
+void service3AsyncClient::methodE(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback) {
+  methodE(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)));
 }
 
 folly::exception_wrapper service3AsyncClient::recv_wrapped_methodE( ::test_cpp2::cpp_reflection::struct2& _return, ::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -578,7 +588,7 @@ folly::exception_wrapper service3AsyncClient::recv_wrapped_methodE( ::test_cpp2:
 void service3AsyncClient::recv_methodE( ::test_cpp2::cpp_reflection::struct2& _return, ::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_methodE(_return, state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 
@@ -592,26 +602,30 @@ folly::exception_wrapper service3AsyncClient::recv_instance_wrapped_methodE( ::t
 
 void service3AsyncClient::methodF(std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t l, const  ::test_cpp2::cpp_reflection::struct1& m, double n) {
   ::apache::thrift::RpcOptions rpcOptions;
-  methodF(rpcOptions, std::move(callback), l, m, n);
+  methodFImpl(false, rpcOptions, std::move(callback), l, m, n);
 }
 
 void service3AsyncClient::methodF(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t l, const  ::test_cpp2::cpp_reflection::struct1& m, double n) {
+  methodFImpl(false, rpcOptions, std::move(callback), l, m, n);
+}
+
+void service3AsyncClient::methodFImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t l, const  ::test_cpp2::cpp_reflection::struct1& m, double n) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      methodFT(&writer, rpcOptions, std::move(callback), l, m, n);
+      methodFT(&writer, useSync, rpcOptions, std::move(callback), l, m, n);
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      methodFT(&writer, rpcOptions, std::move(callback), l, m, n);
+      methodFT(&writer, useSync, rpcOptions, std::move(callback), l, m, n);
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -623,9 +637,8 @@ void service3AsyncClient::sync_methodF( ::test_cpp2::cpp_reflection::struct3& _r
 
 void service3AsyncClient::sync_methodF(apache::thrift::RpcOptions& rpcOptions,  ::test_cpp2::cpp_reflection::struct3& _return, int32_t l, const  ::test_cpp2::cpp_reflection::struct1& m, double n) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback224 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  methodF(rpcOptions, std::move(callback224), l, m, n);
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  methodFImpl(true, rpcOptions, std::move(callback), l, m, n);
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -633,7 +646,7 @@ void service3AsyncClient::sync_methodF(apache::thrift::RpcOptions& rpcOptions,  
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   recv_methodF(_return, _returnState);
 }
@@ -644,29 +657,28 @@ folly::Future< ::test_cpp2::cpp_reflection::struct3> service3AsyncClient::future
 }
 
 folly::Future< ::test_cpp2::cpp_reflection::struct3> service3AsyncClient::future_methodF(apache::thrift::RpcOptions& rpcOptions, int32_t l, const  ::test_cpp2::cpp_reflection::struct1& m, double n) {
-  folly::Promise< ::test_cpp2::cpp_reflection::struct3> promise225;
-  auto future226 = promise225.getFuture();
-  auto callback227 = folly::make_unique<apache::thrift::FutureCallback< ::test_cpp2::cpp_reflection::struct3>>(std::move(promise225), recv_wrapped_methodF, channel_);
-  methodF(rpcOptions, std::move(callback227), l, m, n);
-  return future226;
+  folly::Promise< ::test_cpp2::cpp_reflection::struct3> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback< ::test_cpp2::cpp_reflection::struct3>>(std::move(_promise), recv_wrapped_methodF, channel_);
+  methodF(rpcOptions, std::move(callback), l, m, n);
+  return _future;
 }
 
 folly::Future<std::pair< ::test_cpp2::cpp_reflection::struct3, std::unique_ptr<apache::thrift::transport::THeader>>> service3AsyncClient::header_future_methodF(apache::thrift::RpcOptions& rpcOptions, int32_t l, const  ::test_cpp2::cpp_reflection::struct1& m, double n) {
-  folly::Promise<std::pair< ::test_cpp2::cpp_reflection::struct3, std::unique_ptr<apache::thrift::transport::THeader>>> promise228;
-  auto future229 = promise228.getFuture();
-  auto callback230 = folly::make_unique<apache::thrift::HeaderFutureCallback< ::test_cpp2::cpp_reflection::struct3>>(std::move(promise228), recv_wrapped_methodF, channel_);
-  methodF(rpcOptions, std::move(callback230), l, m, n);
-  return future229;
+  folly::Promise<std::pair< ::test_cpp2::cpp_reflection::struct3, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback< ::test_cpp2::cpp_reflection::struct3>>(std::move(_promise), recv_wrapped_methodF, channel_);
+  methodF(rpcOptions, std::move(callback), l, m, n);
+  return _future;
 }
 
-void service3AsyncClient::methodF(std::function<void (::apache::thrift::ClientReceiveState&&)> callback, int32_t l, const  ::test_cpp2::cpp_reflection::struct1& m, double n) {
-  methodF(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)),l,m,n);
+void service3AsyncClient::methodF(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback, int32_t l, const  ::test_cpp2::cpp_reflection::struct1& m, double n) {
+  methodF(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)), l, m, n);
 }
 
 folly::exception_wrapper service3AsyncClient::recv_wrapped_methodF( ::test_cpp2::cpp_reflection::struct3& _return, ::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -692,7 +704,7 @@ folly::exception_wrapper service3AsyncClient::recv_wrapped_methodF( ::test_cpp2:
 void service3AsyncClient::recv_methodF( ::test_cpp2::cpp_reflection::struct3& _return, ::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_methodF(_return, state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 

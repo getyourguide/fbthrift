@@ -4,9 +4,9 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "service2.h"
+#include "thrift/compiler/test/fixtures/fatal/gen-cpp2/service2.h"
 
-#include "service2.tcc"
+#include "thrift/compiler/test/fixtures/fatal/gen-cpp2/service2.tcc"
 
 #include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
@@ -14,11 +14,11 @@
 namespace test_cpp2 { namespace cpp_reflection {
 
 std::unique_ptr<apache::thrift::AsyncProcessor> service2SvIf::getProcessor() {
-  return folly::make_unique<service2AsyncProcessor>(this);
+  return std::make_unique<service2AsyncProcessor>(this);
 }
 
 void service2SvIf::methodA() {
-  throw apache::thrift::TApplicationException("Function methodA is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("methodA");
 }
 
 folly::Future<folly::Unit> service2SvIf::future_methodA() {
@@ -30,7 +30,7 @@ void service2SvIf::async_tm_methodA(std::unique_ptr<apache::thrift::HandlerCallb
 }
 
 void service2SvIf::methodB(int32_t /*x*/, std::unique_ptr< ::test_cpp2::cpp_reflection::struct1> /*y*/, double /*z*/) {
-  throw apache::thrift::TApplicationException("Function methodB is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("methodB");
 }
 
 folly::Future<folly::Unit> service2SvIf::future_methodB(int32_t x, std::unique_ptr< ::test_cpp2::cpp_reflection::struct1> y, double z) {
@@ -42,7 +42,7 @@ void service2SvIf::async_tm_methodB(std::unique_ptr<apache::thrift::HandlerCallb
 }
 
 int32_t service2SvIf::methodC() {
-  throw apache::thrift::TApplicationException("Function methodC is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("methodC");
 }
 
 folly::Future<int32_t> service2SvIf::future_methodC() {
@@ -54,7 +54,7 @@ void service2SvIf::async_tm_methodC(std::unique_ptr<apache::thrift::HandlerCallb
 }
 
 int32_t service2SvIf::methodD(int32_t /*i*/, std::unique_ptr< ::test_cpp2::cpp_reflection::struct1> /*j*/, double /*k*/) {
-  throw apache::thrift::TApplicationException("Function methodD is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("methodD");
 }
 
 folly::Future<int32_t> service2SvIf::future_methodD(int32_t i, std::unique_ptr< ::test_cpp2::cpp_reflection::struct1> j, double k) {
@@ -66,7 +66,7 @@ void service2SvIf::async_tm_methodD(std::unique_ptr<apache::thrift::HandlerCallb
 }
 
 void service2SvIf::methodE( ::test_cpp2::cpp_reflection::struct2& /*_return*/) {
-  throw apache::thrift::TApplicationException("Function methodE is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("methodE");
 }
 
 folly::Future<std::unique_ptr< ::test_cpp2::cpp_reflection::struct2>> service2SvIf::future_methodE() {
@@ -78,7 +78,7 @@ void service2SvIf::async_tm_methodE(std::unique_ptr<apache::thrift::HandlerCallb
 }
 
 void service2SvIf::methodF( ::test_cpp2::cpp_reflection::struct2& /*_return*/, int32_t /*l*/, std::unique_ptr< ::test_cpp2::cpp_reflection::struct1> /*m*/, double /*n*/) {
-  throw apache::thrift::TApplicationException("Function methodF is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("methodF");
 }
 
 folly::Future<std::unique_ptr< ::test_cpp2::cpp_reflection::struct2>> service2SvIf::future_methodF(int32_t l, std::unique_ptr< ::test_cpp2::cpp_reflection::struct1> m, double n) {
@@ -127,25 +127,26 @@ const service2AsyncProcessor::BinaryProtocolProcessMap& service2AsyncProcessor::
   return binaryProcessMap_;
 }
 
-service2AsyncProcessor::BinaryProtocolProcessMap service2AsyncProcessor::binaryProcessMap_ {
+const service2AsyncProcessor::BinaryProtocolProcessMap service2AsyncProcessor::binaryProcessMap_ {
   {"methodA", &service2AsyncProcessor::_processInThread_methodA<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"methodB", &service2AsyncProcessor::_processInThread_methodB<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"methodC", &service2AsyncProcessor::_processInThread_methodC<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"methodD", &service2AsyncProcessor::_processInThread_methodD<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"methodE", &service2AsyncProcessor::_processInThread_methodE<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
-  {"methodF", &service2AsyncProcessor::_processInThread_methodF<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>}
+  {"methodF", &service2AsyncProcessor::_processInThread_methodF<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
 };
+
 const service2AsyncProcessor::CompactProtocolProcessMap& service2AsyncProcessor::getCompactProtocolProcessMap() {
   return compactProcessMap_;
 }
 
-service2AsyncProcessor::CompactProtocolProcessMap service2AsyncProcessor::compactProcessMap_ {
+const service2AsyncProcessor::CompactProtocolProcessMap service2AsyncProcessor::compactProcessMap_ {
   {"methodA", &service2AsyncProcessor::_processInThread_methodA<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"methodB", &service2AsyncProcessor::_processInThread_methodB<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"methodC", &service2AsyncProcessor::_processInThread_methodC<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"methodD", &service2AsyncProcessor::_processInThread_methodD<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"methodE", &service2AsyncProcessor::_processInThread_methodE<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
-  {"methodF", &service2AsyncProcessor::_processInThread_methodF<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>}
+  {"methodF", &service2AsyncProcessor::_processInThread_methodF<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
 };
 
 }} // test_cpp2::cpp_reflection

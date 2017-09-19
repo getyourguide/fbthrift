@@ -6,28 +6,45 @@
  */
 #pragma once
 
+#include <folly/io/Cursor.h>
+#include <folly/io/IOBuf.h>
+#include <thrift/lib/cpp/TApplicationException.h>
+#include <thrift/lib/cpp2/GeneratedHeaderHelper.h>
 #include <thrift/lib/cpp2/Thrift.h>
 #include <thrift/lib/cpp2/protocol/Protocol.h>
-#include <thrift/lib/cpp/TApplicationException.h>
-#include <folly/io/IOBuf.h>
-#include <folly/io/Cursor.h>
-#include <boost/operators.hpp>
 
 
+// BEGIN declare_enums
 
+// END declare_enums
+// BEGIN struct_indirection
 
+// END struct_indirection
+// BEGIN forward_declare
 namespace cpp2 {
-
 class ComplexUnion;
+class FinalComplexUnion;
+} // cpp2
+// END forward_declare
+// BEGIN typedefs
+namespace cpp2 {
+typedef std::map<int16_t, std::string> containerTypedef;
 
-class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
+} // cpp2
+// END typedefs
+// BEGIN hash_and_equal_to
+// END hash_and_equal_to
+namespace cpp2 {
+class ComplexUnion : private apache::thrift::detail::st::ComparisonOperators<ComplexUnion> {
  public:
   enum Type {
     __EMPTY__ = 0,
     intValue = 1,
-    stringValue = 2,
-    intListValue = 3,
-    stringListValue = 4,
+    stringValue = 5,
+    intListValue = 2,
+    stringListValue = 3,
+    typedefValue = 9,
+    stringRef = 14,
   } ;
 
   ComplexUnion() :
@@ -56,6 +73,16 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
       case Type::stringListValue:
       {
         set_stringListValue(std::move(rhs.value_.stringListValue));
+        break;
+      }
+      case Type::typedefValue:
+      {
+        set_typedefValue(std::move(rhs.value_.typedefValue));
+        break;
+      }
+      case Type::stringRef:
+      {
+        set_stringRef(std::move(*rhs.value_.stringRef));
         break;
       }
       default:
@@ -92,6 +119,16 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
         set_stringListValue(rhs.value_.stringListValue);
         break;
       }
+      case Type::typedefValue:
+      {
+        set_typedefValue(rhs.value_.typedefValue);
+        break;
+      }
+      case Type::stringRef:
+      {
+        set_stringRef(*rhs.value_.stringRef);
+        break;
+      }
       default:
       {
         assert(false);
@@ -123,6 +160,16 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
       case Type::stringListValue:
       {
         set_stringListValue(std::move(rhs.value_.stringListValue));
+        break;
+      }
+      case Type::typedefValue:
+      {
+        set_typedefValue(std::move(rhs.value_.typedefValue));
+        break;
+      }
+      case Type::stringRef:
+      {
+        set_stringRef(std::move(*rhs.value_.stringRef));
         break;
       }
       default:
@@ -160,6 +207,16 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
         set_stringListValue(rhs.value_.stringListValue);
         break;
       }
+      case Type::typedefValue:
+      {
+        set_typedefValue(rhs.value_.typedefValue);
+        break;
+      }
+      case Type::stringRef:
+      {
+        set_stringRef(*rhs.value_.stringRef);
+        break;
+      }
       default:
       {
         assert(false);
@@ -168,9 +225,45 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
     }
     return *this;
   }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  ComplexUnion(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_intValue(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  ComplexUnion(::apache::thrift::detail::argument_wrapper<5, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_stringValue(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  ComplexUnion(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_intListValue(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  ComplexUnion(::apache::thrift::detail::argument_wrapper<3, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_stringListValue(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  ComplexUnion(::apache::thrift::detail::argument_wrapper<9, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_typedefValue(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  ComplexUnion(::apache::thrift::detail::argument_wrapper<14, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_stringRef(arg.move());
+  }
   void __clear();
 
-  virtual ~ComplexUnion() throw() {
+  virtual ~ComplexUnion() {
     __clear();
   }
 
@@ -179,109 +272,185 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
     std::string stringValue;
     std::vector<int64_t> intListValue;
     std::vector<std::string> stringListValue;
+     ::cpp2::containerTypedef typedefValue;
+    std::unique_ptr<std::string> stringRef;
 
     storage_type() {}
     ~storage_type() {}
   } ;
   bool operator==(const ComplexUnion& rhs) const;
+  bool operator < (const ComplexUnion& rhs) const;
 
-  bool operator < (const ComplexUnion& rhs) const {
-    if (type_ != rhs.type_) { return type_ < rhs.type_; }
-    switch(type_) {
-      case Type::intValue:
-      {
-        return value_.intValue < rhs.value_.intValue;
-        break;
-      }
-      case Type::stringValue:
-      {
-        return value_.stringValue < rhs.value_.stringValue;
-        break;
-      }
-      case Type::intListValue:
-      {
-        return value_.intListValue < rhs.value_.intListValue;
-        break;
-      }
-      case Type::stringListValue:
-      {
-        return value_.stringListValue < rhs.value_.stringListValue;
-        break;
-      }
-      default:
-      {
-        return false;
-        break;
-      }
-    }
-  }
-
-  template<typename... T>
-  void set_intValue(T&&... t) {
+  int64_t& set_intValue(int64_t t = int64_t()) {
     __clear();
     type_ = Type::intValue;
-    new (&value_.intValue) int64_t(std::forward<T>(t)...);
+    ::new (std::addressof(value_.intValue)) int64_t(t);
+    return value_.intValue;
   }
 
-  template<typename... T>
-  void set_stringValue(T&&... t) {
+  std::string& set_stringValue(std::string const &t) {
     __clear();
     type_ = Type::stringValue;
-    new (&value_.stringValue) std::string(std::forward<T>(t)...);
+    ::new (std::addressof(value_.stringValue)) std::string(t);
+    return value_.stringValue;
   }
 
-  template<typename... T>
-  void set_intListValue(T&&... t) {
+  std::string& set_stringValue(std::string&& t) {
+    __clear();
+    type_ = Type::stringValue;
+    ::new (std::addressof(value_.stringValue)) std::string(std::move(t));
+    return value_.stringValue;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::string, T...>> std::string& set_stringValue(T&&... t) {
+    __clear();
+    type_ = Type::stringValue;
+    ::new (std::addressof(value_.stringValue)) std::string(std::forward<T>(t)...);
+    return value_.stringValue;
+  }
+
+  std::vector<int64_t>& set_intListValue(std::vector<int64_t> const &t) {
     __clear();
     type_ = Type::intListValue;
-    new (&value_.intListValue) std::vector<int64_t>(std::forward<T>(t)...);
+    ::new (std::addressof(value_.intListValue)) std::vector<int64_t>(t);
+    return value_.intListValue;
   }
 
-  template<typename... T>
-  void set_stringListValue(T&&... t) {
+  std::vector<int64_t>& set_intListValue(std::vector<int64_t>&& t) {
+    __clear();
+    type_ = Type::intListValue;
+    ::new (std::addressof(value_.intListValue)) std::vector<int64_t>(std::move(t));
+    return value_.intListValue;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::vector<int64_t>, T...>> std::vector<int64_t>& set_intListValue(T&&... t) {
+    __clear();
+    type_ = Type::intListValue;
+    ::new (std::addressof(value_.intListValue)) std::vector<int64_t>(std::forward<T>(t)...);
+    return value_.intListValue;
+  }
+
+  std::vector<std::string>& set_stringListValue(std::vector<std::string> const &t) {
     __clear();
     type_ = Type::stringListValue;
-    new (&value_.stringListValue) std::vector<std::string>(std::forward<T>(t)...);
+    ::new (std::addressof(value_.stringListValue)) std::vector<std::string>(t);
+    return value_.stringListValue;
   }
 
-  const int64_t& get_intValue() const {
+  std::vector<std::string>& set_stringListValue(std::vector<std::string>&& t) {
+    __clear();
+    type_ = Type::stringListValue;
+    ::new (std::addressof(value_.stringListValue)) std::vector<std::string>(std::move(t));
+    return value_.stringListValue;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::vector<std::string>, T...>> std::vector<std::string>& set_stringListValue(T&&... t) {
+    __clear();
+    type_ = Type::stringListValue;
+    ::new (std::addressof(value_.stringListValue)) std::vector<std::string>(std::forward<T>(t)...);
+    return value_.stringListValue;
+  }
+
+   ::cpp2::containerTypedef& set_typedefValue( ::cpp2::containerTypedef const &t) {
+    __clear();
+    type_ = Type::typedefValue;
+    ::new (std::addressof(value_.typedefValue))  ::cpp2::containerTypedef(t);
+    return value_.typedefValue;
+  }
+
+   ::cpp2::containerTypedef& set_typedefValue( ::cpp2::containerTypedef&& t) {
+    __clear();
+    type_ = Type::typedefValue;
+    ::new (std::addressof(value_.typedefValue))  ::cpp2::containerTypedef(std::move(t));
+    return value_.typedefValue;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t< ::cpp2::containerTypedef, T...>>  ::cpp2::containerTypedef& set_typedefValue(T&&... t) {
+    __clear();
+    type_ = Type::typedefValue;
+    ::new (std::addressof(value_.typedefValue))  ::cpp2::containerTypedef(std::forward<T>(t)...);
+    return value_.typedefValue;
+  }
+
+  std::unique_ptr<std::string>& set_stringRef(std::string const &t) {
+    __clear();
+    type_ = Type::stringRef;
+    ::new (std::addressof(value_.stringRef)) std::unique_ptr<std::string>(new std::unique_ptr<std::string>::element_type(t));
+    return value_.stringRef;
+  }
+
+  std::unique_ptr<std::string>& set_stringRef(std::string&& t) {
+    __clear();
+    type_ = Type::stringRef;
+    ::new (std::addressof(value_.stringRef)) std::unique_ptr<std::string>(new std::unique_ptr<std::string>::element_type(std::move(t)));
+    return value_.stringRef;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::string, T...>> std::unique_ptr<std::string>& set_stringRef(T&&... t) {
+    __clear();
+    type_ = Type::stringRef;
+    ::new (std::addressof(value_.stringRef)) std::unique_ptr<std::string>(new std::unique_ptr<std::string>::element_type(std::forward<T>(t)...));
+    return value_.stringRef;
+  }
+
+  int64_t const & get_intValue() const {
     assert(type_ == Type::intValue);
     return value_.intValue;
   }
 
-  const std::string& get_stringValue() const {
+  std::string const & get_stringValue() const {
     assert(type_ == Type::stringValue);
     return value_.stringValue;
   }
 
-  const std::vector<int64_t>& get_intListValue() const {
+  std::vector<int64_t> const & get_intListValue() const {
     assert(type_ == Type::intListValue);
     return value_.intListValue;
   }
 
-  const std::vector<std::string>& get_stringListValue() const {
+  std::vector<std::string> const & get_stringListValue() const {
     assert(type_ == Type::stringListValue);
     return value_.stringListValue;
   }
 
-  int64_t& mutable_intValue() {
+   ::cpp2::containerTypedef const & get_typedefValue() const {
+    assert(type_ == Type::typedefValue);
+    return value_.typedefValue;
+  }
+
+  std::unique_ptr<std::string> const & get_stringRef() const {
+    assert(type_ == Type::stringRef);
+    return value_.stringRef;
+  }
+
+  int64_t & mutable_intValue() {
     assert(type_ == Type::intValue);
     return value_.intValue;
   }
 
-  std::string& mutable_stringValue() {
+  std::string & mutable_stringValue() {
     assert(type_ == Type::stringValue);
     return value_.stringValue;
   }
 
-  std::vector<int64_t>& mutable_intListValue() {
+  std::vector<int64_t> & mutable_intListValue() {
     assert(type_ == Type::intListValue);
     return value_.intListValue;
   }
 
-  std::vector<std::string>& mutable_stringListValue() {
+  std::vector<std::string> & mutable_stringListValue() {
     assert(type_ == Type::stringListValue);
     return value_.stringListValue;
+  }
+
+   ::cpp2::containerTypedef & mutable_typedefValue() {
+    assert(type_ == Type::typedefValue);
+    return value_.typedefValue;
+  }
+
+  std::unique_ptr<std::string> & mutable_stringRef() {
+    assert(type_ == Type::stringRef);
+    return value_.stringRef;
   }
 
   int64_t move_intValue() {
@@ -304,14 +473,24 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
     return std::move(value_.stringListValue);
   }
 
+   ::cpp2::containerTypedef move_typedefValue() {
+    assert(type_ == Type::typedefValue);
+    return std::move(value_.typedefValue);
+  }
+
+  std::unique_ptr<std::string> move_stringRef() {
+    assert(type_ == Type::stringRef);
+    return std::move(value_.stringRef);
+  }
+
   Type getType() const { return type_; }
 
   template <class Protocol_>
   uint32_t read(Protocol_* iprot);
   template <class Protocol_>
-  uint32_t serializedSize(Protocol_* prot_) const;
+  uint32_t serializedSize(Protocol_ const* prot_) const;
   template <class Protocol_>
-  uint32_t serializedSizeZC(Protocol_* prot_) const;
+  uint32_t serializedSizeZC(Protocol_ const* prot_) const;
   template <class Protocol_>
   uint32_t write(Protocol_* prot_) const;
  protected:
@@ -322,9 +501,20 @@ class ComplexUnion : private boost::totally_ordered<ComplexUnion> {
 
   Type type_;
   storage_type value_;
+
+ private:
+  static void translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype);
 };
 
 void swap(ComplexUnion& a, ComplexUnion& b);
+extern template uint32_t ComplexUnion::read<>(apache::thrift::BinaryProtocolReader*);
+extern template uint32_t ComplexUnion::write<>(apache::thrift::BinaryProtocolWriter*) const;
+extern template uint32_t ComplexUnion::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+extern template uint32_t ComplexUnion::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+extern template uint32_t ComplexUnion::read<>(apache::thrift::CompactProtocolReader*);
+extern template uint32_t ComplexUnion::write<>(apache::thrift::CompactProtocolWriter*) const;
+extern template uint32_t ComplexUnion::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+extern template uint32_t ComplexUnion::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 } // cpp2
 namespace apache { namespace thrift {
@@ -337,23 +527,304 @@ template <> inline constexpr apache::thrift::protocol::TType Cpp2Ops< ::cpp2::Co
   return apache::thrift::protocol::T_STRUCT;
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::ComplexUnion>::write(Protocol* proto, const  ::cpp2::ComplexUnion* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::ComplexUnion>::write(Protocol* proto,  ::cpp2::ComplexUnion const* obj) {
   return obj->write(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::ComplexUnion>::read(Protocol* proto,   ::cpp2::ComplexUnion* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::ComplexUnion>::read(Protocol* proto,  ::cpp2::ComplexUnion* obj) {
   return obj->read(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::ComplexUnion>::serializedSize(Protocol* proto, const  ::cpp2::ComplexUnion* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::ComplexUnion>::serializedSize(Protocol const* proto,  ::cpp2::ComplexUnion const* obj) {
   return obj->serializedSize(proto);
 }
 
-template <> template <class Protocol> inline uint32_t Cpp2Ops< ::cpp2::ComplexUnion>::serializedSizeZC(Protocol* proto, const  ::cpp2::ComplexUnion* obj) {
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::ComplexUnion>::serializedSizeZC(Protocol const* proto,  ::cpp2::ComplexUnion const* obj) {
   return obj->serializedSizeZC(proto);
 }
 
 }} // apache::thrift
 namespace cpp2 {
+class FinalComplexUnion : private apache::thrift::detail::st::ComparisonOperators<FinalComplexUnion> {
+ public:
+  enum Type {
+    __EMPTY__ = 0,
+    thingOne = 1,
+    thingTwo = 2,
+  } ;
+
+  FinalComplexUnion() :
+      type_(Type::__EMPTY__) {}
+
+  FinalComplexUnion(FinalComplexUnion&& rhs) :
+      type_(Type::__EMPTY__) {
+    if (this == &rhs) {return; }
+    if (rhs.type_ == Type::__EMPTY__) { return; }
+    switch(rhs.type_) {
+      case Type::thingOne:
+      {
+        set_thingOne(std::move(rhs.value_.thingOne));
+        break;
+      }
+      case Type::thingTwo:
+      {
+        set_thingTwo(std::move(rhs.value_.thingTwo));
+        break;
+      }
+      default:
+      {
+        assert(false);
+        break;
+      }
+    }
+    rhs.__clear();
+  }
+
+  FinalComplexUnion(const FinalComplexUnion& rhs) :
+      type_(Type::__EMPTY__) {
+    if (this == &rhs) {return; }
+    if (rhs.type_ == Type::__EMPTY__) { return; }
+    switch(rhs.type_) {
+      case Type::thingOne:
+      {
+        set_thingOne(rhs.value_.thingOne);
+        break;
+      }
+      case Type::thingTwo:
+      {
+        set_thingTwo(rhs.value_.thingTwo);
+        break;
+      }
+      default:
+      {
+        assert(false);
+        break;
+      }
+    }
+  }
+
+  FinalComplexUnion& operator=(FinalComplexUnion&& rhs) {
+    if (this == &rhs) {return *this; }
+    __clear();
+    if (rhs.type_ == Type::__EMPTY__) { return *this; }
+    switch(rhs.type_) {
+      case Type::thingOne:
+      {
+        set_thingOne(std::move(rhs.value_.thingOne));
+        break;
+      }
+      case Type::thingTwo:
+      {
+        set_thingTwo(std::move(rhs.value_.thingTwo));
+        break;
+      }
+      default:
+      {
+        assert(false);
+        break;
+      }
+    }
+    rhs.__clear();
+    return *this;
+  }
+
+  FinalComplexUnion& operator=(const FinalComplexUnion& rhs) {
+    if (this == &rhs) {return *this; }
+    __clear();
+    if (rhs.type_ == Type::__EMPTY__) { return *this; }
+    switch(rhs.type_) {
+      case Type::thingOne:
+      {
+        set_thingOne(rhs.value_.thingOne);
+        break;
+      }
+      case Type::thingTwo:
+      {
+        set_thingTwo(rhs.value_.thingTwo);
+        break;
+      }
+      default:
+      {
+        assert(false);
+        break;
+      }
+    }
+    return *this;
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  FinalComplexUnion(::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_thingOne(arg.move());
+  }
+  template <typename T__ThriftWrappedArgument__Ctor>
+  FinalComplexUnion(::apache::thrift::detail::argument_wrapper<2, T__ThriftWrappedArgument__Ctor> arg):
+    type_(Type::__EMPTY__)
+  {
+    set_thingTwo(arg.move());
+  }
+  void __clear();
+
+  ~FinalComplexUnion() {
+    __clear();
+  }
+  union storage_type {
+    std::string thingOne;
+    std::string thingTwo;
+
+    storage_type() {}
+    ~storage_type() {}
+  } ;
+  bool operator==(const FinalComplexUnion& rhs) const;
+
+  bool operator < (const FinalComplexUnion& rhs) const {
+    if (type_ != rhs.type_) { return type_ < rhs.type_; }
+    switch(type_) {
+      case Type::thingOne:
+      {
+        return value_.thingOne < rhs.value_.thingOne;
+      }
+      case Type::thingTwo:
+      {
+        return value_.thingTwo < rhs.value_.thingTwo;
+      }
+      default:
+      {
+        return false;
+      }
+    }
+  }
+
+  std::string& set_thingOne(std::string const &t) {
+    __clear();
+    type_ = Type::thingOne;
+    ::new (std::addressof(value_.thingOne)) std::string(t);
+    return value_.thingOne;
+  }
+
+  std::string& set_thingOne(std::string&& t) {
+    __clear();
+    type_ = Type::thingOne;
+    ::new (std::addressof(value_.thingOne)) std::string(std::move(t));
+    return value_.thingOne;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::string, T...>> std::string& set_thingOne(T&&... t) {
+    __clear();
+    type_ = Type::thingOne;
+    ::new (std::addressof(value_.thingOne)) std::string(std::forward<T>(t)...);
+    return value_.thingOne;
+  }
+
+  std::string& set_thingTwo(std::string const &t) {
+    __clear();
+    type_ = Type::thingTwo;
+    ::new (std::addressof(value_.thingTwo)) std::string(t);
+    return value_.thingTwo;
+  }
+
+  std::string& set_thingTwo(std::string&& t) {
+    __clear();
+    type_ = Type::thingTwo;
+    ::new (std::addressof(value_.thingTwo)) std::string(std::move(t));
+    return value_.thingTwo;
+  }
+
+  template<typename... T, typename = ::apache::thrift::safe_overload_t<std::string, T...>> std::string& set_thingTwo(T&&... t) {
+    __clear();
+    type_ = Type::thingTwo;
+    ::new (std::addressof(value_.thingTwo)) std::string(std::forward<T>(t)...);
+    return value_.thingTwo;
+  }
+
+  std::string const & get_thingOne() const {
+    assert(type_ == Type::thingOne);
+    return value_.thingOne;
+  }
+
+  std::string const & get_thingTwo() const {
+    assert(type_ == Type::thingTwo);
+    return value_.thingTwo;
+  }
+
+  std::string & mutable_thingOne() {
+    assert(type_ == Type::thingOne);
+    return value_.thingOne;
+  }
+
+  std::string & mutable_thingTwo() {
+    assert(type_ == Type::thingTwo);
+    return value_.thingTwo;
+  }
+
+  std::string move_thingOne() {
+    assert(type_ == Type::thingOne);
+    return std::move(value_.thingOne);
+  }
+
+  std::string move_thingTwo() {
+    assert(type_ == Type::thingTwo);
+    return std::move(value_.thingTwo);
+  }
+
+  Type getType() const { return type_; }
+
+  template <class Protocol_>
+  uint32_t read(Protocol_* iprot);
+  template <class Protocol_>
+  uint32_t serializedSize(Protocol_ const* prot_) const;
+  template <class Protocol_>
+  uint32_t serializedSizeZC(Protocol_ const* prot_) const;
+  template <class Protocol_>
+  uint32_t write(Protocol_* prot_) const;
+ protected:
+  template <class T>
+  void destruct(T &val) {
+    (&val)->~T();
+  }
+
+  Type type_;
+  storage_type value_;
+
+ private:
+  static void translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype);
+};
+
+void swap(FinalComplexUnion& a, FinalComplexUnion& b);
+extern template uint32_t FinalComplexUnion::read<>(apache::thrift::BinaryProtocolReader*);
+extern template uint32_t FinalComplexUnion::write<>(apache::thrift::BinaryProtocolWriter*) const;
+extern template uint32_t FinalComplexUnion::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+extern template uint32_t FinalComplexUnion::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+extern template uint32_t FinalComplexUnion::read<>(apache::thrift::CompactProtocolReader*);
+extern template uint32_t FinalComplexUnion::write<>(apache::thrift::CompactProtocolWriter*) const;
+extern template uint32_t FinalComplexUnion::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+extern template uint32_t FinalComplexUnion::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 } // cpp2
+namespace apache { namespace thrift {
+
+template <> inline void Cpp2Ops< ::cpp2::FinalComplexUnion>::clear( ::cpp2::FinalComplexUnion* obj) {
+  return obj->__clear();
+}
+
+template <> inline constexpr apache::thrift::protocol::TType Cpp2Ops< ::cpp2::FinalComplexUnion>::thriftType() {
+  return apache::thrift::protocol::T_STRUCT;
+}
+
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::FinalComplexUnion>::write(Protocol* proto,  ::cpp2::FinalComplexUnion const* obj) {
+  return obj->write(proto);
+}
+
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::FinalComplexUnion>::read(Protocol* proto,  ::cpp2::FinalComplexUnion* obj) {
+  return obj->read(proto);
+}
+
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::FinalComplexUnion>::serializedSize(Protocol const* proto,  ::cpp2::FinalComplexUnion const* obj) {
+  return obj->serializedSize(proto);
+}
+
+template <> template <class Protocol> uint32_t Cpp2Ops< ::cpp2::FinalComplexUnion>::serializedSizeZC(Protocol const* proto,  ::cpp2::FinalComplexUnion const* obj) {
+  return obj->serializedSizeZC(proto);
+}
+
+}} // apache::thrift

@@ -32,9 +32,9 @@ namespace apache { namespace thrift { namespace util {
 const size_t TEventServerCreator::DEFAULT_NUM_IO_THREADS;
 const size_t TEventServerCreator::DEFAULT_NUM_TASK_THREADS;
 const uint32_t TEventServerCreator::DEFAULT_CONN_POOL_SIZE;
-const int TEventServerCreator::DEFAULT_RECV_TIMEOUT;
+constexpr std::chrono::milliseconds TEventServerCreator::DEFAULT_RECV_TIMEOUT;
 const size_t TEventServerCreator::DEFAULT_MAX_FRAME_SIZE;
-const int64_t TEventServerCreator::DEFAULT_WORKER_LATENCY;
+constexpr std::chrono::milliseconds TEventServerCreator::DEFAULT_WORKER_LATENCY;
 const size_t TEventServerCreator::DEFAULT_WRITE_BUFFER_SIZE;
 const size_t TEventServerCreator::DEFAULT_READ_BUFFER_SIZE;
 const size_t TEventServerCreator::DEFAULT_IDLE_READ_BUF_LIMIT;

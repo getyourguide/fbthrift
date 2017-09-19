@@ -4,40 +4,44 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "NestedContainers.h"
 
-#include "NestedContainers.tcc"
+#include "src/gen-cpp2/NestedContainers.h"
+#include "src/gen-cpp2/NestedContainers.tcc"
 
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
-namespace cpp2 {
 
+namespace cpp2 {
 const char* NestedContainersAsyncClient::getServiceName() {
   return "NestedContainers";
 }
 
 void NestedContainersAsyncClient::mapList(std::unique_ptr<apache::thrift::RequestCallback> callback, const std::map<int32_t, std::vector<int32_t>>& foo) {
   ::apache::thrift::RpcOptions rpcOptions;
-  mapList(rpcOptions, std::move(callback), foo);
+  mapListImpl(false, rpcOptions, std::move(callback), foo);
 }
 
 void NestedContainersAsyncClient::mapList(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, const std::map<int32_t, std::vector<int32_t>>& foo) {
+  mapListImpl(false, rpcOptions, std::move(callback), foo);
+}
+
+void NestedContainersAsyncClient::mapListImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, const std::map<int32_t, std::vector<int32_t>>& foo) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      mapListT(&writer, rpcOptions, std::move(callback), foo);
+      mapListT(&writer, useSync, rpcOptions, std::move(callback), foo);
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      mapListT(&writer, rpcOptions, std::move(callback), foo);
+      mapListT(&writer, useSync, rpcOptions, std::move(callback), foo);
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -49,9 +53,8 @@ void NestedContainersAsyncClient::sync_mapList(const std::map<int32_t, std::vect
 
 void NestedContainersAsyncClient::sync_mapList(apache::thrift::RpcOptions& rpcOptions, const std::map<int32_t, std::vector<int32_t>>& foo) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback0 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  mapList(rpcOptions, std::move(callback0), foo);
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  mapListImpl(true, rpcOptions, std::move(callback), foo);
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -59,7 +62,7 @@ void NestedContainersAsyncClient::sync_mapList(apache::thrift::RpcOptions& rpcOp
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   recv_mapList(_returnState);
 }
@@ -70,29 +73,28 @@ folly::Future<folly::Unit> NestedContainersAsyncClient::future_mapList(const std
 }
 
 folly::Future<folly::Unit> NestedContainersAsyncClient::future_mapList(apache::thrift::RpcOptions& rpcOptions, const std::map<int32_t, std::vector<int32_t>>& foo) {
-  folly::Promise<folly::Unit> promise1;
-  auto future2 = promise1.getFuture();
-  auto callback3 = folly::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(promise1), recv_wrapped_mapList, channel_);
-  mapList(rpcOptions, std::move(callback3), foo);
-  return future2;
+  folly::Promise<folly::Unit> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_mapList, channel_);
+  mapList(rpcOptions, std::move(callback), foo);
+  return _future;
 }
 
 folly::Future<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> NestedContainersAsyncClient::header_future_mapList(apache::thrift::RpcOptions& rpcOptions, const std::map<int32_t, std::vector<int32_t>>& foo) {
-  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> promise4;
-  auto future5 = promise4.getFuture();
-  auto callback6 = folly::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(promise4), recv_wrapped_mapList, channel_);
-  mapList(rpcOptions, std::move(callback6), foo);
-  return future5;
+  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_mapList, channel_);
+  mapList(rpcOptions, std::move(callback), foo);
+  return _future;
 }
 
-void NestedContainersAsyncClient::mapList(std::function<void (::apache::thrift::ClientReceiveState&&)> callback, const std::map<int32_t, std::vector<int32_t>>& foo) {
-  mapList(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)),foo);
+void NestedContainersAsyncClient::mapList(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback, const std::map<int32_t, std::vector<int32_t>>& foo) {
+  mapList(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)), foo);
 }
 
 folly::exception_wrapper NestedContainersAsyncClient::recv_wrapped_mapList(::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -118,7 +120,7 @@ folly::exception_wrapper NestedContainersAsyncClient::recv_wrapped_mapList(::apa
 void NestedContainersAsyncClient::recv_mapList(::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_mapList(state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 
@@ -132,26 +134,30 @@ folly::exception_wrapper NestedContainersAsyncClient::recv_instance_wrapped_mapL
 
 void NestedContainersAsyncClient::mapSet(std::unique_ptr<apache::thrift::RequestCallback> callback, const std::map<int32_t, std::set<int32_t>>& foo) {
   ::apache::thrift::RpcOptions rpcOptions;
-  mapSet(rpcOptions, std::move(callback), foo);
+  mapSetImpl(false, rpcOptions, std::move(callback), foo);
 }
 
 void NestedContainersAsyncClient::mapSet(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, const std::map<int32_t, std::set<int32_t>>& foo) {
+  mapSetImpl(false, rpcOptions, std::move(callback), foo);
+}
+
+void NestedContainersAsyncClient::mapSetImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, const std::map<int32_t, std::set<int32_t>>& foo) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      mapSetT(&writer, rpcOptions, std::move(callback), foo);
+      mapSetT(&writer, useSync, rpcOptions, std::move(callback), foo);
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      mapSetT(&writer, rpcOptions, std::move(callback), foo);
+      mapSetT(&writer, useSync, rpcOptions, std::move(callback), foo);
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -163,9 +169,8 @@ void NestedContainersAsyncClient::sync_mapSet(const std::map<int32_t, std::set<i
 
 void NestedContainersAsyncClient::sync_mapSet(apache::thrift::RpcOptions& rpcOptions, const std::map<int32_t, std::set<int32_t>>& foo) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback7 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  mapSet(rpcOptions, std::move(callback7), foo);
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  mapSetImpl(true, rpcOptions, std::move(callback), foo);
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -173,7 +178,7 @@ void NestedContainersAsyncClient::sync_mapSet(apache::thrift::RpcOptions& rpcOpt
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   recv_mapSet(_returnState);
 }
@@ -184,29 +189,28 @@ folly::Future<folly::Unit> NestedContainersAsyncClient::future_mapSet(const std:
 }
 
 folly::Future<folly::Unit> NestedContainersAsyncClient::future_mapSet(apache::thrift::RpcOptions& rpcOptions, const std::map<int32_t, std::set<int32_t>>& foo) {
-  folly::Promise<folly::Unit> promise8;
-  auto future9 = promise8.getFuture();
-  auto callback10 = folly::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(promise8), recv_wrapped_mapSet, channel_);
-  mapSet(rpcOptions, std::move(callback10), foo);
-  return future9;
+  folly::Promise<folly::Unit> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_mapSet, channel_);
+  mapSet(rpcOptions, std::move(callback), foo);
+  return _future;
 }
 
 folly::Future<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> NestedContainersAsyncClient::header_future_mapSet(apache::thrift::RpcOptions& rpcOptions, const std::map<int32_t, std::set<int32_t>>& foo) {
-  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> promise11;
-  auto future12 = promise11.getFuture();
-  auto callback13 = folly::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(promise11), recv_wrapped_mapSet, channel_);
-  mapSet(rpcOptions, std::move(callback13), foo);
-  return future12;
+  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_mapSet, channel_);
+  mapSet(rpcOptions, std::move(callback), foo);
+  return _future;
 }
 
-void NestedContainersAsyncClient::mapSet(std::function<void (::apache::thrift::ClientReceiveState&&)> callback, const std::map<int32_t, std::set<int32_t>>& foo) {
-  mapSet(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)),foo);
+void NestedContainersAsyncClient::mapSet(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback, const std::map<int32_t, std::set<int32_t>>& foo) {
+  mapSet(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)), foo);
 }
 
 folly::exception_wrapper NestedContainersAsyncClient::recv_wrapped_mapSet(::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -232,7 +236,7 @@ folly::exception_wrapper NestedContainersAsyncClient::recv_wrapped_mapSet(::apac
 void NestedContainersAsyncClient::recv_mapSet(::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_mapSet(state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 
@@ -246,26 +250,30 @@ folly::exception_wrapper NestedContainersAsyncClient::recv_instance_wrapped_mapS
 
 void NestedContainersAsyncClient::listMap(std::unique_ptr<apache::thrift::RequestCallback> callback, const std::vector<std::map<int32_t, int32_t>>& foo) {
   ::apache::thrift::RpcOptions rpcOptions;
-  listMap(rpcOptions, std::move(callback), foo);
+  listMapImpl(false, rpcOptions, std::move(callback), foo);
 }
 
 void NestedContainersAsyncClient::listMap(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, const std::vector<std::map<int32_t, int32_t>>& foo) {
+  listMapImpl(false, rpcOptions, std::move(callback), foo);
+}
+
+void NestedContainersAsyncClient::listMapImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, const std::vector<std::map<int32_t, int32_t>>& foo) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      listMapT(&writer, rpcOptions, std::move(callback), foo);
+      listMapT(&writer, useSync, rpcOptions, std::move(callback), foo);
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      listMapT(&writer, rpcOptions, std::move(callback), foo);
+      listMapT(&writer, useSync, rpcOptions, std::move(callback), foo);
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -277,9 +285,8 @@ void NestedContainersAsyncClient::sync_listMap(const std::vector<std::map<int32_
 
 void NestedContainersAsyncClient::sync_listMap(apache::thrift::RpcOptions& rpcOptions, const std::vector<std::map<int32_t, int32_t>>& foo) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback14 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  listMap(rpcOptions, std::move(callback14), foo);
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  listMapImpl(true, rpcOptions, std::move(callback), foo);
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -287,7 +294,7 @@ void NestedContainersAsyncClient::sync_listMap(apache::thrift::RpcOptions& rpcOp
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   recv_listMap(_returnState);
 }
@@ -298,29 +305,28 @@ folly::Future<folly::Unit> NestedContainersAsyncClient::future_listMap(const std
 }
 
 folly::Future<folly::Unit> NestedContainersAsyncClient::future_listMap(apache::thrift::RpcOptions& rpcOptions, const std::vector<std::map<int32_t, int32_t>>& foo) {
-  folly::Promise<folly::Unit> promise15;
-  auto future16 = promise15.getFuture();
-  auto callback17 = folly::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(promise15), recv_wrapped_listMap, channel_);
-  listMap(rpcOptions, std::move(callback17), foo);
-  return future16;
+  folly::Promise<folly::Unit> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_listMap, channel_);
+  listMap(rpcOptions, std::move(callback), foo);
+  return _future;
 }
 
 folly::Future<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> NestedContainersAsyncClient::header_future_listMap(apache::thrift::RpcOptions& rpcOptions, const std::vector<std::map<int32_t, int32_t>>& foo) {
-  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> promise18;
-  auto future19 = promise18.getFuture();
-  auto callback20 = folly::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(promise18), recv_wrapped_listMap, channel_);
-  listMap(rpcOptions, std::move(callback20), foo);
-  return future19;
+  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_listMap, channel_);
+  listMap(rpcOptions, std::move(callback), foo);
+  return _future;
 }
 
-void NestedContainersAsyncClient::listMap(std::function<void (::apache::thrift::ClientReceiveState&&)> callback, const std::vector<std::map<int32_t, int32_t>>& foo) {
-  listMap(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)),foo);
+void NestedContainersAsyncClient::listMap(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback, const std::vector<std::map<int32_t, int32_t>>& foo) {
+  listMap(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)), foo);
 }
 
 folly::exception_wrapper NestedContainersAsyncClient::recv_wrapped_listMap(::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -346,7 +352,7 @@ folly::exception_wrapper NestedContainersAsyncClient::recv_wrapped_listMap(::apa
 void NestedContainersAsyncClient::recv_listMap(::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_listMap(state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 
@@ -360,26 +366,30 @@ folly::exception_wrapper NestedContainersAsyncClient::recv_instance_wrapped_list
 
 void NestedContainersAsyncClient::listSet(std::unique_ptr<apache::thrift::RequestCallback> callback, const std::vector<std::set<int32_t>>& foo) {
   ::apache::thrift::RpcOptions rpcOptions;
-  listSet(rpcOptions, std::move(callback), foo);
+  listSetImpl(false, rpcOptions, std::move(callback), foo);
 }
 
 void NestedContainersAsyncClient::listSet(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, const std::vector<std::set<int32_t>>& foo) {
+  listSetImpl(false, rpcOptions, std::move(callback), foo);
+}
+
+void NestedContainersAsyncClient::listSetImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, const std::vector<std::set<int32_t>>& foo) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      listSetT(&writer, rpcOptions, std::move(callback), foo);
+      listSetT(&writer, useSync, rpcOptions, std::move(callback), foo);
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      listSetT(&writer, rpcOptions, std::move(callback), foo);
+      listSetT(&writer, useSync, rpcOptions, std::move(callback), foo);
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -391,9 +401,8 @@ void NestedContainersAsyncClient::sync_listSet(const std::vector<std::set<int32_
 
 void NestedContainersAsyncClient::sync_listSet(apache::thrift::RpcOptions& rpcOptions, const std::vector<std::set<int32_t>>& foo) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback21 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  listSet(rpcOptions, std::move(callback21), foo);
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  listSetImpl(true, rpcOptions, std::move(callback), foo);
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -401,7 +410,7 @@ void NestedContainersAsyncClient::sync_listSet(apache::thrift::RpcOptions& rpcOp
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   recv_listSet(_returnState);
 }
@@ -412,29 +421,28 @@ folly::Future<folly::Unit> NestedContainersAsyncClient::future_listSet(const std
 }
 
 folly::Future<folly::Unit> NestedContainersAsyncClient::future_listSet(apache::thrift::RpcOptions& rpcOptions, const std::vector<std::set<int32_t>>& foo) {
-  folly::Promise<folly::Unit> promise22;
-  auto future23 = promise22.getFuture();
-  auto callback24 = folly::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(promise22), recv_wrapped_listSet, channel_);
-  listSet(rpcOptions, std::move(callback24), foo);
-  return future23;
+  folly::Promise<folly::Unit> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_listSet, channel_);
+  listSet(rpcOptions, std::move(callback), foo);
+  return _future;
 }
 
 folly::Future<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> NestedContainersAsyncClient::header_future_listSet(apache::thrift::RpcOptions& rpcOptions, const std::vector<std::set<int32_t>>& foo) {
-  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> promise25;
-  auto future26 = promise25.getFuture();
-  auto callback27 = folly::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(promise25), recv_wrapped_listSet, channel_);
-  listSet(rpcOptions, std::move(callback27), foo);
-  return future26;
+  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_listSet, channel_);
+  listSet(rpcOptions, std::move(callback), foo);
+  return _future;
 }
 
-void NestedContainersAsyncClient::listSet(std::function<void (::apache::thrift::ClientReceiveState&&)> callback, const std::vector<std::set<int32_t>>& foo) {
-  listSet(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)),foo);
+void NestedContainersAsyncClient::listSet(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback, const std::vector<std::set<int32_t>>& foo) {
+  listSet(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)), foo);
 }
 
 folly::exception_wrapper NestedContainersAsyncClient::recv_wrapped_listSet(::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -460,7 +468,7 @@ folly::exception_wrapper NestedContainersAsyncClient::recv_wrapped_listSet(::apa
 void NestedContainersAsyncClient::recv_listSet(::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_listSet(state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 
@@ -474,26 +482,30 @@ folly::exception_wrapper NestedContainersAsyncClient::recv_instance_wrapped_list
 
 void NestedContainersAsyncClient::turtles(std::unique_ptr<apache::thrift::RequestCallback> callback, const std::vector<std::vector<std::map<int32_t, std::map<int32_t, std::set<int32_t>>>>>& foo) {
   ::apache::thrift::RpcOptions rpcOptions;
-  turtles(rpcOptions, std::move(callback), foo);
+  turtlesImpl(false, rpcOptions, std::move(callback), foo);
 }
 
 void NestedContainersAsyncClient::turtles(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, const std::vector<std::vector<std::map<int32_t, std::map<int32_t, std::set<int32_t>>>>>& foo) {
+  turtlesImpl(false, rpcOptions, std::move(callback), foo);
+}
+
+void NestedContainersAsyncClient::turtlesImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, const std::vector<std::vector<std::map<int32_t, std::map<int32_t, std::set<int32_t>>>>>& foo) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      turtlesT(&writer, rpcOptions, std::move(callback), foo);
+      turtlesT(&writer, useSync, rpcOptions, std::move(callback), foo);
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      turtlesT(&writer, rpcOptions, std::move(callback), foo);
+      turtlesT(&writer, useSync, rpcOptions, std::move(callback), foo);
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -505,9 +517,8 @@ void NestedContainersAsyncClient::sync_turtles(const std::vector<std::vector<std
 
 void NestedContainersAsyncClient::sync_turtles(apache::thrift::RpcOptions& rpcOptions, const std::vector<std::vector<std::map<int32_t, std::map<int32_t, std::set<int32_t>>>>>& foo) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback28 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  turtles(rpcOptions, std::move(callback28), foo);
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  turtlesImpl(true, rpcOptions, std::move(callback), foo);
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -515,7 +526,7 @@ void NestedContainersAsyncClient::sync_turtles(apache::thrift::RpcOptions& rpcOp
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   recv_turtles(_returnState);
 }
@@ -526,29 +537,28 @@ folly::Future<folly::Unit> NestedContainersAsyncClient::future_turtles(const std
 }
 
 folly::Future<folly::Unit> NestedContainersAsyncClient::future_turtles(apache::thrift::RpcOptions& rpcOptions, const std::vector<std::vector<std::map<int32_t, std::map<int32_t, std::set<int32_t>>>>>& foo) {
-  folly::Promise<folly::Unit> promise29;
-  auto future30 = promise29.getFuture();
-  auto callback31 = folly::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(promise29), recv_wrapped_turtles, channel_);
-  turtles(rpcOptions, std::move(callback31), foo);
-  return future30;
+  folly::Promise<folly::Unit> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_turtles, channel_);
+  turtles(rpcOptions, std::move(callback), foo);
+  return _future;
 }
 
 folly::Future<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> NestedContainersAsyncClient::header_future_turtles(apache::thrift::RpcOptions& rpcOptions, const std::vector<std::vector<std::map<int32_t, std::map<int32_t, std::set<int32_t>>>>>& foo) {
-  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> promise32;
-  auto future33 = promise32.getFuture();
-  auto callback34 = folly::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(promise32), recv_wrapped_turtles, channel_);
-  turtles(rpcOptions, std::move(callback34), foo);
-  return future33;
+  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_turtles, channel_);
+  turtles(rpcOptions, std::move(callback), foo);
+  return _future;
 }
 
-void NestedContainersAsyncClient::turtles(std::function<void (::apache::thrift::ClientReceiveState&&)> callback, const std::vector<std::vector<std::map<int32_t, std::map<int32_t, std::set<int32_t>>>>>& foo) {
-  turtles(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)),foo);
+void NestedContainersAsyncClient::turtles(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback, const std::vector<std::vector<std::map<int32_t, std::map<int32_t, std::set<int32_t>>>>>& foo) {
+  turtles(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)), foo);
 }
 
 folly::exception_wrapper NestedContainersAsyncClient::recv_wrapped_turtles(::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -574,7 +584,7 @@ folly::exception_wrapper NestedContainersAsyncClient::recv_wrapped_turtles(::apa
 void NestedContainersAsyncClient::recv_turtles(::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_turtles(state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 

@@ -22,18 +22,13 @@
 #include <vector>
 #include <folly/ScopeGuard.h>
 #include <folly/String.h>
+#include <folly/portability/GFlags.h>
 
 #include <thrift/lib/cpp/util/kerberos/FBKrb5GetCreds.h>
 
-#ifndef NO_LIB_GFLAGS
 DEFINE_string (thrift_krb5_user_instances, "admin,root,sudo",
        "List of possible instances(second component) of "
        "user kerberos credentials. Separated by ','. ");
-#else
-namespace apache { namespace thrift { namespace krb5 {
-  const std::string FLAGS_thrift_krb5_user_instances = "admin,root,sudo";
-}}} // namespace apache::thrift::krb5
-#endif
 static const int kKeytabNameMaxLength = 512;
 
 extern "C" {
@@ -240,7 +235,7 @@ std::ostream& operator<<(std::ostream& os, const Krb5Principal& obj) {
 
 Krb5Credentials::Krb5Credentials(krb5_creds&& creds)
   : context_(true)
-  , creds_(folly::make_unique<krb5_creds>()) {
+  , creds_(std::make_unique<krb5_creds>()) {
   // struct assignment.  About 16 words.
   *creds_ = creds;
   // Zero the struct we copied from.  This can be safely passed to
@@ -342,8 +337,7 @@ void Krb5CCache::getCacheTypeAndName(std::string& cacheType,
   cacheName = std::string(krb5_cc_get_name(ctx, ccache_));
 }
 
-std::pair<uint64_t, uint64_t> Krb5CCache::getLifetime(
-    krb5_principal principal) const {
+Krb5Lifetime Krb5CCache::getLifetime(krb5_principal principal) const {
   const std::string client_realm = getClientPrincipal().getRealm();
   std::string princ_realm;
   krb5_context ctx = context_.get();
@@ -611,9 +605,9 @@ Krb5Credentials Krb5Keytab::getInitCreds(
 }
 
 std::unique_ptr<Krb5Principal> Krb5Keytab::getFirstPrincipalInKeytab() {
-  for (auto& ktentry : *this) {
-    return folly::make_unique<Krb5Principal>(
-       context_, std::move(ktentry.principal));
+  auto it = begin();
+  if (it != end()) {
+    return std::make_unique<Krb5Principal>(context_, std::move(it->principal));
   }
   return nullptr;
 }

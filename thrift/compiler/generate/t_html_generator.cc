@@ -27,6 +27,7 @@
 #include <sys/stat.h>
 #include <sstream>
 #include <thrift/compiler/generate/t_generator.h>
+#include <thrift/compiler/generate/t_concat_generator.h>
 #include <thrift/compiler/platform.h>
 using namespace std;
 
@@ -36,13 +37,13 @@ using namespace std;
  *
  * mostly copy/pasting/tweaking from mcslee's work.
  */
-class t_html_generator : public t_generator {
+class t_html_generator : public t_concat_generator {
  public:
   t_html_generator(
       t_program* program,
-      const std::map<std::string, std::string>& parsed_options,
-      const std::string& option_string)
-    : t_generator(program)
+      const std::map<std::string, std::string>& /* parsed_options */,
+      const std::string& /* option_string */)
+    : t_concat_generator(program)
   {
     out_dir_base_ = "gen-html";
   }
@@ -50,8 +51,9 @@ class t_html_generator : public t_generator {
   void generate_program();
   void generate_program_toc();
   void generate_program_toc_row(t_program* tprog);
-  void generate_program_toc_rows(t_program* tprog,
-				 std::vector<t_program*>& finished);
+  void generate_program_toc_rows(
+      t_program* tprog,
+      std::vector<t_program*>& finished);
   void generate_index();
   void generate_css();
 
@@ -68,7 +70,7 @@ class t_html_generator : public t_generator {
 
   void print_doc        (t_doc* tdoc);
   int  print_type       (t_type* ttype);
-  void print_const_value(t_const_value* tvalue);
+  void print_const_value(const t_const_value* tvalue);
 
   std::ofstream f_out_;
 };
@@ -78,7 +80,7 @@ class t_html_generator : public t_generator {
  */
 void t_html_generator::generate_program_toc() {
   f_out_ << "<table><tr><th>Module</th><th>Services</th>"
-	 << "<th>Data types</th><th>Constants</th></tr>" << endl;
+         << "<th>Data types</th><th>Constants</th></tr>" << endl;
   generate_program_toc_row(program_);
   f_out_ << "</table>" << endl;
 }
@@ -89,8 +91,9 @@ void t_html_generator::generate_program_toc() {
  * for each discovered program exactly once by maintaining the list of
  * completed rows in 'finished'
  */
-void t_html_generator::generate_program_toc_rows(t_program* tprog,
-				 std::vector<t_program*>& finished) {
+void t_html_generator::generate_program_toc_rows(
+    t_program* tprog,
+    std::vector<t_program*>& finished) {
   for (vector<t_program*>::iterator iter = finished.begin();
        iter != finished.end(); iter++) {
     if (tprog->get_path() == (*iter)->get_path()) {
@@ -118,7 +121,7 @@ void t_html_generator::generate_program_toc_row(t_program* tprog) {
     for (sv_iter = services.begin(); sv_iter != services.end(); ++sv_iter) {
       string name = get_service_name(*sv_iter);
       f_out_ << "<a href=\"" << fname << "#Svc_" << name << "\">" << name
-	     << "</a><br/>" << endl;
+             << "</a><br/>" << endl;
       f_out_ << "<ul>" << endl;
       map<string,string> fn_html;
       vector<t_function*> functions = (*sv_iter)->get_functions();
@@ -203,7 +206,7 @@ void t_html_generator::generate_program_toc_row(t_program* tprog) {
  */
 void t_html_generator::generate_program() {
   // Make output directory
-  MKDIR(get_out_dir().c_str());
+  make_dir(get_out_dir().c_str());
   string fname = get_out_dir() + program_->get_name() + ".html";
   f_out_.open(fname.c_str());
   record_genfile(fname);
@@ -402,7 +405,7 @@ int t_html_generator::print_type(t_type* ttype) {
 /**
  * Prints out an HTML representation of the provided constant value
  */
-void t_html_generator::print_const_value(t_const_value* tvalue) {
+void t_html_generator::print_const_value(const t_const_value* tvalue) {
   bool first = true;
   switch (tvalue->get_type()) {
   case t_const_value::CV_INTEGER:
@@ -543,7 +546,7 @@ void t_html_generator::generate_struct(t_struct* tstruct) {
       f_out_ << "no";
     }
     f_out_ << "</td><td>";
-    t_const_value* default_val = (*mem_iter)->get_value();
+    const t_const_value* default_val = (*mem_iter)->get_value();
     if (default_val != nullptr) {
       print_const_value(default_val);
     }

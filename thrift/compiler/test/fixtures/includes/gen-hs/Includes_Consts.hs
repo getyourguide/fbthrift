@@ -18,7 +18,8 @@ import Prelude ( Bool(..), Enum, Float, IO, Double, String, Maybe(..),
                  Eq, Show, Ord,
                  concat, error, fromIntegral, fromEnum, length, map,
                  maybe, not, null, otherwise, return, show, toEnum,
-                 enumFromTo, Bounded, minBound, maxBound, seq,
+                 enumFromTo, Bounded, minBound, maxBound, seq, succ,
+                 pred, enumFrom, enumFromThen, enumFromThenTo,
                  (.), (&&), (||), (==), (++), ($), (-), (>>=), (>>))
 
 import qualified Control.Applicative as Applicative (ZipList(..))
@@ -30,6 +31,7 @@ import qualified Data.ByteString.Lazy as BS
 import Data.Functor ( (<$>) )
 import qualified Data.Hashable as Hashable
 import qualified Data.Int as Int
+import Data.List
 import qualified Data.Maybe as Maybe (catMaybes)
 import qualified Data.Text.Lazy.Encoding as Encoding ( decodeUtf8, encodeUtf8 )
 import qualified Data.Text.Lazy as LT
@@ -45,5 +47,13 @@ import qualified Thrift.Types as Types
 import qualified Thrift.Serializable as Serializable
 import qualified Thrift.Arbitraries as Arbitraries
 
+import qualified Transitive_Types as Transitive_Types
+
 
 import qualified Includes_Types
+exampleIncluded :: Includes_Types.Included
+exampleIncluded = Includes_Types.default_Included{Includes_Types.included_MyIntField = 2, Includes_Types.included_MyTransitiveField = Transitive_Types.default_Foo{Transitive_Types.foo_a = 2}}
+
+includedConstant :: Int.Int64
+includedConstant = 42
+

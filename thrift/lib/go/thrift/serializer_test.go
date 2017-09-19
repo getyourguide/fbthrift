@@ -29,7 +29,7 @@ type ProtocolFactory interface {
 	GetProtocol(t TTransport) TProtocol
 }
 
-func compareStructs(m, m1 TestStruct) (bool, error) {
+func compareStructs(m, m1 MyTestStruct) (bool, error) {
 	switch {
 	case m.On != m1.On:
 		return false, errors.New("Boolean not equal")
@@ -43,6 +43,8 @@ func compareStructs(m, m1 TestStruct) (bool, error) {
 		return false, errors.New("Int64 not equal")
 	case m.D != m1.D:
 		return false, errors.New("Double not equal")
+	case m.F != m1.F:
+		return false, errors.New("Float not equal")
 	case m.St != m1.St:
 		return false, errors.New("String not equal")
 
@@ -62,7 +64,7 @@ func compareStructs(m, m1 TestStruct) (bool, error) {
 		return false, errors.New("StringSet size not equal")
 
 	case m.E != m1.E:
-		return false, errors.New("TestEnum not equal")
+		return false, errors.New("MyTestEnum not equal")
 
 	default:
 		return true, nil
@@ -74,9 +76,9 @@ func compareStructs(m, m1 TestStruct) (bool, error) {
 func ProtocolTest1(test *testing.T, pf ProtocolFactory) (bool, error) {
 	t := NewTSerializer()
 	t.Protocol = pf.GetProtocol(t.Transport)
-	var m = TestStruct{}
+	var m = MyTestStruct{}
 	m.On = true
-	m.B = int8(0)
+	m.B = byte(0)
 	m.Int16 = 1
 	m.Int32 = 2
 	m.Int64 = 3
@@ -95,7 +97,7 @@ func ProtocolTest1(test *testing.T, pf ProtocolFactory) (bool, error) {
 
 	t1 := NewTDeserializer()
 	t1.Protocol = pf.GetProtocol(t1.Transport)
-	var m1 = TestStruct{}
+	var m1 = MyTestStruct{}
 	if err = t1.ReadString(&m1, s); err != nil {
 		return false, errors.New(fmt.Sprintf("Unable to Deserialize struct\n\t %s", err))
 
@@ -108,9 +110,9 @@ func ProtocolTest1(test *testing.T, pf ProtocolFactory) (bool, error) {
 func ProtocolTest2(test *testing.T, pf ProtocolFactory) (bool, error) {
 	t := NewTSerializer()
 	t.Protocol = pf.GetProtocol(t.Transport)
-	var m = TestStruct{}
+	var m = MyTestStruct{}
 	m.On = false
-	m.B = int8(0)
+	m.B = byte(0)
 	m.Int16 = 1
 	m.Int32 = 2
 	m.Int64 = 3
@@ -130,7 +132,7 @@ func ProtocolTest2(test *testing.T, pf ProtocolFactory) (bool, error) {
 
 	t1 := NewTDeserializer()
 	t1.Protocol = pf.GetProtocol(t1.Transport)
-	var m1 = TestStruct{}
+	var m1 = MyTestStruct{}
 	if err = t1.ReadString(&m1, s); err != nil {
 		return false, errors.New(fmt.Sprintf("Unable to Deserialize struct\n\t %s", err))
 

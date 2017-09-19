@@ -28,6 +28,7 @@ except:
 
 all_structs = []
 UTF8STRINGS = bool(0) or sys.version_info.major >= 3
+
 from thrift.util.Decorators import *
 
 class Iface:
@@ -110,11 +111,13 @@ class init_args:
     return False
 
   def read(self, iprot):
-    if (isinstance(iprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocol) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(iprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocolAccelerate) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
       fastproto.decode(self, iprot.trans, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=0)
+      self.checkRequired()
       return
-    if (isinstance(iprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocol) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(iprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocolAccelerate) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
       fastproto.decode(self, iprot.trans, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=2)
+      self.checkRequired()
       return
     iprot.readStructBegin()
     while True:
@@ -205,12 +208,16 @@ class init_args:
         iprot.skip(ftype)
       iprot.readFieldEnd()
     iprot.readStructEnd()
+    self.checkRequired()
+
+  def checkRequired(self):
+    return
 
   def write(self, oprot):
-    if (isinstance(oprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocol) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(oprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocolAccelerate) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
       oprot.trans.write(fastproto.encode(self, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=0))
       return
-    if (isinstance(oprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocol) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(oprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocolAccelerate) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
       oprot.trans.write(fastproto.encode(self, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=2))
       return
     oprot.writeStructBegin('init_args')
@@ -283,11 +290,55 @@ class init_args:
 
   def __repr__(self):
     L = []
-    for key, value in six.iteritems(self.__dict__):
-      padding = ' ' * 4
-      value = pprint.pformat(value, indent=0)
-      value = padding.join(value.splitlines(True))
-      L.append('    %s=%s' % (key, value))
+    padding = ' ' * 4
+    value = pprint.pformat(self.int1, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int1=%s' % (value))
+    value = pprint.pformat(self.int2, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int2=%s' % (value))
+    value = pprint.pformat(self.int3, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int3=%s' % (value))
+    value = pprint.pformat(self.int4, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int4=%s' % (value))
+    value = pprint.pformat(self.int5, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int5=%s' % (value))
+    value = pprint.pformat(self.int6, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int6=%s' % (value))
+    value = pprint.pformat(self.int7, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int7=%s' % (value))
+    value = pprint.pformat(self.int8, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int8=%s' % (value))
+    value = pprint.pformat(self.int9, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int9=%s' % (value))
+    value = pprint.pformat(self.int10, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int10=%s' % (value))
+    value = pprint.pformat(self.int11, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int11=%s' % (value))
+    value = pprint.pformat(self.int12, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int12=%s' % (value))
+    value = pprint.pformat(self.int13, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int13=%s' % (value))
+    value = pprint.pformat(self.int14, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int14=%s' % (value))
+    value = pprint.pformat(self.int15, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int15=%s' % (value))
+    value = pprint.pformat(self.int16, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    int16=%s' % (value))
     return "%s(\n%s)" % (self.__class__.__name__, ",\n".join(L))
 
   def __eq__(self, other):
@@ -298,6 +349,10 @@ class init_args:
 
   def __ne__(self, other):
     return not (self == other)
+
+  # Override the __hash__ function for Python3 - t10434117
+  if not six.PY2:
+    __hash__ = object.__hash__
 
 all_structs.append(init_args)
 init_args.thrift_spec = (
@@ -360,11 +415,13 @@ class init_result:
     return False
 
   def read(self, iprot):
-    if (isinstance(iprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocol) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(iprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocolAccelerate) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
       fastproto.decode(self, iprot.trans, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=0)
+      self.checkRequired()
       return
-    if (isinstance(iprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocol) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(iprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocolAccelerate) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
       fastproto.decode(self, iprot.trans, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=2)
+      self.checkRequired()
       return
     iprot.readStructBegin()
     while True:
@@ -380,12 +437,16 @@ class init_result:
         iprot.skip(ftype)
       iprot.readFieldEnd()
     iprot.readStructEnd()
+    self.checkRequired()
+
+  def checkRequired(self):
+    return
 
   def write(self, oprot):
-    if (isinstance(oprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocol) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(oprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocolAccelerate) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
       oprot.trans.write(fastproto.encode(self, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=0))
       return
-    if (isinstance(oprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocol) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(oprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocolAccelerate) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
       oprot.trans.write(fastproto.encode(self, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=2))
       return
     oprot.writeStructBegin('init_result')
@@ -398,11 +459,10 @@ class init_result:
 
   def __repr__(self):
     L = []
-    for key, value in six.iteritems(self.__dict__):
-      padding = ' ' * 4
-      value = pprint.pformat(value, indent=0)
-      value = padding.join(value.splitlines(True))
-      L.append('    %s=%s' % (key, value))
+    padding = ' ' * 4
+    value = pprint.pformat(self.success, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    success=%s' % (value))
     return "%s(\n%s)" % (self.__class__.__name__, ",\n".join(L))
 
   def __eq__(self, other):
@@ -413,6 +473,10 @@ class init_result:
 
   def __ne__(self, other):
     return not (self == other)
+
+  # Override the __hash__ function for Python3 - t10434117
+  if not six.PY2:
+    __hash__ = object.__hash__
 
 all_structs.append(init_result)
 init_result.thrift_spec = (
@@ -430,6 +494,14 @@ def init_result__init__(self, success=None,):
 init_result.__init__ = init_result__init__
 
 class Client(Iface):
+  def __enter__(self):
+    return self
+
+  def __exit__(self, type, value, tb):
+    self._iprot.trans.close()
+    if self._iprot is not self._oprot:
+      self._oprot.trans.close()
+
   def __init__(self, iprot, oprot=None):
     self._iprot = self._oprot = iprot
     if oprot != None:

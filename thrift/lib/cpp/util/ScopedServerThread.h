@@ -59,7 +59,7 @@ class ScopedServerThread : public boost::noncopyable {
   /**
    * Create a ScopedServerThread object and automatically start it.
    */
-  explicit ScopedServerThread(const std::shared_ptr<server::TServer>& server);
+  explicit ScopedServerThread(std::shared_ptr<server::TServer> server);
 
   virtual ~ScopedServerThread();
 
@@ -79,12 +79,18 @@ class ScopedServerThread : public boost::noncopyable {
    *
    * @param server The server to run in the new thread.
    */
-  void start(const std::shared_ptr<server::TServer>& server);
+  void start(std::shared_ptr<server::TServer> server);
 
   /**
    * Stop the server thread.
    */
   void stop();
+
+  /**
+   * Waits for the server thread to finish.
+   * Note that this doesn't stop the thread.
+   */
+  void join();
 
   /**
    * Get the address on which the server is listening.
@@ -114,7 +120,7 @@ class ServerStartHelper {
   /*
    * Constructor. Should be called prior to starting the server
    */
-  explicit ServerStartHelper(const std::shared_ptr<server::TServer>& server);
+  explicit ServerStartHelper(std::shared_ptr<server::TServer> server);
 
   /**
    * Wait until the server has started.

@@ -6,7 +6,7 @@
  */
 #pragma once
 
-#include "module_types.h"
+#include "thrift/compiler/test/fixtures/constants/gen-cpp/module_types.h"
 
 
 
@@ -14,7 +14,7 @@ struct module_constants {
   static constexpr int32_t const myInt_ = 1337;
   static constexpr int32_t myInt() { return myInt_; }
   // consider using folly::StringPiece instead of std::string whenever possible
-  // to referencing this statically allocated string constant, in order to 
+  // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
   static constexpr char const *const name_ = "Mark Zuckerberg";
   static constexpr char const* name() { return name_; }
@@ -25,75 +25,82 @@ struct module_constants {
   static constexpr double y() { return y_; }
   static constexpr double const z_ = 1e+09;
   static constexpr double z() { return z_; }
+  static constexpr double const zeroDoubleValue_ = 0;
+  static constexpr double zeroDoubleValue() { return zeroDoubleValue_; }
+  static constexpr double const longDoubleValue_ = 2.59961e-05;
+  static constexpr double longDoubleValue() { return longDoubleValue_; }
   static Internship const& instagram();
   static std::vector<Range>  const& kRanges();
   static std::vector<Internship>  const& internList();
+  static struct1 const& pod_0();
+  static struct1 const& pod_1();
+  static struct2 const& pod_2();
+  static struct3 const& pod_3();
+  static union1 const& u_1_1();
+  static union1 const& u_1_2();
+  static union1 const& u_1_3();
+  static union2 const& u_2_1();
+  static union2 const& u_2_2();
+  static union2 const& u_2_3();
+  static union2 const& u_2_4();
+  static union2 const& u_2_5();
+  static union2 const& u_2_6();
   // consider using folly::StringPiece instead of std::string whenever possible
-  // to referencing this statically allocated string constant, in order to 
+  // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
   static constexpr char const *const apostrophe_ = "'";
   static constexpr char const* apostrophe() { return apostrophe_; }
   // consider using folly::StringPiece instead of std::string whenever possible
-  // to referencing this statically allocated string constant, in order to 
+  // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
   static constexpr char const *const tripleApostrophe_ = "'''";
   static constexpr char const* tripleApostrophe() { return tripleApostrophe_; }
   // consider using folly::StringPiece instead of std::string whenever possible
-  // to referencing this statically allocated string constant, in order to 
+  // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
   static constexpr char const *const quotationMark_ = "\"";
   static constexpr char const* quotationMark() { return quotationMark_; }
   // consider using folly::StringPiece instead of std::string whenever possible
-  // to referencing this statically allocated string constant, in order to 
+  // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
   static constexpr char const *const backslash_ = "\\";
   static constexpr char const* backslash() { return backslash_; }
   // consider using folly::StringPiece instead of std::string whenever possible
-  // to referencing this statically allocated string constant, in order to 
+  // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
   static constexpr char const *const escaped_a_ = "\x61";
   static constexpr char const* escaped_a() { return escaped_a_; }
   static std::map<std::string, int32_t>  const& char2ascii();
+  static std::vector<std::string>  const& escaped_strings();
+  static constexpr bool const false_c_ = false;
+  static constexpr bool false_c() { return false_c_; }
+  static constexpr bool const true_c_ = true;
+  static constexpr bool true_c() { return true_c_; }
+  static constexpr int8_t const zero_byte_ = 0;
+  static constexpr int8_t zero_byte() { return zero_byte_; }
+  static constexpr int16_t const zero16_ = 0;
+  static constexpr int16_t zero16() { return zero16_; }
+  static constexpr int32_t const zero32_ = 0;
+  static constexpr int32_t zero32() { return zero32_; }
+  static constexpr int64_t const zero64_ = 0LL;
+  static constexpr int64_t zero64() { return zero64_; }
+  static constexpr double const zero_dot_zero_ = 0;
+  static constexpr double zero_dot_zero() { return zero_dot_zero_; }
+  // consider using folly::StringPiece instead of std::string whenever possible
+  // to referencing this statically allocated string constant, in order to
+  // prevent unnecessary allocations
+  static constexpr char const *const empty_string_ = "";
+  static constexpr char const* empty_string() { return empty_string_; }
+  static std::vector<int32_t>  const& empty_int_list();
+  static std::vector<std::string>  const& empty_string_list();
+  static std::set<int32_t>  const& empty_int_set();
+  static std::set<std::string>  const& empty_string_set();
+  static std::map<int32_t, int32_t>  const& empty_int_int_map();
+  static std::map<int32_t, std::string>  const& empty_int_string_map();
+  static std::map<std::string, int32_t>  const& empty_string_int_map();
+  static std::map<std::string, std::string>  const& empty_string_string_map();
 };
 
-struct  __attribute__((__deprecated__("module_constants_codemod is a transitional class only intended for codemods from the deprecated moduleConstants to module_constants. Consider switching to the latter as soon as possible."))) module_constants_codemod {
-  static constexpr int32_t myInt() { return module_constants::myInt(); }
-  static std::string const& name();
-  static std::vector<std::map<std::string, int32_t> >  const& states();
-  static constexpr double x() { return module_constants::x(); }
-  static constexpr double y() { return module_constants::y(); }
-  static constexpr double z() { return module_constants::z(); }
-  static Internship const& instagram();
-  static std::vector<Range>  const& kRanges();
-  static std::vector<Internship>  const& internList();
-  static std::string const& apostrophe();
-  static std::string const& tripleApostrophe();
-  static std::string const& quotationMark();
-  static std::string const& backslash();
-  static std::string const& escaped_a();
-  static std::map<std::string, int32_t>  const& char2ascii();
-};
-
-class __attribute__((__deprecated__("moduleConstants suffers from the 'static initialization order fiasco' (https://isocpp.org/wiki/faq/ctors#static-init-order) and may CRASH your program. Instead, use module_constants::CONSTANT_NAME()"))) moduleConstants {
-public:
-  moduleConstants();
-
-  int32_t myInt;
-  std::string name;
-  std::vector<std::map<std::string, int32_t> >  states;
-  double x;
-  double y;
-  double z;
-  Internship instagram;
-  std::vector<Range>  kRanges;
-  std::vector<Internship>  internList;
-  std::string apostrophe;
-  std::string tripleApostrophe;
-  std::string quotationMark;
-  std::string backslash;
-  std::string escaped_a;
-  std::map<std::string, int32_t>  char2ascii;
-};
 
 
 

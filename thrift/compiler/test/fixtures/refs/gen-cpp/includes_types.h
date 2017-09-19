@@ -20,8 +20,6 @@
 #include <math.h>
 
 #include <thrift/lib/cpp/Thrift.h>
-
-using namespace folly::json;
 namespace apache { namespace thrift { namespace reflection {
 class Schema;
 }}}
@@ -40,6 +38,19 @@ class Included : public apache::thrift::TStructType<Included> {
   static void _reflection_register(::apache::thrift::reflection::Schema&);
   Included() : some_val(0) {
   }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit Included(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    Included(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    some_val = arg.move();
+    __isset.some_val = true;
+  }
 
   Included(const Included&) = default;
   Included& operator=(const Included& src)= default;
@@ -48,7 +59,7 @@ class Included : public apache::thrift::TStructType<Included> {
 
   void __clear();
 
-  virtual ~Included() throw() {}
+  virtual ~Included() noexcept {}
 
   int16_t some_val;
 
@@ -67,11 +78,15 @@ class Included : public apache::thrift::TStructType<Included> {
 
   bool operator < (const Included & ) const;
 
-  void readFromJson(const char* jsonText, size_t len);
-  void readFromJson(const char* jsonText);
+  void readFromJson(const char* jsonText, size_t len, const folly::json::serialization_opts& opts = folly::json::serialization_opts());
+  void readFromJson(const char* jsonText, const folly::json::serialization_opts& opts = folly::json::serialization_opts());
   uint32_t read(apache::thrift::protocol::TProtocol* iprot);
   uint32_t write(apache::thrift::protocol::TProtocol* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class Included;

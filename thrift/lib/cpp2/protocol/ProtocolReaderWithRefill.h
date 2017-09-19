@@ -18,6 +18,8 @@
 
 #include <folly/FBString.h>
 #include <thrift/lib/cpp2/protocol/VirtualProtocol.h>
+#include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
+#include <thrift/lib/cpp2/protocol/CompactProtocol.h>
 
 namespace apache { namespace thrift {
 
@@ -44,9 +46,10 @@ class ProtocolReaderWithRefill : public VirtualReader<ProtocolT> {
       return bufferLength_ - this->protocol_.in_.length();
     }
 
-    void setInput(const folly::IOBuf* buf) override {
-      VirtualReader<ProtocolT>::setInput(buf);
-      bufferLength_ = buf->length();
+    using VirtualReader<ProtocolT>::setInput;
+    void setInput(const folly::io::Cursor& cursor) override {
+      VirtualReader<ProtocolT>::setInput(cursor);
+      bufferLength_ = cursor.length();
     }
 
   protected:
@@ -55,8 +58,8 @@ class ProtocolReaderWithRefill : public VirtualReader<ProtocolT> {
         return;
       }
 
-      auto avail = this->protocol_.in_.peek();
-      buffer_ = refiller_(avail.first, avail.second, totalBytesRead(), size);
+      auto avail = this->protocol_.in_.peekBytes();
+      buffer_ = refiller_(avail.data(), avail.size(), totalBytesRead(), size);
       if (!buffer_) {
         throw std::runtime_error("Empty buffer returned when refilling");
       }
@@ -188,20 +191,20 @@ class CompactProtocolReaderWithRefill : public VirtualCompactReader {
      * should not cause any performance problem. After the new buffer is ready,
      * start all over again.
      **/
-    void ensureInteger(int idx = 0) {
+    void ensureInteger(size_t idx = 0) {
       while (protocol_.in_.length() - idx < 10) {
         if (protocol_.in_.length() <= idx) {
           ensureBuffer(idx + 1);
         } else {
-          auto avail = protocol_.in_.peek();
-          const uint8_t *b = avail.first + idx;
-          while (idx < avail.second) {
+          auto avail = protocol_.in_.peekBytes();
+          const uint8_t *b = avail.data() + idx;
+          while (idx < avail.size()) {
             if (!(*b++ & 0x80))
               return;
             idx++;
           }
 
-          ensureBuffer(avail.second + 1);
+          ensureBuffer(avail.size() + 1);
         }
       }
     }
@@ -215,8 +218,8 @@ class CompactProtocolReaderWithRefill : public VirtualCompactReader {
       ensureBuffer(1);
       if (protocol_.in_.length() >= 4)
         return;
-      auto avail = protocol_.in_.peek();
-      const uint8_t *b = avail.first;
+      auto avail = protocol_.in_.peekBytes();
+      const uint8_t *b = avail.data();
       int8_t byte = folly::Endian::big(*b);
       int8_t type = (byte & 0x0f);
 
@@ -238,17 +241,17 @@ class CompactProtocolReaderWithRefill : public VirtualCompactReader {
       if (protocol_.in_.length() >= 11)
         return;
 
-      auto avail = protocol_.in_.peek();
-      const uint8_t *b = avail.first;
-      int bytes = 1;
-      while (bytes <= avail.second) {
+      auto avail = protocol_.in_.peekBytes();
+      const uint8_t *b = avail.data();
+      size_t bytes = 1;
+      while (bytes <= avail.size()) {
         if (!(*b++ & 0x80))
           break;
         bytes++;
       }
       // Non-empty maps have an additional byte for the key/value type.
-      if (bytes == avail.second && *avail.first) {
-        ensureBuffer(avail.second + 1);
+      if (bytes == avail.size() && *avail.data()) {
+        ensureBuffer(avail.size() + 1);
       }
     }
 
@@ -258,8 +261,8 @@ class CompactProtocolReaderWithRefill : public VirtualCompactReader {
         return;
 
       ensureBuffer(1);
-      auto avail = protocol_.in_.peek();
-      const uint8_t *b = avail.first;
+      auto avail = protocol_.in_.peekBytes();
+      const uint8_t *b = avail.data();
       int8_t size_and_type = folly::Endian::big(*b);
       int32_t lsize = ((uint8_t)size_and_type >> 4) & 0x0f;
       if (lsize == 15) {

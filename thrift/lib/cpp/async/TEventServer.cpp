@@ -17,6 +17,7 @@
 #include <thrift/lib/cpp/async/TEventServer.h>
 
 #include <folly/ScopeGuard.h>
+#include <folly/portability/Sockets.h>
 #include <thrift/lib/cpp/async/TEventConnection.h>
 #include <thrift/lib/cpp/async/TEventWorker.h>
 #include <thrift/lib/cpp/async/TEventTask.h>
@@ -25,10 +26,6 @@
 #include <boost/thread/barrier.hpp>
 
 #include <iostream>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <netdb.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <assert.h>
@@ -87,7 +84,7 @@ void TEventServer::setupWorkers() {
 
     // Create the worker threads.
     workers_.reserve(nWorkers_);
-    for (uint32_t n = 0; n < nWorkers_; ++n) {
+    for (int n = 0; n < nWorkers_; ++n) {
       addWorker();
       workers_[n].worker->getEventBase()->runInLoop([b](){
         b->wait();
@@ -122,8 +119,10 @@ void TEventServer::setupServerSocket() {
   bool eventBaseAttached = false;
 
   try {
+#ifndef _MSC_VER
     // We check for write success so we don't need or want SIGPIPEs.
     signal(SIGPIPE, sigNoOp);
+#endif
 
     // bind to the socket
     if (!socket_) {

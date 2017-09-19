@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp2/async/RequestChannel.h>
 #include <thrift/lib/cpp2/async/FutureRequest.h>
@@ -32,7 +31,6 @@
 #include <thrift/lib/cpp2/async/StubSaslServer.h>
 #include <thrift/lib/cpp2/test/util/TestThriftServerFactory.h>
 
-#include <boost/cast.hpp>
 #include <boost/lexical_cast.hpp>
 #include <memory>
 #include <atomic>
@@ -160,7 +158,7 @@ TEST(Duplex, DuplexTest) {
   }, START, COUNT, INTERVAL);
 
   // fail on time out
-  base.tryRunAfterDelay([] {EXPECT_TRUE(false);}, 5000);
+  base.tryRunAfterDelay([] { ADD_FAILURE(); }, 5000);
 
   base.loopForever();
 
@@ -192,13 +190,4 @@ TEST(Duplex, TestFramed) {
 
 TEST(Duplex, TestUnframed) {
   testNonHeader<apache::thrift::transport::TBufferedTransport>();
-}
-
-
-int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  google::InitGoogleLogging(argv[0]);
-
-  return RUN_ALL_TESTS();
 }

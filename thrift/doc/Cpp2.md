@@ -66,9 +66,9 @@ Useful (but not complete set of) options that can be set on the ThriftServer:
   per-function bases by overriding the appropriate generated code
   method.
 
-* setNWorkerThreads(int) - Number of IO async worker threads.  Defaults to number of cores.
+* setNumIOWorkerThreads(int) - Number of IO async worker threads.  Defaults to number of cores.
 
-* setNPoolThreads(int) - Number of synchronous pool threads.  Defaults
+* setNumCPUWorkerThreads(int) - Number of synchronous pool threads.  Defaults
   to number of IO threads.  If you do a lot of blocking synchronous
   work, you may want to increase this.
 
@@ -80,11 +80,6 @@ Useful (but not complete set of) options that can be set on the ThriftServer:
 
 * setMaxRequests(uint32_t) - The maximum number of outstanding
   requests.
-
-* setIsUnevenLoad(bool) - If true, then maxRequests is a total for the
-  whole server.   If false, at startup we set each IO thread to
-  maxRequests/numIOThreads, so that we don't have to lock (std::atomic
-  CAS, actually) on any global variables.
 
 * setSSLContext(context) - Allow SSL connections
 

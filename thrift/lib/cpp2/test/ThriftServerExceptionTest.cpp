@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2015-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <thrift/lib/cpp2/test/gen-cpp2/Raiser.h>
 #include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
 
@@ -41,7 +40,6 @@ struct Context {
   string ex_type;
   string ex_what;
   exception_wrapper ew;
-  exception_ptr ep;
   explicit Context(string name) : name(name) {}
 };
 
@@ -65,7 +63,6 @@ class ExceptionTrackingEventHandler : public TProcessorEventHandler {
     CHECK_EQ(context->name, fn_name);
     context->ex_type = ex;
     context->ex_what = ex_what;
-    context->ep = current_exception();
   }
   void userExceptionWrapped(void* ctx,
                             const char* fn_name,
@@ -83,11 +80,11 @@ class RaiserHandler : public RaiserSvIf {
  public:
   RaiserHandler(
       vector<shared_ptr<TProcessorEventHandler>> handlers,
-      function<exception_ptr()> go) :
+      Function<exception_ptr()> go) :
     handlers_(move(handlers)), go_(wrap(move(go))) {}
   RaiserHandler(
       vector<shared_ptr<TProcessorEventHandler>> handlers,
-      function<exception_wrapper()> go) :
+      Function<exception_wrapper()> go) :
     handlers_(move(handlers)), go_(wrap(move(go))) {}
 
   unique_ptr<AsyncProcessor> getProcessor() override {
@@ -113,14 +110,15 @@ class RaiserHandler : public RaiserSvIf {
   }
 
   template <typename E>
-  function<void(unique_ptr<HandlerCallbackBase>)> wrap(E e) {
-    auto em = makeMoveWrapper(move(e));
-    return [=](unique_ptr<HandlerCallbackBase> cb) { cb->exception((*em)()); };
+  Function<void(unique_ptr<HandlerCallbackBase>)> wrap(E e) {
+    return [e = std::move(e)](unique_ptr<HandlerCallbackBase> cb) mutable {
+      cb->exception(e());
+    };
   }
 
  private:
   vector<shared_ptr<TProcessorEventHandler>> handlers_;
-  function<void(unique_ptr<HandlerCallbackBase>)> go_;
+  Function<void(unique_ptr<HandlerCallbackBase>)> go_;
 };
 
 }
@@ -155,14 +153,14 @@ class ThriftServerExceptionTest : public testing::Test {
   template <class V, class F>
   bool exn(Future<V> fv, F&& f) {
     exception_wrapper wrap = fv.waitVia(&eb).getTry().exception();
-    return wrap.with_exception(move(f));
+    return wrap.with_exception(std::forward<F>(f));
   }
 };
 
 TEST_F(ThriftServerExceptionTest, bland_with_exception_ptr) {
-  auto go = [&] { return to_eptr(make_lulz()); };
+  Function<exception_ptr()> go = [&] { return to_eptr(make_lulz()); };
 
-  auto handler = make_shared<RaiserHandler>(evhandlers, go);
+  auto handler = make_shared<RaiserHandler>(evhandlers, std::move(go));
   ScopedServerInterfaceThread runner(handler);
 
   auto client = runner.newClient<RaiserAsyncClient>(&eb);
@@ -174,40 +172,36 @@ TEST_F(ThriftServerExceptionTest, bland_with_exception_ptr) {
       EXPECT_EQ(AppExn::TApplicationExceptionType::UNKNOWN, e.getType());
       EXPECT_EQ(lulz_w, string(e.what()));
       EXPECT_EQ(lulz_s, ctx().ex_type);
-      EXPECT_EQ(message, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
+      EXPECT_EQ(lulz_w, ctx().ex_what);
       EXPECT_TRUE(ctx().ew.is_compatible_with<lulz>());
   }));
   EXPECT_TRUE(exn(client->future_doRaise(), [&](const AppExn& e) {
       EXPECT_EQ(AppExn::TApplicationExceptionType::UNKNOWN, e.getType());
       EXPECT_EQ(lulz_w, string(e.what()));
       EXPECT_EQ(lulz_s, ctx().ex_type);
-      EXPECT_EQ(message, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
+      EXPECT_EQ(lulz_w, ctx().ex_what);
       EXPECT_TRUE(ctx().ew.is_compatible_with<lulz>());
   }));
   EXPECT_TRUE(exn(client->future_get200(), [&](const AppExn& e) {
       EXPECT_EQ(AppExn::TApplicationExceptionType::UNKNOWN, e.getType());
       EXPECT_EQ(lulz_w, string(e.what()));
       EXPECT_EQ(lulz_s, ctx().ex_type);
-      EXPECT_EQ(message, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
+      EXPECT_EQ(lulz_w, ctx().ex_what);
       EXPECT_TRUE(ctx().ew.is_compatible_with<lulz>());
   }));
   EXPECT_TRUE(exn(client->future_get500(), [&](const AppExn& e) {
       EXPECT_EQ(AppExn::TApplicationExceptionType::UNKNOWN, e.getType());
       EXPECT_EQ(lulz_w, string(e.what()));
       EXPECT_EQ(lulz_s, ctx().ex_type);
-      EXPECT_EQ(message, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
+      EXPECT_EQ(lulz_w, ctx().ex_what);
       EXPECT_TRUE(ctx().ew.is_compatible_with<lulz>());
   }));
 }
 
 TEST_F(ThriftServerExceptionTest, banal_with_exception_ptr) {
-  auto go = [&] { return to_eptr(make_banal()); };
+  Function<exception_ptr()> go = [&] { return to_eptr(make_banal()); };
 
-  auto handler = make_shared<RaiserHandler>(evhandlers, go);
+  auto handler = make_shared<RaiserHandler>(evhandlers, std::move(go));
   ScopedServerInterfaceThread runner(handler);
 
   auto client = runner.newClient<RaiserAsyncClient>(&eb);
@@ -219,37 +213,33 @@ TEST_F(ThriftServerExceptionTest, banal_with_exception_ptr) {
   EXPECT_TRUE(exn(client->future_doBland(), [&](const AppExn& e) {
       EXPECT_EQ(banal_w_guess, string(e.what()));
       EXPECT_EQ(banal_s, ctx().ex_type);
-      EXPECT_EQ(banal_w_known, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
+      EXPECT_EQ(banal_w_guess, ctx().ex_what);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Banal>());
   }));
   EXPECT_TRUE(exn(client->future_doRaise(), [&](const Banal& e) {
       EXPECT_EQ(banal_w_known, string(e.what()));
       EXPECT_EQ(banal_s, ctx().ex_type);
       EXPECT_EQ(banal_w_known, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Banal>());
   }));
   EXPECT_TRUE(exn(client->future_get200(), [&](const AppExn& e) {
       EXPECT_EQ(banal_w_guess, string(e.what()));
       EXPECT_EQ(banal_s, ctx().ex_type);
-      EXPECT_EQ(banal_w_known, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
+      EXPECT_EQ(banal_w_guess, ctx().ex_what);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Banal>());
   }));
   EXPECT_TRUE(exn(client->future_get500(), [&](const Banal& e) {
       EXPECT_EQ(banal_w_known, string(e.what()));
       EXPECT_EQ(banal_s, ctx().ex_type);
       EXPECT_EQ(banal_w_known, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Banal>());
   }));
 }
 
 TEST_F(ThriftServerExceptionTest, fiery_with_exception_ptr) {
-  auto go = [&] { return to_eptr(make_fiery()); };
+  Function<exception_ptr()> go = [&] { return to_eptr(make_fiery()); };
 
-  auto handler = make_shared<RaiserHandler>(evhandlers, go);
+  auto handler = make_shared<RaiserHandler>(evhandlers, std::move(go));
   ScopedServerInterfaceThread runner(handler);
 
   auto client = runner.newClient<RaiserAsyncClient>(&eb);
@@ -261,8 +251,7 @@ TEST_F(ThriftServerExceptionTest, fiery_with_exception_ptr) {
   EXPECT_TRUE(exn(client->future_doBland(), [&](const AppExn& e) {
       EXPECT_EQ(fiery_w_guess, string(e.what()));
       EXPECT_EQ(fiery_s, ctx().ex_type);
-      EXPECT_EQ(fiery_w_known, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
+      EXPECT_EQ(fiery_w_guess, ctx().ex_what);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Fiery>());
   }));
   EXPECT_TRUE(exn(client->future_doRaise(), [&](const Fiery& e) {
@@ -270,14 +259,12 @@ TEST_F(ThriftServerExceptionTest, fiery_with_exception_ptr) {
       EXPECT_EQ(message, e.message);
       EXPECT_EQ(fiery_s, ctx().ex_type);
       EXPECT_EQ(fiery_w_known, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Fiery>());
   }));
   EXPECT_TRUE(exn(client->future_get200(), [&](const AppExn& e) {
       EXPECT_EQ(fiery_w_guess, string(e.what()));
       EXPECT_EQ(fiery_s, ctx().ex_type);
-      EXPECT_EQ(fiery_w_known, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
+      EXPECT_EQ(fiery_w_guess, ctx().ex_what);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Fiery>());
   }));
   EXPECT_TRUE(exn(client->future_get500(), [&](const Fiery& e) {
@@ -285,15 +272,14 @@ TEST_F(ThriftServerExceptionTest, fiery_with_exception_ptr) {
       EXPECT_EQ(message, e.message);
       EXPECT_EQ(fiery_s, ctx().ex_type);
       EXPECT_EQ(fiery_w_known, ctx().ex_what);
-      EXPECT_TRUE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Fiery>());
   }));
 }
 
 TEST_F(ThriftServerExceptionTest, bland_with_exception_wrapper) {
-  auto go = [&] { return to_wrap(make_lulz()); };
+  Function<exception_wrapper()> go = [&] { return to_wrap(make_lulz()); };
 
-  auto handler = make_shared<RaiserHandler>(evhandlers, go);
+  auto handler = make_shared<RaiserHandler>(evhandlers, std::move(go));
   ScopedServerInterfaceThread runner(handler);
 
   auto client = runner.newClient<RaiserAsyncClient>(&eb);
@@ -306,7 +292,6 @@ TEST_F(ThriftServerExceptionTest, bland_with_exception_wrapper) {
       EXPECT_EQ(lulz_w, string(e.what()));
       EXPECT_EQ(lulz_s, ctx().ex_type);
       EXPECT_EQ(lulz_w, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<lulz>());
   }));
   EXPECT_TRUE(exn(client->future_doRaise(), [&](const AppExn& e) {
@@ -314,7 +299,6 @@ TEST_F(ThriftServerExceptionTest, bland_with_exception_wrapper) {
       EXPECT_EQ(lulz_w, string(e.what()));
       EXPECT_EQ(lulz_s, ctx().ex_type);
       EXPECT_EQ(lulz_w, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<lulz>());
   }));
   EXPECT_TRUE(exn(client->future_get200(), [&](const AppExn& e) {
@@ -322,7 +306,6 @@ TEST_F(ThriftServerExceptionTest, bland_with_exception_wrapper) {
       EXPECT_EQ(lulz_w, string(e.what()));
       EXPECT_EQ(lulz_s, ctx().ex_type);
       EXPECT_EQ(lulz_w, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<lulz>());
   }));
   EXPECT_TRUE(exn(client->future_get500(), [&](const AppExn& e) {
@@ -330,15 +313,14 @@ TEST_F(ThriftServerExceptionTest, bland_with_exception_wrapper) {
       EXPECT_EQ(lulz_w, string(e.what()));
       EXPECT_EQ(lulz_s, ctx().ex_type);
       EXPECT_EQ(lulz_w, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<lulz>());
   }));
 }
 
 TEST_F(ThriftServerExceptionTest, banal_with_exception_wrapper) {
-  auto go = [&] { return to_wrap(make_banal()); };
+  Function<exception_wrapper()> go = [&] { return to_wrap(make_banal()); };
 
-  auto handler = make_shared<RaiserHandler>(evhandlers, go);
+  auto handler = make_shared<RaiserHandler>(evhandlers, std::move(go));
   ScopedServerInterfaceThread runner(handler);
 
   auto client = runner.newClient<RaiserAsyncClient>(&eb);
@@ -351,36 +333,32 @@ TEST_F(ThriftServerExceptionTest, banal_with_exception_wrapper) {
       EXPECT_EQ(banal_w_guess, string(e.what()));
       EXPECT_EQ(banal_s, ctx().ex_type);
       EXPECT_EQ(banal_w_guess, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Banal>());
   }));
   EXPECT_TRUE(exn(client->future_doRaise(), [&](const Banal& e) {
       EXPECT_EQ(banal_w_known, string(e.what()));
       EXPECT_EQ(banal_s, ctx().ex_type);
       EXPECT_EQ(banal_w_known, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Banal>());
   }));
   EXPECT_TRUE(exn(client->future_get200(), [&](const AppExn& e) {
       EXPECT_EQ(banal_w_guess, string(e.what()));
       EXPECT_EQ(banal_s, ctx().ex_type);
       EXPECT_EQ(banal_w_guess, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Banal>());
   }));
   EXPECT_TRUE(exn(client->future_get500(), [&](const Banal& e) {
       EXPECT_EQ(banal_w_known, string(e.what()));
       EXPECT_EQ(banal_s, ctx().ex_type);
       EXPECT_EQ(banal_w_known, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Banal>());
   }));
 }
 
 TEST_F(ThriftServerExceptionTest, fiery_with_exception_wrapper) {
-  auto go = [&] { return to_wrap(make_fiery()); };
+  Function<exception_wrapper()> go = [&] { return to_wrap(make_fiery()); };
 
-  auto handler = make_shared<RaiserHandler>(evhandlers, go);
+  auto handler = make_shared<RaiserHandler>(evhandlers, std::move(go));
   ScopedServerInterfaceThread runner(handler);
 
   auto client = runner.newClient<RaiserAsyncClient>(&eb);
@@ -393,7 +371,6 @@ TEST_F(ThriftServerExceptionTest, fiery_with_exception_wrapper) {
       EXPECT_EQ(fiery_w_guess, string(e.what()));
       EXPECT_EQ(fiery_s, ctx().ex_type);
       EXPECT_EQ(fiery_w_guess, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Fiery>());
   }));
   EXPECT_TRUE(exn(client->future_doRaise(), [&](const Fiery& e) {
@@ -401,14 +378,12 @@ TEST_F(ThriftServerExceptionTest, fiery_with_exception_wrapper) {
       EXPECT_EQ(message, e.message);
       EXPECT_EQ(fiery_s, ctx().ex_type);
       EXPECT_EQ(fiery_w_known, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Fiery>());
   }));
   EXPECT_TRUE(exn(client->future_get200(), [&](const AppExn& e) {
       EXPECT_EQ(fiery_w_guess, string(e.what()));
       EXPECT_EQ(fiery_s, ctx().ex_type);
       EXPECT_EQ(fiery_w_guess, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Fiery>());
   }));
   EXPECT_TRUE(exn(client->future_get500(), [&](const Fiery& e) {
@@ -416,7 +391,6 @@ TEST_F(ThriftServerExceptionTest, fiery_with_exception_wrapper) {
       EXPECT_EQ(message, e.message);
       EXPECT_EQ(fiery_s, ctx().ex_type);
       EXPECT_EQ(fiery_w_known, ctx().ex_what);
-      EXPECT_FALSE(ctx().ep);
       EXPECT_TRUE(ctx().ew.is_compatible_with<Fiery>());
   }));
 }

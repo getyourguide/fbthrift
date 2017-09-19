@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,41 +20,93 @@
 
 #include <thrift/lib/cpp/async/TAsyncSSLSocket.h>
 
-namespace apache { namespace thrift { namespace test {
+namespace apache {
+namespace thrift {
+namespace test {
 
-class MockTAsyncSSLSocket :
- public apache::thrift::async::TAsyncSSLSocket {
+class MockTAsyncSSLSocket : public apache::thrift::async::TAsyncSSLSocket {
  public:
+  using UniquePtr = std::unique_ptr<MockTAsyncSSLSocket, Destructor>;
+
   MockTAsyncSSLSocket(
-   const std::shared_ptr<transport::SSLContext>& ctx,
-   folly::EventBase* base) :
-    TAsyncSSLSocket(ctx, base) {
+      const std::shared_ptr<transport::SSLContext> ctx,
+      folly::EventBase* base)
+      : AsyncSocket(base), TAsyncSSLSocket(ctx, base) {}
+
+  static MockTAsyncSSLSocket::UniquePtr newSocket(
+      const std::shared_ptr<transport::SSLContext> ctx,
+      folly::EventBase* base) {
+    return MockTAsyncSSLSocket::UniquePtr(new MockTAsyncSSLSocket(ctx, base));
   }
 
-  GMOCK_METHOD5_(, noexcept, ,
-   connect,
-   void(AsyncSocket::ConnectCallback*,
-    const folly::SocketAddress&,
-    int,
-    const OptionMap&,
-    const folly::SocketAddress&));
+  GMOCK_METHOD5_(
+      ,
+      noexcept,
+      ,
+      connectInternal,
+      void(
+          AsyncSocket::ConnectCallback*,
+          const folly::SocketAddress&,
+          int,
+          const OptionMap&,
+          const folly::SocketAddress&));
+
+  GMOCK_METHOD6_(
+      ,
+      noexcept,
+      ,
+      connectInternalWithTimeouts,
+      void(
+          AsyncSocket::ConnectCallback*,
+          const folly::SocketAddress&,
+          std::chrono::milliseconds,
+          std::chrono::milliseconds,
+          const OptionMap&,
+          const folly::SocketAddress&));
+
+  void connect(
+      AsyncSocket::ConnectCallback* callback,
+      const folly::SocketAddress& addr,
+      int timeout = 0,
+      const OptionMap& options = emptyOptionMap,
+      const folly::SocketAddress& bindAddr = anyAddress()) noexcept override {
+    connectInternal(callback, addr, timeout, options, bindAddr);
+  }
+
+  void connect(
+      AsyncSocket::ConnectCallback* callback,
+      const folly::SocketAddress& addr,
+      std::chrono::milliseconds connectTimeout,
+      std::chrono::milliseconds totalConnectTimeout,
+      const OptionMap& options = emptyOptionMap,
+      const folly::SocketAddress& bindAddr = anyAddress()) noexcept override {
+    connectInternalWithTimeouts(
+        callback, addr, connectTimeout, totalConnectTimeout, options, bindAddr);
+  }
+
   MOCK_CONST_METHOD1(getLocalAddress, void(folly::SocketAddress*));
   MOCK_CONST_METHOD1(getPeerAddress, void(folly::SocketAddress*));
   MOCK_METHOD0(closeNow, void());
   MOCK_CONST_METHOD0(good, bool());
   MOCK_CONST_METHOD0(readable, bool());
   MOCK_CONST_METHOD0(hangup, bool());
-  MOCK_CONST_METHOD2(
-   getSelectedNextProtocol,
-   void(const unsigned char**, unsigned*));
-  MOCK_CONST_METHOD2(
-   getSelectedNextProtocolNoThrow,
-   bool(const unsigned char**, unsigned*));
+  MOCK_CONST_METHOD3(
+      getSelectedNextProtocol,
+      void(
+          const unsigned char**,
+          unsigned*,
+          folly::SSLContext::NextProtocolType*));
+  MOCK_CONST_METHOD3(
+      getSelectedNextProtocolNoThrow,
+      bool(
+          const unsigned char**,
+          unsigned*,
+          folly::SSLContext::NextProtocolType*));
 
   void sslConnect(
-    TAsyncSSLSocket::HandshakeCallback* cb,
-    uint64_t timeout,
-    const apache::thrift::transport::SSLContext::SSLVerifyPeerEnum& verify)
+      TAsyncSSLSocket::HandshakeCallback* cb,
+      uint64_t timeout,
+      const apache::thrift::transport::SSLContext::SSLVerifyPeerEnum& verify)
       override {
     if (timeout > 0) {
       handshakeTimeout_.scheduleTimeout((uint32_t)timeout);
@@ -67,11 +119,14 @@ class MockTAsyncSSLSocket :
     sslConnectMockable(cb, timeout, verify);
   }
   MOCK_METHOD3(
-   sslConnectMockable,
-   void(TAsyncSSLSocket::HandshakeCallback*, uint64_t,
-     const apache::thrift::transport::SSLContext::SSLVerifyPeerEnum&));
+      sslConnectMockable,
+      void(
+          TAsyncSSLSocket::HandshakeCallback*,
+          uint64_t,
+          const apache::thrift::transport::SSLContext::SSLVerifyPeerEnum&));
 };
-
-}}}
+}
+}
+}
 
 #endif

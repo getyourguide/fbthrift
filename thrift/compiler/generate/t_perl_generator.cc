@@ -24,7 +24,6 @@
 #include <list>
 
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <sstream>
 #include <thrift/compiler/generate/t_oop_generator.h>
 #include <thrift/compiler/platform.h>
@@ -64,7 +63,7 @@ class t_perl_generator : public t_oop_generator {
   void generate_xception(t_struct* txception) override;
   void generate_service(t_service* tservice) override;
 
-  std::string render_const_value(t_type* type, t_const_value* value);
+  std::string render_const_value(t_type* type, const t_const_value* value);
 
   /**
    * Structs!
@@ -163,7 +162,7 @@ class t_perl_generator : public t_oop_generator {
       "#\n";
   }
 
-  void perl_namespace_dirs(t_program* p, std::list<std::string>& dirs) {
+  void perl_namespace_dirs(const t_program* p, std::list<std::string>& dirs) {
     std::string ns = p->get_namespace("perl");
     std::string::size_type loc;
 
@@ -179,7 +178,7 @@ class t_perl_generator : public t_oop_generator {
     }
   }
 
-  std::string perl_namespace(t_program* p) {
+  std::string perl_namespace(const t_program* p) {
     std::string ns = p->get_namespace("perl");
     std::string result = "";
     std::string::size_type loc;
@@ -231,7 +230,7 @@ class t_perl_generator : public t_oop_generator {
  */
 void t_perl_generator::init_generator() {
   // Make output directory
-  MKDIR(get_out_dir().c_str());
+  make_dir(get_out_dir().c_str());
 
   string outdir = get_out_dir();
   std::list<std::string> dirs;
@@ -239,7 +238,7 @@ void t_perl_generator::init_generator() {
   std::list<std::string>::iterator it;
   for (it = dirs.begin(); it != dirs.end(); it++) {
       outdir += *it + "/";
-      MKDIR(outdir.c_str());
+      make_dir(outdir.c_str());
   }
 
   // Make output file
@@ -332,7 +331,9 @@ void t_perl_generator::generate_const(t_const* tconst) {
  * is NOT performed in this function as it is always run beforehand using the
  * validate_types method in main.cc
  */
-string t_perl_generator::render_const_value(t_type* type, t_const_value* value) {
+string t_perl_generator::render_const_value(
+    t_type* type,
+    const t_const_value* value) {
   std::ostringstream out;
 
   type = get_true_type(type);
@@ -1289,7 +1290,6 @@ void t_perl_generator::generate_deserialize_field(ofstream &out,
       case t_base_type::TYPE_VOID:
         throw "compiler error: cannot serialize void field in a struct: " +
           name;
-        break;
       case t_base_type::TYPE_STRING:
         out << "readString(\\$" << name << ");";
         break;
@@ -1514,7 +1514,6 @@ void t_perl_generator::generate_serialize_field(ofstream &out,
       case t_base_type::TYPE_VOID:
         throw
           "compiler error: cannot serialize void field in a struct: " + name;
-        break;
       case t_base_type::TYPE_STRING:
         out << "writeString($" << name << ");";
         break;

@@ -6,14 +6,12 @@
  */
 #pragma once
 
-#include <thrift/lib/cpp2/ServiceIncludes.h>
-#include <thrift/lib/cpp2/async/HeaderChannel.h>
-#include <thrift/lib/cpp/TApplicationException.h>
-#include <thrift/lib/cpp2/async/FutureRequest.h>
 #include <folly/futures/Future.h>
-#include "module_types.h"
-
-
+#include <thrift/lib/cpp/TApplicationException.h>
+#include <thrift/lib/cpp2/ServiceIncludes.h>
+#include <thrift/lib/cpp2/async/FutureRequest.h>
+#include <thrift/lib/cpp2/async/HeaderChannel.h>
+#include "src/gen-cpp2/module_types.h"
 
 namespace folly {
   class IOBuf;
@@ -32,7 +30,6 @@ class MyRootSvAsyncIf {
  public:
   virtual ~MyRootSvAsyncIf() {}
   virtual void async_tm_do_root(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) = 0;
-  virtual void async_do_root(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) = delete;
   virtual folly::Future<folly::Unit> future_do_root() = 0;
 };
 
@@ -41,31 +38,29 @@ class MyRootAsyncProcessor;
 class MyRootSvIf : public MyRootSvAsyncIf, public apache::thrift::ServerInterface {
  public:
   typedef MyRootAsyncProcessor ProcessorType;
-
-  virtual ~MyRootSvIf() {}
-  virtual std::unique_ptr<apache::thrift::AsyncProcessor> getProcessor();
+  std::unique_ptr<apache::thrift::AsyncProcessor> getProcessor() override;
   virtual void do_root();
-  folly::Future<folly::Unit> future_do_root();
-  virtual void async_tm_do_root(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback);
+  folly::Future<folly::Unit> future_do_root() override;
+  void async_tm_do_root(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) override;
 };
 
 class MyRootSvNull : public MyRootSvIf {
  public:
-  virtual ~MyRootSvNull() {}
-  virtual void do_root();
+  void do_root() override;
 };
 
 class MyRootAsyncProcessor : public ::apache::thrift::GeneratedAsyncProcessor {
  public:
-  virtual const char* getServiceName();
+  const char* getServiceName() override;
   using BaseAsyncProcessor = void;
+  using HasFrozen2 = std::false_type;
  protected:
   MyRootSvIf* iface_;
-  virtual folly::Optional<std::string> getCacheKey(folly::IOBuf* buf, apache::thrift::protocol::PROTOCOL_TYPES protType);
+  folly::Optional<std::string> getCacheKey(folly::IOBuf* buf, apache::thrift::protocol::PROTOCOL_TYPES protType) override;
  public:
-  virtual void process(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, apache::thrift::protocol::PROTOCOL_TYPES protType, apache::thrift::Cpp2RequestContext* context, folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm);
+  void process(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, apache::thrift::protocol::PROTOCOL_TYPES protType, apache::thrift::Cpp2RequestContext* context, folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm) override;
  protected:
-  virtual bool isOnewayMethod(const folly::IOBuf* buf, const apache::thrift::transport::THeader* header);
+  bool isOnewayMethod(const folly::IOBuf* buf, const apache::thrift::transport::THeader* header) override;
  private:
   static std::unordered_set<std::string> onewayMethods_;
   static std::unordered_map<std::string, int16_t> cacheKeyMap_;
@@ -74,13 +69,13 @@ class MyRootAsyncProcessor : public ::apache::thrift::GeneratedAsyncProcessor {
   using BinaryProtocolProcessMap = ProcessMap<BinaryProtocolProcessFunc>;
   static const MyRootAsyncProcessor::BinaryProtocolProcessMap& getBinaryProtocolProcessMap();
  private:
-  static MyRootAsyncProcessor::BinaryProtocolProcessMap binaryProcessMap_;
+  static const MyRootAsyncProcessor::BinaryProtocolProcessMap binaryProcessMap_;
  public:
   using CompactProtocolProcessFunc = ProcessFunc<MyRootAsyncProcessor, apache::thrift::CompactProtocolReader>;
   using CompactProtocolProcessMap = ProcessMap<CompactProtocolProcessFunc>;
   static const MyRootAsyncProcessor::CompactProtocolProcessMap& getCompactProtocolProcessMap();
  private:
-  static MyRootAsyncProcessor::CompactProtocolProcessMap compactProcessMap_;
+  static const MyRootAsyncProcessor::CompactProtocolProcessMap compactProcessMap_;
  private:
   template <typename ProtocolIn_, typename ProtocolOut_>
   void _processInThread_do_root(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, std::unique_ptr<ProtocolIn_> iprot, apache::thrift::Cpp2RequestContext* ctx, folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm);
@@ -88,8 +83,6 @@ class MyRootAsyncProcessor : public ::apache::thrift::GeneratedAsyncProcessor {
   void process_do_root(std::unique_ptr<apache::thrift::ResponseChannel::Request> req, std::unique_ptr<folly::IOBuf> buf, std::unique_ptr<ProtocolIn_> iprot,apache::thrift::Cpp2RequestContext* ctx,folly::EventBase* eb, apache::thrift::concurrency::ThreadManager* tm);
   template <class ProtocolIn_, class ProtocolOut_>
   static folly::IOBufQueue return_do_root(int32_t protoSeqId, apache::thrift::ContextStack* ctx);
-  template <class ProtocolIn_, class ProtocolOut_>
-  static void throw_do_root(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,std::exception_ptr ep,apache::thrift::Cpp2RequestContext* reqCtx);
   template <class ProtocolIn_, class ProtocolOut_>
   static void throw_wrapped_do_root(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,folly::exception_wrapper ew,apache::thrift::Cpp2RequestContext* reqCtx);
  public:
@@ -120,19 +113,22 @@ class MyRootAsyncClient : public apache::thrift::TClientBase {
   }
   virtual void do_root(std::unique_ptr<apache::thrift::RequestCallback> callback);
   virtual void do_root(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback);
+ private:
+  virtual void do_rootImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback);
+ public:
   virtual void sync_do_root();
   virtual void sync_do_root(apache::thrift::RpcOptions& rpcOptions);
   virtual folly::Future<folly::Unit> future_do_root();
   virtual folly::Future<folly::Unit> future_do_root(apache::thrift::RpcOptions& rpcOptions);
   virtual folly::Future<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> header_future_do_root(apache::thrift::RpcOptions& rpcOptions);
-  virtual void do_root(std::function<void (::apache::thrift::ClientReceiveState&&)> callback);
+  virtual void do_root(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback);
   static folly::exception_wrapper recv_wrapped_do_root(::apache::thrift::ClientReceiveState& state);
   static void recv_do_root(::apache::thrift::ClientReceiveState& state);
   // Mock friendly virtual instance method
   virtual void recv_instance_do_root(::apache::thrift::ClientReceiveState& state);
   virtual folly::exception_wrapper recv_instance_wrapped_do_root(::apache::thrift::ClientReceiveState& state);
   template <typename Protocol_>
-  void do_rootT(Protocol_* prot, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback);
+  void do_rootT(Protocol_* prot, bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback);
   template <typename Protocol_>
   static folly::exception_wrapper recv_wrapped_do_rootT(Protocol_* prot, ::apache::thrift::ClientReceiveState& state);
   template <typename Protocol_>

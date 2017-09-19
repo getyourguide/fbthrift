@@ -163,8 +163,8 @@ uint32_t TBinaryProtocolT<Transport_>::writeI64(const int64_t i64) {
 
 template <class Transport_>
 uint32_t TBinaryProtocolT<Transport_>::writeDouble(const double dub) {
-  BOOST_STATIC_ASSERT(sizeof(double) == sizeof(uint64_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<double>::is_iec559);
+  static_assert(sizeof(double) == sizeof(uint64_t), "");
+  static_assert(std::numeric_limits<double>::is_iec559, "");
 
   uint64_t bits = bitwise_cast<uint64_t>(dub);
   bits = htonll(bits);
@@ -174,8 +174,8 @@ uint32_t TBinaryProtocolT<Transport_>::writeDouble(const double dub) {
 
 template <class Transport_>
 uint32_t TBinaryProtocolT<Transport_>::writeFloat(const float flt) {
-  BOOST_STATIC_ASSERT(sizeof(float) == sizeof(uint32_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<float>::is_iec559);
+  static_assert(sizeof(float) == sizeof(uint32_t), "");
+  static_assert(std::numeric_limits<float>::is_iec559, "");
 
   uint32_t bits = bitwise_cast<uint32_t>(flt);
   bits = htonl(bits);
@@ -399,8 +399,8 @@ uint32_t TBinaryProtocolT<Transport_>::readI64(int64_t& i64) {
 
 template <class Transport_>
 uint32_t TBinaryProtocolT<Transport_>::readDouble(double& dub) {
-  BOOST_STATIC_ASSERT(sizeof(double) == sizeof(uint64_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<double>::is_iec559);
+  static_assert(sizeof(double) == sizeof(uint64_t), "");
+  static_assert(std::numeric_limits<double>::is_iec559, "");
 
   uint64_t bits;
   uint8_t b[8];
@@ -413,8 +413,8 @@ uint32_t TBinaryProtocolT<Transport_>::readDouble(double& dub) {
 
 template <class Transport_>
 uint32_t TBinaryProtocolT<Transport_>::readFloat(float& flt) {
-  BOOST_STATIC_ASSERT(sizeof(float) == sizeof(uint32_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<float>::is_iec559);
+  static_assert(sizeof(float) == sizeof(uint32_t), "");
+  static_assert(std::numeric_limits<float>::is_iec559, "");
 
   uint32_t bits;
   uint8_t b[4];
@@ -467,18 +467,20 @@ uint32_t TBinaryProtocolT<Transport_>::readStringBody(StrType& str,
     return size;
   }
 
-  // Use the heap here to prevent stack overflow for v. large strings
-  if (size > this->string_buf_size_ || this->string_buf_ == nullptr) {
-    void* new_string_buf = std::realloc(this->string_buf_, (uint32_t)size);
-    if (new_string_buf == nullptr) {
-      throw std::bad_alloc();
-    }
-    this->string_buf_ = (uint8_t*)new_string_buf;
-    this->string_buf_size_ = size;
+  const int32_t rsize = size;
+
+  str.clear();
+  while (size > 0) {
+    // Protect against malformed input and avoid pre-allocating
+    // requested size unless it is small
+    constexpr int32_t kMaxChunkSize = 1024 * 1024; // 1 MB
+    const int32_t chunk = std::min(size, kMaxChunkSize);
+    str.append(chunk, '\0');
+    trans_->readAll((uint8_t*)(&str.front() + str.size() - chunk), chunk);
+    size -= chunk;
   }
-  this->trans_->readAll(this->string_buf_, size);
-  str.assign((const char*)this->string_buf_, size);
-  return size;
+
+  return rsize;
 }
 
 }}} // apache::thrift::protocol

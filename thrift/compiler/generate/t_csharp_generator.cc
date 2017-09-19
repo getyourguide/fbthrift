@@ -23,7 +23,6 @@
 #include <vector>
 
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <sstream>
 
 #include <thrift/compiler/platform.h>
@@ -36,8 +35,8 @@ class t_csharp_generator : public t_oop_generator
   public:
     t_csharp_generator(
         t_program* program,
-        const std::map<std::string, std::string>& parsed_options,
-        const std::string& option_string)
+        const std::map<std::string, std::string>& /* parsed_options */,
+        const std::string& /* option_string */)
       : t_oop_generator(program)
     {
       out_dir_base_ = "gen-csharp";
@@ -53,10 +52,25 @@ class t_csharp_generator : public t_oop_generator
     void generate_xception (t_struct* txception);
     void generate_service (t_service* tservice);
     void generate_property(ofstream& out, t_field* tfield, bool isPublic);
-    bool print_const_value (std::ofstream& out, std::string name, t_type* type, t_const_value* value, bool in_static, bool defval=false, bool needtype=false);
-    std::string render_const_value(std::ofstream& out, std::string name, t_type* type, t_const_value* value);
+    bool print_const_value(
+        std::ofstream& out,
+        std::string name,
+        t_type* type,
+        const t_const_value* value,
+        bool in_static,
+        bool defval=false,
+        bool needtype=false);
+    std::string render_const_value(
+        std::ofstream& out,
+        std::string name,
+        t_type* type,
+        const t_const_value* value);
     void print_const_constructor(std::ofstream& out, std::vector<t_const*> consts);
-    void print_const_def_value(std::ofstream& out, std::string name, t_type* type, t_const_value* value);
+    void print_const_def_value(
+        std::ofstream& out,
+        std::string name,
+        t_type* type,
+        const t_const_value* value);
 
     void generate_csharp_struct(t_struct* tstruct, bool is_exception);
     void generate_csharp_struct_definition(std::ofstream& out, t_struct* tstruct, bool is_xception=false, bool in_class=false, bool is_result=false);
@@ -118,7 +132,7 @@ class t_csharp_generator : public t_oop_generator
 
 
 void t_csharp_generator::init_generator() {
-  MKDIR(get_out_dir().c_str());
+  make_dir(get_out_dir().c_str());
   namespace_name_ = program_->get_namespace("csharp");
 
   string dir = namespace_name_;
@@ -127,12 +141,12 @@ void t_csharp_generator::init_generator() {
 
   while ((loc = dir.find(".")) != string::npos) {
     subdir = subdir + "/" + dir.substr(0, loc);
-    MKDIR(subdir.c_str());
+    make_dir(subdir.c_str());
     dir = dir.substr(loc + 1);
   }
   if (dir.size() > 0) {
     subdir = subdir + "/" + dir;
-    MKDIR(subdir.c_str());
+    make_dir(subdir.c_str());
   }
 
   namespace_dir_ = subdir;
@@ -170,7 +184,7 @@ string t_csharp_generator::csharp_thrift_usings() {
 }
 
 void t_csharp_generator::close_generator() { }
-void t_csharp_generator::generate_typedef(t_typedef* ttypedef) {}
+void t_csharp_generator::generate_typedef(t_typedef* /* ttypedef */) {}
 
 void t_csharp_generator::generate_enum(t_enum* tenum) {
   string f_enum_name = namespace_dir_+"/" + (tenum->get_name())+".cs";
@@ -241,8 +255,11 @@ void t_csharp_generator::generate_consts(std::vector<t_const*> consts) {
   f_consts.close();
 }
 
-void t_csharp_generator::print_const_def_value(std::ofstream& out, string name, t_type* type, t_const_value* value)
-{
+void t_csharp_generator::print_const_def_value(
+    std::ofstream& out,
+    string name,
+    t_type* type,
+    const t_const_value* value) {
   if (type->is_struct() || type->is_xception()) {
     const vector<t_field*>& fields = ((t_struct*)type)->get_members();
     vector<t_field*>::const_iterator f_iter;
@@ -304,7 +321,14 @@ void t_csharp_generator::print_const_constructor(std::ofstream& out, std::vector
 
 
 //it seems like all that methods that call this are using in_static to be the opposite of what it would imply
-bool t_csharp_generator::print_const_value(std::ofstream& out, string name, t_type* type, t_const_value* value, bool in_static, bool defval, bool needtype) {
+bool t_csharp_generator::print_const_value(
+    std::ofstream& out,
+    string name,
+    t_type* type,
+    const t_const_value* value,
+    bool in_static,
+    bool defval,
+    bool needtype) {
   indent(out);
   bool need_static_construction = !in_static;
   if (!defval || needtype) {
@@ -334,7 +358,11 @@ bool t_csharp_generator::print_const_value(std::ofstream& out, string name, t_ty
   return need_static_construction;
 }
 
-std::string t_csharp_generator::render_const_value(ofstream& out, string name, t_type* type, t_const_value* value) {
+std::string t_csharp_generator::render_const_value(
+    ofstream& out,
+    string /* unused */,
+    t_type* type,
+    const t_const_value* value) {
   std::ostringstream render;
 
   if (type->is_base_type()) {
@@ -1100,7 +1128,8 @@ void t_csharp_generator::generate_function_helpers(t_function* tfunction) {
   generate_csharp_struct_definition(f_service_, &result, false, true, true);
 }
 
-void t_csharp_generator::generate_process_function(t_service* tservice, t_function* tfunction) {
+void t_csharp_generator::generate_process_function(
+    t_service* /* tservice */, t_function* tfunction) {
   indent(f_service_) <<
     "public void " << tfunction->get_name() << "_Process(int seqid, TProtocol iprot, TProtocol oprot)" << endl;
   scope_up(f_service_);
@@ -1218,7 +1247,6 @@ void t_csharp_generator::generate_deserialize_field(ofstream& out, t_field* tfie
       switch (tbase) {
         case t_base_type::TYPE_VOID:
           throw "compiler error: cannot serialize void field in a struct: " + name;
-          break;
         case t_base_type::TYPE_STRING:
           if (((t_base_type*)type)->is_binary()) {
              out << "ReadBinary();";
@@ -1385,7 +1413,6 @@ void t_csharp_generator::generate_serialize_field(ofstream& out, t_field* tfield
       switch(tbase) {
         case t_base_type::TYPE_VOID:
           throw "compiler error: cannot serialize void field in a struct: " + name;
-          break;
         case t_base_type::TYPE_STRING:
           if (((t_base_type*)type)->is_binary()) {
             out << "WriteBinary(";
@@ -1428,7 +1455,8 @@ void t_csharp_generator::generate_serialize_field(ofstream& out, t_field* tfield
   }
 }
 
-void t_csharp_generator::generate_serialize_struct(ofstream& out, t_struct* tstruct, string prefix) {
+void t_csharp_generator::generate_serialize_struct(
+    ofstream& out, t_struct* /* tstruct */, string prefix) {
   out <<
     indent() << prefix << ".Write(oprot);" << endl;
 }
@@ -1538,7 +1566,8 @@ std::string t_csharp_generator::prop_name(t_field* tfield) {
     return name;
 }
 
-string t_csharp_generator::type_name(t_type* ttype, bool in_container, bool in_init) {
+string t_csharp_generator::type_name(
+    t_type* ttype, bool in_container, bool /* in_init */) {
   while (ttype->is_typedef()) {
     ttype = ((t_typedef*)ttype)->get_type();
   }
@@ -1557,7 +1586,7 @@ string t_csharp_generator::type_name(t_type* ttype, bool in_container, bool in_i
     return "List<" + type_name(tlist->get_elem_type(), true) + ">";
   }
 
-  t_program* program = ttype->get_program();
+  const t_program* program = ttype->get_program();
   if (program != nullptr && program != program_) {
     string ns = program->get_namespace("csharp");
     if (!ns.empty()) {
@@ -1568,7 +1597,8 @@ string t_csharp_generator::type_name(t_type* ttype, bool in_container, bool in_i
   return ttype->get_name();
 }
 
-string t_csharp_generator::base_type_name(t_base_type* tbase, bool in_container) {
+string t_csharp_generator::base_type_name(
+    t_base_type* tbase, bool /* in_container */) {
   switch (tbase->get_base()) {
     case t_base_type::TYPE_VOID:
       return "void";

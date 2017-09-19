@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2016 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 
 #include <thrift/test/gen-cpp2/reflection_fatal_union.h>
 
-#include <thrift/test/expect_same.h>
+#include <thrift/lib/cpp2/fatal/reflection.h>
+#include <thrift/lib/cpp2/fatal/internal/test_helpers.h>
 
 #include <gtest/gtest.h>
 
@@ -25,11 +26,11 @@
 namespace test_cpp2 {
 namespace cpp_reflection {
 
-FATAL_STR(union1s, "union1");
-FATAL_STR(uis, "ui");
-FATAL_STR(uds, "ud");
-FATAL_STR(uss, "us");
-FATAL_STR(ues, "ue");
+FATAL_S(union1s, "union1");
+FATAL_S(uis, "ui");
+FATAL_S(uds, "ud");
+FATAL_S(uss, "us");
+FATAL_S(ues, "ue");
 
 using uii = std::integral_constant<union1::Type, union1::Type::ui>;
 using udi = std::integral_constant<union1::Type, union1::Type::ud>;
@@ -49,21 +50,19 @@ TEST(fatal_union, variants) {
   EXPECT_SAME<uei, traits::ids::ue>();
 
   EXPECT_SAME<
-    fatal::type_list<uii, udi, usi, uei>,
-    traits::descriptors::transform<fatal::get_member_type::id>
+    fatal::list<uii, udi, usi, uei>,
+    fatal::transform<traits::descriptors, fatal::get_type::id>
   >();
 
   EXPECT_SAME<
-    fatal::type_list<std::int32_t, double, std::string, enum1>,
-    traits::descriptors::transform<fatal::get_member_type::type>
+    fatal::list<std::int32_t, double, std::string, enum1>,
+    fatal::transform<traits::descriptors, fatal::get_type::type>
   >();
 }
 
 TEST(fatal_union, by_id) {
   using vtraits = fatal::variant_traits<union1>;
   using traits = vtraits::by_id;
-
-  EXPECT_SAME<fatal::type_list<uii, udi, usi, uei>, traits::tags>();
 
   EXPECT_SAME<uii, traits::id<uii>>();
   EXPECT_SAME<udi, traits::id<udi>>();
@@ -149,11 +148,6 @@ TEST(fatal_union, by_type) {
   using vtraits = fatal::variant_traits<union1>;
   using traits = vtraits::by_type;
 
-  EXPECT_SAME<
-    fatal::type_list<std::int32_t, double, std::string, enum1>,
-    traits::tags
-  >();
-
   EXPECT_SAME<uii, traits::id<std::int32_t>>();
   EXPECT_SAME<udi, traits::id<double>>();
   EXPECT_SAME<usi, traits::id<std::string>>();
@@ -232,6 +226,83 @@ TEST(fatal_union, by_type) {
   EXPECT_EQ(enum1::field1, traits::get<enum1>(ul));
   EXPECT_EQ(enum1::field1, traits::get<enum1>(uc));
   EXPECT_EQ(enum1::field1, traits::get<enum1>(ur));
+}
+
+FATAL_S(unionA_annotation1k, "another.annotation");
+FATAL_S(unionA_annotation1v, "some more text");
+FATAL_S(unionA_annotation2k, "sample.annotation");
+FATAL_S(unionA_annotation2v, "some text here");
+
+TEST(fatal_union, annotations) {
+  EXPECT_SAME<
+    fatal::list<>,
+    apache::thrift::reflect_variant<union1>::annotations::map
+  >();
+
+  EXPECT_SAME<
+    fatal::list<>,
+    apache::thrift::reflect_variant<union2>::annotations::map
+  >();
+
+  EXPECT_SAME<
+    fatal::list<>,
+    apache::thrift::reflect_variant<union3>::annotations::map
+  >();
+
+  using actual_unionA = apache::thrift::reflect_variant<unionA>::annotations;
+
+  EXPECT_SAME<unionA_annotation1k, actual_unionA::keys::another_annotation>();
+  EXPECT_SAME<unionA_annotation1v, actual_unionA::values::another_annotation>();
+  EXPECT_SAME<unionA_annotation2k, actual_unionA::keys::sample_annotation>();
+  EXPECT_SAME<unionA_annotation2v, actual_unionA::values::sample_annotation>();
+
+  EXPECT_SAME<
+    fatal::list<
+      apache::thrift::annotation<
+        unionA_annotation1k,
+        unionA_annotation1v
+      >,
+      apache::thrift::annotation<
+        unionA_annotation2k,
+        unionA_annotation2v
+      >
+    >,
+    actual_unionA::map
+  >();
+}
+
+TEST(fatal_union, by_name) {
+  using id_traits = fatal::enum_traits<union1::Type>;
+  using info = apache::thrift::reflect_variant<union1>;
+  using member_info = info::by_name<id_traits::member::ui::name>;
+
+  union1 u;
+  u.set_ui(10);
+
+  ASSERT_EQ(u.getType(), union1::Type::ui);
+  EXPECT_EQ(10, member_info::get(u));
+}
+
+TEST(fatal_union, by_type_id) {
+  using info = apache::thrift::reflect_variant<union1>;
+  using member_info = info::by_type_id<union1::Type::ui>;
+
+  union1 u;
+  u.set_ui(10);
+
+  ASSERT_EQ(u.getType(), union1::Type::ui);
+  EXPECT_EQ(10, member_info::get(u));
+}
+
+TEST(fatal_union, by_field_id) {
+  using info = apache::thrift::reflect_variant<union1>;
+  using member_info = info::by_field_id<1>;
+
+  union1 u;
+  u.set_ui(10);
+
+  ASSERT_EQ(u.getType(), union1::Type::ui);
+  EXPECT_EQ(10, member_info::get(u));
 }
 
 } // namespace cpp_reflection {

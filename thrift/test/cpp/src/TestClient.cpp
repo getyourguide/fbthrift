@@ -19,16 +19,15 @@
 
 #define __STDC_FORMAT_MACROS
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/time.h>
 #include <thrift/lib/cpp/protocol/TBinaryProtocol.h>
 #include <thrift/lib/cpp/protocol/THeaderProtocol.h>
-#include <thrift/lib/cpp/transport/TTransportUtils.h>
 #include <thrift/lib/cpp/transport/TSocket.h>
 #include <thrift/lib/cpp/transport/TSSLSocket.h>
 
 #include <memory>
 #include <thrift/test/gen-cpp/ThriftTest.h>
+
+#include <folly/portability/SysTime.h>
 
 #include <inttypes.h>
 
@@ -335,23 +334,23 @@ int main(int argc, char** argv) {
      * ENUM TEST
      */
     printf("testEnum(ONE)");
-    Numberz ret = testClient.testEnum(ONE);
+    Numberz ret = testClient.testEnum(Numberz::ONE);
     printf(" = %d\n", ret);
 
     printf("testEnum(TWO)");
-    ret = testClient.testEnum(TWO);
+    ret = testClient.testEnum(Numberz::TWO);
     printf(" = %d\n", ret);
 
     printf("testEnum(THREE)");
-    ret = testClient.testEnum(THREE);
+    ret = testClient.testEnum(Numberz::THREE);
     printf(" = %d\n", ret);
 
     printf("testEnum(FIVE)");
-    ret = testClient.testEnum(FIVE);
+    ret = testClient.testEnum(Numberz::FIVE);
     printf(" = %d\n", ret);
 
     printf("testEnum(EIGHT)");
-    ret = testClient.testEnum(EIGHT);
+    ret = testClient.testEnum(Numberz::EIGHT);
     printf(" = %d\n", ret);
 
     /**
@@ -383,7 +382,7 @@ int main(int argc, char** argv) {
      * INSANITY TEST
      */
     Insanity insane;
-    insane.userMap.insert(make_pair(FIVE, 5000));
+    insane.userMap.insert(make_pair(Numberz::FIVE, 5000));
     Xtruct truck;
     truck.string_thing = "Truck";
     truck.byte_thing = 8;

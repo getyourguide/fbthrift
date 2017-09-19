@@ -14,7 +14,9 @@ from six import StringIO
 from thrift import Thrift
 from thrift.util import randomizer
 from thrift.protocol.TCompactProtocol import getVarint
-from .THeaderTransport import THeaderTransport
+from .THeaderTransport import (
+    THeaderTransport, INFO, HEADER_MAGIC, _flush_info_headers
+)
 
 class TFuzzyHeaderTransport(THeaderTransport):
     """Transport that can optionally fuzz fields in the header or payload.
@@ -171,7 +173,7 @@ class TFuzzyHeaderTransport(THeaderTransport):
         buf.write(serialized)
 
     def _flushHeaderMessage(self, buf, wout, wsz):
-        """Write a message for self.HEADERS_CLIENT_TYPE
+        """Write a message for CLIENT_TYPE.HEADER
 
         This method writes a message using the same logic as
         THeaderTransport._flushHeaderMessage
@@ -199,16 +201,16 @@ class TFuzzyHeaderTransport(THeaderTransport):
         info_data = StringIO()
 
         # Write persistent kv-headers
-        cls._flush_info_headers(
+        _flush_info_headers(
             info_data,
             self._THeaderTransport__write_persistent_headers,
-            self.INFO_PKEYVALUE)
+            INFO.PERSISTENT)
 
         # Write non-persistent kv-headers
-        cls._flush_info_headers(
+        _flush_info_headers(
             info_data,
             self._THeaderTransport__write_headers,
-            self.INFO_KEYVALUE)
+            INFO.NORMAL)
 
         header_data = StringIO()
         proto_id = self._get_fuzzy_field(
@@ -232,11 +234,11 @@ class TFuzzyHeaderTransport(THeaderTransport):
         wsz += header_size + 10
 
         self._write_fuzzy_field(buf, 'length', wsz, 'i32')
-        self._write_fuzzy_field(buf, 'magic', self.HEADER_MAGIC, 'i16')
+        self._write_fuzzy_field(buf, 'magic', HEADER_MAGIC >> 16, 'i16')
         self._write_fuzzy_field(
-            buf, 'flags', self._THeaderTransport__flags, 'i16')
+            buf, 'flags', self.header_flags(), 'i16')
         self._write_fuzzy_field(
-            buf, 'seq_id', self._THeaderTransport__seq_id, 'i32')
+            buf, 'seq_id', self.seq_id, 'i32')
         self._write_fuzzy_field(buf, 'header_size', header_size // 4, 'i16')
 
         buf.write(header_data.getvalue())

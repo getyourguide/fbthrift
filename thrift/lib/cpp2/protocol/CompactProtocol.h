@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@
 #include <folly/FBVector.h>
 #include <folly/io/IOBuf.h>
 #include <folly/io/Cursor.h>
+#include <folly/portability/GFlags.h>
+
 #include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp/protocol/TProtocol.h>
 
@@ -102,23 +104,22 @@ class CompactProtocolWriter {
       , sharing_(sharing)
       , booleanField_({nullptr, TType::T_BOOL, 0}) {}
 
-  static inline ProtocolType protocolType() {
+  static constexpr ProtocolType protocolType() {
     return ProtocolType::T_COMPACT_PROTOCOL;
   }
 
   /**
-   * ...
-   * The IOBuf itself is managed by the caller.
+   * The IOBufQueue itself is managed by the caller.
    * It must exist for the life of the CompactProtocol as well,
    * or until the output is reset with setOutput/Input(NULL), or
-   * set to some other buffer.
+   * set to some other backing storage buffer.
    */
   inline void setOutput(
-      IOBufQueue* queue,
+      IOBufQueue* storage,
       size_t maxGrowth = std::numeric_limits<size_t>::max()) {
     // Allocate 16KB at a time; leave some room for the IOBuf overhead
     constexpr size_t kDesiredGrowth = (1 << 14) - 64;
-    out_.reset(queue, std::min(kDesiredGrowth, maxGrowth));
+    out_.reset(storage, std::min(kDesiredGrowth, maxGrowth));
   }
 
   inline uint32_t writeMessageBegin(const std::string& name,
@@ -152,10 +153,9 @@ class CompactProtocolWriter {
   inline uint32_t writeI64(int64_t i64);
   inline uint32_t writeDouble(double dub);
   inline uint32_t writeFloat(float flt);
-  template <typename StrType>
-  inline uint32_t writeString(const StrType& str);
-  template <typename StrType>
-  inline uint32_t writeBinary(const StrType& str);
+  inline uint32_t writeString(folly::StringPiece str);
+  inline uint32_t writeBinary(folly::StringPiece str);
+  inline uint32_t writeBinary(folly::ByteRange str);
   inline uint32_t writeBinary(const std::unique_ptr<IOBuf>& str);
   inline uint32_t writeBinary(const IOBuf& str);
   inline uint32_t writeSerializedData(
@@ -168,58 +168,50 @@ class CompactProtocolWriter {
    * Functions that return the serialized size
    */
 
-  inline uint32_t serializedMessageSize(const std::string& name);
+  inline uint32_t serializedMessageSize(const std::string& name) const;
   inline uint32_t serializedFieldSize(const char* name,
                                       TType fieldType,
-                                      int16_t fieldId);
-  inline uint32_t serializedStructSize(const char* name);
+                                      int16_t fieldId) const;
+  inline uint32_t serializedStructSize(const char* name) const;
   inline uint32_t serializedSizeMapBegin(TType keyType,
                                          TType valType,
-                                         uint32_t size);
-  inline uint32_t serializedSizeMapEnd();
+                                         uint32_t size) const;
+  inline uint32_t serializedSizeMapEnd() const;
   inline uint32_t serializedSizeListBegin(TType elemType,
-                                            uint32_t size);
-  inline uint32_t serializedSizeListEnd();
+                                            uint32_t size) const;
+  inline uint32_t serializedSizeListEnd() const;
   inline uint32_t serializedSizeSetBegin(TType elemType,
-                                           uint32_t size);
-  inline uint32_t serializedSizeSetEnd();
-  inline uint32_t serializedSizeStop();
-  inline uint32_t serializedSizeBool(bool = false);
-  inline uint32_t serializedSizeByte(int8_t = 0);
-  inline uint32_t serializedSizeI16(int16_t = 0);
-  inline uint32_t serializedSizeI32(int32_t = 0);
-  inline uint32_t serializedSizeI64(int64_t = 0);
-  inline uint32_t serializedSizeDouble(double = 0.0);
-  inline uint32_t serializedSizeFloat(float = 0);
-  template <typename StrType>
-  inline uint32_t serializedSizeString(const StrType&);
-  template <typename StrType>
-  uint32_t serializedSizeBinary(const StrType& v) {
-    return serializedSizeString(v);
-  }
-  inline uint32_t serializedSizeBinary(const std::unique_ptr<IOBuf>& v);
-  inline uint32_t serializedSizeBinary(const IOBuf& v);
-  template <typename StrType>
-  uint32_t serializedSizeZCBinary(const StrType& v) {
-    return serializedSizeBinary(v);
-  }
-  uint32_t serializedSizeZCBinary(const std::unique_ptr<IOBuf>& /*v*/) {
-    // size only
-    return serializedSizeI32();
-  }
-  uint32_t serializedSizeZCBinary(const IOBuf& /*v*/) {
-    // size only
-    return serializedSizeI32();
-  }
+                                           uint32_t size) const;
+  inline uint32_t serializedSizeSetEnd() const;
+  inline uint32_t serializedSizeStop() const;
+  inline uint32_t serializedSizeBool(bool = false) const;
+  inline uint32_t serializedSizeByte(int8_t = 0) const;
+  inline uint32_t serializedSizeI16(int16_t = 0) const;
+  inline uint32_t serializedSizeI32(int32_t = 0) const;
+  inline uint32_t serializedSizeI64(int64_t = 0) const;
+  inline uint32_t serializedSizeDouble(double = 0.0) const;
+  inline uint32_t serializedSizeFloat(float = 0) const;
+  inline uint32_t serializedSizeString(folly::StringPiece str) const;
+  inline uint32_t serializedSizeBinary(folly::StringPiece str) const;
+  inline uint32_t serializedSizeBinary(folly::ByteRange v) const;
+  inline uint32_t serializedSizeBinary(std::unique_ptr<IOBuf> const& v) const;
+  inline uint32_t serializedSizeBinary(IOBuf const& v) const;
+  inline uint32_t serializedSizeZCBinary(folly::StringPiece str) const;
+  inline uint32_t serializedSizeZCBinary(folly::ByteRange v) const;
+  inline uint32_t serializedSizeZCBinary(
+    std::unique_ptr<IOBuf> const& /*v*/) const;
+  inline uint32_t serializedSizeZCBinary(IOBuf const& /*v*/) const;
   inline uint32_t serializedSizeSerializedData(
-    const std::unique_ptr<folly::IOBuf>& /*data*/) {
-    // TODO
+    std::unique_ptr<folly::IOBuf> const& /*data*/) const {
+    // TODO (kek)
     return 0;
   }
 
  protected:
   /**
-   * Cursor to write the data out to.
+   * Cursor to write the data out to. Must support some of the interface of
+   * folly::io::QueueAppender, notably, reset(), push(), and
+   * write()/writeBE()/writeLE().
    */
   QueueAppender out_;
   ExternalBufferSharing sharing_;
@@ -232,7 +224,6 @@ class CompactProtocolWriter {
 
   detail::compact::SimpleStack<int16_t, 10> lastField_;
   int16_t lastFieldId_;
-
 };
 
 class CompactProtocolReader {
@@ -259,7 +250,7 @@ class CompactProtocolReader {
     , in_(nullptr)
     , boolValue_({false, false}) {}
 
-  static inline ProtocolType protocolType() {
+  static constexpr ProtocolType protocolType() {
     return ProtocolType::T_COMPACT_PROTOCOL;
   }
 
@@ -277,9 +268,8 @@ class CompactProtocolReader {
    * or until the output is reset with setOutput/Input(NULL), or
    * set to some other buffer.
    */
-  inline void setInput(const IOBuf* buf) {
-    in_.reset(buf);
-  }
+  void setInput(const Cursor& cursor) { in_ = cursor; }
+  void setInput(const IOBuf* buf) { setInput(Cursor(buf)); }
 
   /**
    * Reading functions
@@ -333,12 +323,6 @@ class CompactProtocolReader {
     return 0;
   }
 
-  // Returns the last read sequence ID.  Used in servers
-  // for backwards compatibility with thrift1.
-  int32_t getSeqId() {
-    return seqid_;
-  }
-
  protected:
   inline uint32_t readStringSize(int32_t& size);
 
@@ -346,6 +330,10 @@ class CompactProtocolReader {
   inline uint32_t readStringBody(StrType& str, int32_t size);
 
   inline TType getType(int8_t type);
+
+  [[noreturn]] static void throwBadProtocolIdentifier();
+  [[noreturn]] static void throwBadProtocolVersion();
+  [[noreturn]] static void throwBadType(uint8_t type);
 
   int32_t string_limit_;
   int32_t container_limit_;
@@ -356,8 +344,6 @@ class CompactProtocolReader {
    * there is not enough data tor ead the whole struct.
    */
   Cursor in_;
-
-  int32_t seqid_;
 
   detail::compact::SimpleStack<int16_t, 10> lastField_;
   int16_t lastFieldId_;
@@ -373,6 +359,6 @@ class CompactProtocolReader {
 
 }} // apache::thrift
 
-#include "CompactProtocol.tcc"
+#include <thrift/lib/cpp2/protocol/CompactProtocol.tcc>
 
 #endif // #ifndef CPP2_PROTOCOL_COMPACTPROTOCOL_H_

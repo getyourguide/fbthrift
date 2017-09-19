@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,11 +47,11 @@ Shallow makeShallow() {
 
 Deep makeDeep(size_t triplesz) {
   Deep data;
-  for (size_t i = 0; i < 16; ++i) {
+  for (size_t i = 0; i < triplesz; ++i) {
     Deep1 data1;
-    for (size_t j = 0; j < 16; ++j) {
+    for (size_t j = 0; j < triplesz; ++j) {
       Deep2 data2;
-      for (size_t k = 0; k < 16; ++k) {
+      for (size_t k = 0; k < triplesz; ++k) {
         data2.datas.push_back(sformat("omg[{}, {}, {}]", i, j, k));
       }
       data1.deeps.push_back(move(data2));
@@ -97,9 +97,9 @@ BENCHMARK(TCompactProtocol_deserialize_empty, kiters) {
   ser.serialize(data, &buf);
   braces.dismiss();
   while (iters--) {
-    ThriftSerializerCompact<> ser;
-    Empty data;
-    ser.deserialize(buf, &data);
+    ThriftSerializerCompact<> s;
+    Empty empty;
+    s.deserialize(buf, &empty);
   }
   braces.rehire();
 }
@@ -111,8 +111,8 @@ BENCHMARK(TCompactProtocol_serialize_empty, kiters) {
   braces.dismiss();
   while (iters--) {
     ThriftSerializerCompact<> ser;
-    string buf;
-    ser.serialize(data, &buf);
+    string str;
+    ser.serialize(data, &str);
   }
   braces.rehire();
 }
@@ -126,9 +126,9 @@ BENCHMARK(TCompactProtocol_deserialize_shallow, kiters) {
   ser.serialize(data, &buf);
   braces.dismiss();
   while (iters--) {
-    ThriftSerializerCompact<> ser;
+    ThriftSerializerCompact<> s;
     Deep data;
-    ser.deserialize(buf, &data);
+    s.deserialize(buf, &data);
   }
   braces.rehire();
 }
@@ -155,9 +155,9 @@ BENCHMARK(TCompactProtocol_deserialize_deep, kiters) {
   ser.serialize(data, &buf);
   braces.dismiss();
   while (iters--) {
-    ThriftSerializerCompact<> ser;
-    Deep data;
-    ser.deserialize(buf, &data);
+    ThriftSerializerCompact<> s;
+    Deep deep;
+    s.deserialize(buf, &deep);
   }
   braces.rehire();
 }

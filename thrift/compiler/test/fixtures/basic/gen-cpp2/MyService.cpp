@@ -4,9 +4,9 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "MyService.h"
+#include "thrift/compiler/test/fixtures/basic/gen-cpp2/MyService.h"
 
-#include "MyService.tcc"
+#include "thrift/compiler/test/fixtures/basic/gen-cpp2/MyService.tcc"
 
 #include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
@@ -14,11 +14,11 @@
 namespace cpp2 {
 
 std::unique_ptr<apache::thrift::AsyncProcessor> MyServiceSvIf::getProcessor() {
-  return folly::make_unique<MyServiceAsyncProcessor>(this);
+  return std::make_unique<MyServiceAsyncProcessor>(this);
 }
 
 void MyServiceSvIf::ping() {
-  throw apache::thrift::TApplicationException("Function ping is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("ping");
 }
 
 folly::Future<folly::Unit> MyServiceSvIf::future_ping() {
@@ -30,7 +30,7 @@ void MyServiceSvIf::async_tm_ping(std::unique_ptr<apache::thrift::HandlerCallbac
 }
 
 void MyServiceSvIf::getRandomData(std::string& /*_return*/) {
-  throw apache::thrift::TApplicationException("Function getRandomData is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("getRandomData");
 }
 
 folly::Future<std::unique_ptr<std::string>> MyServiceSvIf::future_getRandomData() {
@@ -42,7 +42,7 @@ void MyServiceSvIf::async_tm_getRandomData(std::unique_ptr<apache::thrift::Handl
 }
 
 bool MyServiceSvIf::hasDataById(int64_t /*id*/) {
-  throw apache::thrift::TApplicationException("Function hasDataById is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("hasDataById");
 }
 
 folly::Future<bool> MyServiceSvIf::future_hasDataById(int64_t id) {
@@ -54,7 +54,7 @@ void MyServiceSvIf::async_tm_hasDataById(std::unique_ptr<apache::thrift::Handler
 }
 
 void MyServiceSvIf::getDataById(std::string& /*_return*/, int64_t /*id*/) {
-  throw apache::thrift::TApplicationException("Function getDataById is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("getDataById");
 }
 
 folly::Future<std::unique_ptr<std::string>> MyServiceSvIf::future_getDataById(int64_t id) {
@@ -66,7 +66,7 @@ void MyServiceSvIf::async_tm_getDataById(std::unique_ptr<apache::thrift::Handler
 }
 
 void MyServiceSvIf::putDataById(int64_t /*id*/, std::unique_ptr<std::string> /*data*/) {
-  throw apache::thrift::TApplicationException("Function putDataById is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("putDataById");
 }
 
 folly::Future<folly::Unit> MyServiceSvIf::future_putDataById(int64_t id, std::unique_ptr<std::string> data) {
@@ -78,7 +78,7 @@ void MyServiceSvIf::async_tm_putDataById(std::unique_ptr<apache::thrift::Handler
 }
 
 void MyServiceSvIf::lobDataById(int64_t /*id*/, std::unique_ptr<std::string> /*data*/) {
-  throw apache::thrift::TApplicationException("Function lobDataById is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("lobDataById");
 }
 
 folly::Future<folly::Unit> MyServiceSvIf::future_lobDataById(int64_t id, std::unique_ptr<std::string> data) {
@@ -127,25 +127,26 @@ const MyServiceAsyncProcessor::BinaryProtocolProcessMap& MyServiceAsyncProcessor
   return binaryProcessMap_;
 }
 
-MyServiceAsyncProcessor::BinaryProtocolProcessMap MyServiceAsyncProcessor::binaryProcessMap_ {
+const MyServiceAsyncProcessor::BinaryProtocolProcessMap MyServiceAsyncProcessor::binaryProcessMap_ {
   {"ping", &MyServiceAsyncProcessor::_processInThread_ping<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"getRandomData", &MyServiceAsyncProcessor::_processInThread_getRandomData<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"hasDataById", &MyServiceAsyncProcessor::_processInThread_hasDataById<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"getDataById", &MyServiceAsyncProcessor::_processInThread_getDataById<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
   {"putDataById", &MyServiceAsyncProcessor::_processInThread_putDataById<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
-  {"lobDataById", &MyServiceAsyncProcessor::_processInThread_lobDataById<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>}
+  {"lobDataById", &MyServiceAsyncProcessor::_processInThread_lobDataById<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
 };
+
 const MyServiceAsyncProcessor::CompactProtocolProcessMap& MyServiceAsyncProcessor::getCompactProtocolProcessMap() {
   return compactProcessMap_;
 }
 
-MyServiceAsyncProcessor::CompactProtocolProcessMap MyServiceAsyncProcessor::compactProcessMap_ {
+const MyServiceAsyncProcessor::CompactProtocolProcessMap MyServiceAsyncProcessor::compactProcessMap_ {
   {"ping", &MyServiceAsyncProcessor::_processInThread_ping<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"getRandomData", &MyServiceAsyncProcessor::_processInThread_getRandomData<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"hasDataById", &MyServiceAsyncProcessor::_processInThread_hasDataById<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"getDataById", &MyServiceAsyncProcessor::_processInThread_getDataById<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
   {"putDataById", &MyServiceAsyncProcessor::_processInThread_putDataById<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
-  {"lobDataById", &MyServiceAsyncProcessor::_processInThread_lobDataById<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>}
+  {"lobDataById", &MyServiceAsyncProcessor::_processInThread_lobDataById<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
 };
 
 } // cpp2

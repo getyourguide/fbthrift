@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include <cassert>
-
 #include <fstream>
 #include <iostream>
 #include <set>
@@ -80,19 +78,19 @@ class t_d_generator : public t_oop_generator {
  protected:
   void init_generator() override {
     // Make output directory
-    MKDIR(get_out_dir().c_str());
+    make_dir(get_out_dir().c_str());
 
     string dir = program_->get_namespace("d");
     string subdir = get_out_dir();
     string::size_type loc;
     while ((loc = dir.find(".")) != string::npos) {
       subdir = subdir + "/" + dir.substr(0, loc);
-      MKDIR(subdir.c_str());
+      make_dir(subdir.c_str());
       dir = dir.substr(loc+1);
     }
     if (!dir.empty()) {
       subdir = subdir + "/" + dir;
-      MKDIR(subdir.c_str());
+      make_dir(subdir.c_str());
     }
 
     package_dir_ = subdir + "/";
@@ -292,7 +290,7 @@ class t_d_generator : public t_oop_generator {
     // Write the method metadata.
     ostringstream meta;
     indent_up();
-    bool first = true;
+    bool first_fn = true;
     for (fn_iter = functions.begin(); fn_iter != functions.end(); ++fn_iter) {
       if ((*fn_iter)->get_arglist()->get_members().empty() &&
         (*fn_iter)->get_xceptions()->get_members().empty() &&
@@ -300,8 +298,8 @@ class t_d_generator : public t_oop_generator {
         continue;
       }
 
-      if (first) {
-        first = false;
+      if (first_fn) {
+        first_fn = false;
       } else {
         meta << ",";
       }
@@ -311,19 +309,19 @@ class t_d_generator : public t_oop_generator {
       indent_up();
       indent(meta) << "[";
 
-      bool first = true;
+      bool first_param = true;
       const vector<t_field*> &params = (*fn_iter)->get_arglist()->get_members();
       vector<t_field*>::const_iterator p_iter;
       for (p_iter = params.begin(); p_iter != params.end(); ++p_iter) {
-        if (first) {
-          first = false;
+        if (first_param) {
+          first_param = false;
         } else {
           meta << ", ";
         }
 
         meta << "TParamMeta(`" << (*p_iter)->get_name() << "`, " << (*p_iter)->get_key();
 
-        t_const_value* cv = (*p_iter)->get_value();
+        const t_const_value* cv = (*p_iter)->get_value();
         if (cv != nullptr) {
           meta << ", q{" << render_const_value((*p_iter)->get_type(), cv) << "}";
         }
@@ -435,8 +433,7 @@ class t_d_generator : public t_oop_generator {
           indent() << "// Your implementation goes here." << endl <<
           indent() << "writeln(\"" << (*f_iter)->get_name() << " called\");" << endl;
 
-        t_base_type* rt = (t_base_type*)(*f_iter)->get_returntype();
-        if (rt->get_base() != t_base_type::TYPE_VOID) {
+        if (!(*f_iter)->get_returntype()->is_void()) {
           indent(out) << "return typeof(return).init;" << endl;
         }
 
@@ -482,11 +479,13 @@ class t_d_generator : public t_oop_generator {
     }
     indent_up();
 
-    // Declare all fields.
-    vector<t_field*>::const_iterator m_iter;
-    for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
-      indent(out) << render_type_name((*m_iter)->get_type()) << " " <<
-        get_name(*m_iter) << ";" << endl;
+    { // separate scope to avoid shadowing "m_iter" below.
+      // Declare all fields.
+      vector<t_field*>::const_iterator m_iter;
+      for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
+        indent(out) << render_type_name((*m_iter)->get_type()) << " " <<
+          get_name(*m_iter) << ";" << endl;
+      }
     }
 
     if (!members.empty()) indent(out) << endl;
@@ -512,7 +511,7 @@ class t_d_generator : public t_oop_generator {
         indent(out) << "TFieldMeta(`" << get_name(*m_iter) << "`, " <<
           (*m_iter)->get_key();
 
-        t_const_value* cv = (*m_iter)->get_value();
+        const t_const_value* cv = (*m_iter)->get_value();
         t_field::e_req req = (*m_iter)->get_req();
         out << ", " << render_req(req);
         if (cv != nullptr) {
@@ -562,7 +561,7 @@ class t_d_generator : public t_oop_generator {
    * single expression; for complex types, immediately called delegate
    * literals are used to achieve this.
    */
-  string render_const_value(t_type* type, t_const_value* value) {
+  string render_const_value(t_type* type, const t_const_value* value) {
     // Resolve any typedefs.
     type = get_true_type(type);
 
@@ -797,4 +796,3 @@ class t_d_generator : public t_oop_generator {
 };
 
 THRIFT_REGISTER_GENERATOR(d, "D", "")
-

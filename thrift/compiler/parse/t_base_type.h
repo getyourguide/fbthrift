@@ -35,23 +35,22 @@ class t_base_type : public t_type {
    * Enumeration of thrift base types
    */
   enum t_base {
-    TYPE_VOID = t_types::TYPE_VOID,
-    TYPE_STRING = t_types::TYPE_STRING,
-    TYPE_BOOL = t_types::TYPE_BOOL,
-    TYPE_BYTE = t_types::TYPE_BYTE,
-    TYPE_I16 = t_types::TYPE_I16,
-    TYPE_I32 = t_types::TYPE_I32,
-    TYPE_I64 = t_types::TYPE_I64,
-    TYPE_DOUBLE = t_types::TYPE_DOUBLE,
-    TYPE_FLOAT = t_types::TYPE_FLOAT,
+    TYPE_VOID = int(TypeValue::TYPE_VOID),
+    TYPE_STRING = int(TypeValue::TYPE_STRING),
+    TYPE_BOOL = int(TypeValue::TYPE_BOOL),
+    TYPE_BYTE = int(TypeValue::TYPE_BYTE),
+    TYPE_I16 = int(TypeValue::TYPE_I16),
+    TYPE_I32 = int(TypeValue::TYPE_I32),
+    TYPE_I64 = int(TypeValue::TYPE_I64),
+    TYPE_DOUBLE = int(TypeValue::TYPE_DOUBLE),
+    TYPE_FLOAT = int(TypeValue::TYPE_FLOAT),
   };
 
   t_base_type(std::string name, t_base base) :
     t_type(name),
     base_(base),
     string_list_(false),
-    binary_(false),
-    string_enum_(false){}
+    binary_(false) {}
 
   t_base get_base() const {
     return base_;
@@ -62,6 +61,18 @@ class t_base_type : public t_type {
   bool is_string() const override { return base_ == TYPE_STRING; }
 
   bool is_bool() const override { return base_ == TYPE_BOOL; }
+
+  bool is_byte() const override { return base_ == TYPE_BYTE; }
+
+  bool is_i16() const override { return base_ == TYPE_I16; }
+
+  bool is_i32() const override { return base_ == TYPE_I32; }
+
+  bool is_i64() const override { return base_ == TYPE_I64; }
+
+  bool is_float() const override { return base_ == TYPE_FLOAT; }
+
+  bool is_double() const override { return base_ == TYPE_DOUBLE; }
 
   bool is_floating_point() const override {
     return base_ == TYPE_DOUBLE || base_ == TYPE_FLOAT;
@@ -79,24 +90,8 @@ class t_base_type : public t_type {
     binary_ = val;
   }
 
-  bool is_binary() const {
+  bool is_binary() const override {
     return (base_ == TYPE_STRING) && binary_;
-  }
-
-  void set_string_enum(bool /*val*/) {
-    string_enum_ = true;
-  }
-
-  bool is_string_enum() const {
-    return base_ == TYPE_STRING && string_enum_;
-  }
-
-  void add_string_enum_val(std::string val) {
-    string_enum_vals_.push_back(val);
-  }
-
-  const std::vector<std::string>& get_string_enum_vals() const {
-    return string_enum_vals_;
   }
 
   bool is_base_type() const override { return true; }
@@ -131,8 +126,6 @@ class t_base_type : public t_type {
 
   bool string_list_;
   bool binary_;
-  bool string_enum_;
-  std::vector<std::string> string_enum_vals_;
 };
 
 #endif

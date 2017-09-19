@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 
-# This is loosely based on RunClientServer.py and TestClient.py, but
-# is heavily modified to work in fbcode.  In particular, all the assertions
-# are borrowed from testClient.py
-#
 # This starts up a bunch of servers, one for each of the server type
 # and socket typecombinations we have. It then runs through the tests
 # for each server, which entails connecting to calling a method on the
@@ -15,11 +11,9 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from itertools import chain
 import os.path
-import getpass
 import sys
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import Popen
 import time
 import unittest
 import string
@@ -31,17 +25,14 @@ from ThriftTest import ThriftTest, SecondService
 from ThriftTest.ttypes import *
 
 from thrift.transport import TTransport
-from thrift.transport.THeaderTransport import THeaderTransport
+from thrift.transport.THeaderTransport import (
+    THeaderTransport, TRANSFORM, CLIENT_TYPE,
+)
 from thrift.transport import TSocket, TSSLSocket
-from thrift.protocol import TBinaryProtocol, THeaderProtocol, \
-        TMultiplexedProtocol
+from thrift.protocol import (
+    TBinaryProtocol, THeaderProtocol, TMultiplexedProtocol, TCompactProtocol
+)
 
-SERVER_TYPES = [
-    "TCppServer",
-    ]
-if sys.version_info[0] < 3:
-    SERVER_TYPES.append("TNonblockingServer")
-FRAMED_TYPES = ["TNonblockingServer"]
 _servers = []
 _ports = {}
 
@@ -52,17 +43,17 @@ except:
 
 def start_server(server_type, ssl, server_header, server_context,
         multiple, port):
+    server_path = os.path.dirname(sys.argv[0])
     if sys.version_info[0] >= 3:
-        server_path = '_bin/thrift/test/py/py3_test_server.par'
+        server_bin = os.path.join(server_path, 'py3_test_server.par')
     else:
-        server_path = '_bin/thrift/test/py/python_test_server.par'
-    args = [server_path, '--port', str(port)]
+        server_bin = os.path.join(server_path, 'python_test_server.par')
+
+    args = [server_bin, '--port', str(port)]
     if ssl:
         args.append('--ssl')
     if server_header:
         args.append('--header')
-    if server_type == "TNonblockingServer":
-        args.append('--timeout=1')
     if server_context:
         args.append('--context')
     if multiple:
@@ -148,12 +139,7 @@ class AbstractTest(object):
         else:
             self.socket = TSocket.TSocket("localhost", self._port)
 
-        if self.server_type in FRAMED_TYPES \
-                and not isinstance(self, HeaderTest):
-            self.transport = TTransport.TFramedTransport(self.socket)
-        else:
-            self.transport = TTransport.TBufferedTransport(self.socket)
-
+        self.transport = TTransport.TBufferedTransport(self.socket)
         self.protocol = self.protocol_factory.getProtocol(self.transport)
         if isinstance(self, HeaderAcceleratedCompactTest):
             self.protocol.trans.set_protocol_id(
@@ -237,39 +223,6 @@ class AbstractTest(object):
         if self.client2:
             self.assertEqual(self.client2.blahBlah(), None)
 
-    def testPreServe(self):
-        count = self.client.testPreServe()
-        self.assertGreaterEqual(count, 1)
-
-    def testNewConnection(self):
-        if self.server_type == "TCppServer":
-            return
-        count = self.client.testNewConnection()
-        self.assertTrue(count > 0)
-
-    def testRequestCount(self):
-        count = self.client.testRequestCount()
-        # not updated for TNonblockingServer
-        self.assertTrue(count >= 0)
-
-    def testConnectionDestroyed(self):
-        count = self.client.testConnectionDestroyed()
-        self.assertTrue(count >= 0)
-
-    def testNonblockingTimeout(self):
-        if self.server_type == "TNonblockingServer":
-            self.socket.close()
-            self.socket.open()
-            stime = time.time()
-            try:
-                self.socket.read(1)
-            except TTransport.TTransportException as x:
-                total_time = time.time() - stime
-                self.assertTrue(total_time > 1, "Read timeout was too short")
-                self.assertTrue(total_time < 10, "Read timeout took too long")
-                return
-            self.assertTrue(False, "Read timeout never fired")
-
 
 class NormalBinaryTest(AbstractTest):
     protocol_factory = TBinaryProtocol.TBinaryProtocolFactory()
@@ -279,77 +232,115 @@ class AcceleratedBinaryTest(AbstractTest):
     protocol_factory = TBinaryProtocol.TBinaryProtocolAcceleratedFactory()
 
 
-class HeaderTest(AbstractTest):
-    protocol_factory = THeaderProtocol.THeaderProtocolFactory(True,
-        [THeaderTransport.HEADERS_CLIENT_TYPE,
-         THeaderTransport.FRAMED_DEPRECATED,
-         THeaderTransport.UNFRAMED_DEPRECATED,
-         THeaderTransport.HTTP_CLIENT_TYPE])
+class HeaderBase(AbstractTest):
+    protocol_factory = THeaderProtocol.THeaderProtocolFactory(
+        True,
+        [CLIENT_TYPE.HEADER,
+         CLIENT_TYPE.FRAMED_DEPRECATED,
+         CLIENT_TYPE.UNFRAMED_DEPRECATED,
+         CLIENT_TYPE.HTTP_SERVER]
+    )
 
+
+class HeaderTest(HeaderBase):
     def testZlibCompression(self):
         htrans = self.protocol.trans
         if isinstance(htrans, THeaderTransport):
-            htrans.add_transform(THeaderTransport.ZLIB_TRANSFORM)
+            htrans.add_transform(TRANSFORM.ZLIB)
             self.testStruct()
 
     def testSnappyCompression(self):
         htrans = self.protocol.trans
         if isinstance(htrans, THeaderTransport):
-            htrans.add_transform(THeaderTransport.SNAPPY_TRANSFORM)
+            htrans.add_transform(TRANSFORM.SNAPPY)
             self.testStruct()
 
     def testMultipleCompression(self):
         htrans = self.protocol.trans
         if isinstance(htrans, THeaderTransport):
-            htrans.add_transform(THeaderTransport.ZLIB_TRANSFORM)
-            htrans.add_transform(THeaderTransport.SNAPPY_TRANSFORM)
+            htrans.add_transform(TRANSFORM.ZLIB)
+            htrans.add_transform(TRANSFORM.SNAPPY)
             self.testStruct()
 
     def testKeyValueHeader(self):
-        if self.server_header and self.server_type == 'TNonblockingServer':
-            # TNonblockingServer uses different protocol instances for input
-            # and output so persistent header won't work
-            return
         htrans = self.protocol.trans
         if isinstance(htrans, THeaderTransport):
             # Try just persistent header
-            htrans.set_persistent_header(b"permanent", b"true")
+            htrans.set_persistent_header("permanent", "true")
             self.client.testString('test')
             headers = htrans.get_headers()
-            self.assertTrue(b"permanent" in headers)
-            self.assertEquals(headers[b"permanent"], b"true")
+            self.assertTrue("permanent" in headers)
+            self.assertEquals(headers["permanent"], "true")
 
             # Try with two transient headers
-            htrans.set_header(b"transient1", b"true")
-            htrans.set_header(b"transient2", b"true")
+            htrans.set_header("transient1", "true")
+            htrans.set_header("transient2", "true")
             self.client.testString('test')
             headers = htrans.get_headers()
-            self.assertTrue(b"permanent" in headers)
-            self.assertEquals(headers[b"permanent"], b"true")
-            self.assertTrue(b"transient1" in headers)
-            self.assertEquals(headers[b"transient1"], b"true")
-            self.assertTrue(b"transient2" in headers)
-            self.assertEquals(headers[b"transient2"], b"true")
+            self.assertTrue("permanent" in headers)
+            self.assertEquals(headers["permanent"], "true")
+            self.assertTrue("transient1" in headers)
+            self.assertEquals(headers["transient1"], "true")
+            self.assertTrue("transient2" in headers)
+            self.assertEquals(headers["transient2"], "true")
 
             # Add one, update one and delete one transient header
-            htrans.set_header(b"transient2", b"false")
-            htrans.set_header(b"transient3", b"true")
+            htrans.set_header("transient2", "false")
+            htrans.set_header("transient3", "true")
             self.client.testString('test')
             headers = htrans.get_headers()
-            self.assertTrue(b"permanent" in headers)
-            self.assertEquals(headers[b"permanent"], b"true")
-            self.assertTrue(b"transient1" not in headers)
-            self.assertTrue(b"transient2" in headers)
-            self.assertEquals(headers[b"transient2"], b"false")
-            self.assertTrue(b"transient3" in headers)
-            self.assertEquals(headers[b"transient3"], b"true")
+            self.assertTrue("permanent" in headers)
+            self.assertEquals(headers["permanent"], "true")
+            self.assertTrue("transient1" not in headers)
+            self.assertTrue("transient2" in headers)
+            self.assertEquals(headers["transient2"], "false")
+            self.assertTrue("transient3" in headers)
+            self.assertEquals(headers["transient3"], "true")
 
-class HeaderAcceleratedCompactTest(AbstractTest):
-    protocol_factory = THeaderProtocol.THeaderProtocolFactory(True,
-        [THeaderTransport.HEADERS_CLIENT_TYPE,
-         THeaderTransport.FRAMED_DEPRECATED,
-         THeaderTransport.UNFRAMED_DEPRECATED,
-         THeaderTransport.HTTP_CLIENT_TYPE])
+
+class HeaderAcceleratedCompactTest(HeaderBase):
+    pass
+
+
+class HeaderFramedCompactTest(HeaderBase):
+    def setUp(self):
+        self.socket = TSocket.TSocket("localhost", self._port)
+        self.transport = TTransport.TFramedTransport(self.socket)
+        self.protocol = TCompactProtocol.TCompactProtocol(self.transport)
+        self.transport.open()
+        self.client = ThriftTest.Client(self.protocol)
+        self.client2 = None
+
+
+class HeaderFramedBinaryTest(HeaderBase):
+    def setUp(self):
+        self.socket = TSocket.TSocket("localhost", self._port)
+        self.transport = TTransport.TFramedTransport(self.socket)
+        self.protocol = TBinaryProtocol.TBinaryProtocol(self.transport)
+        self.transport.open()
+        self.client = ThriftTest.Client(self.protocol)
+        self.client2 = None
+
+
+class HeaderUnframedCompactTest(HeaderBase):
+    def setUp(self):
+        self.socket = TSocket.TSocket("localhost", self._port)
+        self.transport = TTransport.TBufferedTransport(self.socket)
+        self.protocol = TCompactProtocol.TCompactProtocol(self.transport)
+        self.transport.open()
+        self.client = ThriftTest.Client(self.protocol)
+        self.client2 = None
+
+
+class HeaderUnframedBinaryTest(HeaderBase):
+    def setUp(self):
+        self.socket = TSocket.TSocket("localhost", self._port)
+        self.transport = TTransport.TBufferedTransport(self.socket)
+        self.protocol = TBinaryProtocol.TBinaryProtocol(self.transport)
+        self.transport.open()
+        self.client = ThriftTest.Client(self.protocol)
+        self.client2 = None
+
 
 def camelcase(s):
     if not s[0].isupper():
@@ -370,53 +361,46 @@ def class_name_mixin(k, v):
 
 
 def new_test_class(cls, vars):
-    class Subclass(cls, unittest.TestCase):
-        pass
+    template = ""
     name = cls.__name__
-    if sys.version_info[0] >= 3:
-        iter = sorted(list(vars.items()))
-    else:
-        iter = vars.iteritems()
-    for k, v in iter:
+    for k, v in sorted(vars.items()):
         name += class_name_mixin(k, v)
-        setattr(Subclass, k, v)
-    Subclass.__name__ = \
-        name.encode('ascii') if sys.version_info[0] < 3 else name
-    return Subclass
+        template += "  {} = {!r}\n".format(k, v)
+    template = "class {}(cls, unittest.TestCase):\n".format(name) + template
+    exec(template)
+    return locals()[name]
 
 
 def add_test_classes(module):
     classes = []
-    for server_type in SERVER_TYPES:
-        for ssl in (True, False):
-            if ssl and (server_type in FRAMED_TYPES or server_type == "TCppServer"):
-                continue
-            for server_header in (True, False):
-                if server_header is True and server_type == "TCppServer":
-                    continue
-                for server_context in (True, False):
-                    for multiple in (True, False):
-                        vars = {
-                            'server_type': server_type,
-                            'ssl': ssl,
-                            'server_header': server_header,
-                            'server_context': server_context,
-                            'multiple': multiple,
-                        }
-                        classes.append(new_test_class(NormalBinaryTest, vars))
-                        classes.append(new_test_class(AcceleratedBinaryTest,
-                            vars))
-                        # header client to non-header server hangs
-                        if server_header:
-                            classes.append(new_test_class(HeaderTest, vars))
+    for server_context in (True, False):
+        for multiple in (True, False):
+            config1 = {
+                'server_type': "TCppServer",
+                'ssl': False,
+                'server_header': False,
+                'server_context': server_context,
+                'multiple': multiple,
+            }
+            classes.append(new_test_class(NormalBinaryTest, config1))
+            classes.append(new_test_class(AcceleratedBinaryTest, config1))
+
+    config2 = {
+        'server_type': "TCppServer",
+        'ssl': False,
+        'server_header': False,
+        'server_context': False,
+        'multiple': False,
+    }
 
     if fastproto is not None:
-        classes.append(new_test_class(HeaderAcceleratedCompactTest, {
-            'server_type': "TCppServer",
-            'ssl': False,
-            'server_header': False,
-            'server_context': False,
-            'multiple': False}))
+        classes.append(new_test_class(HeaderAcceleratedCompactTest, config2))
+
+    for header in (HeaderFramedCompactTest,
+                  HeaderFramedBinaryTest,
+                  HeaderUnframedCompactTest,
+                  HeaderUnframedBinaryTest):
+        classes.append(new_test_class(header, config2))
 
     for cls in classes:
         setattr(module, cls.__name__, cls)

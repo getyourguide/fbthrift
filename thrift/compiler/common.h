@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -16,29 +18,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 #ifndef THRIFT_COMPILER_COMMON_
 #define THRIFT_COMPILER_COMMON_ 1
 
-#include <cassert>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string>
-#include <algorithm>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <errno.h>
-#include <limits.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <cassert>
+#include <cerrno>
+#include <climits>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <set>
+#include <string>
 
 // Careful: must include globals first for extern definitions
 #include <thrift/compiler/globals.h>
 
 #include <thrift/compiler/parse/t_program.h>
 #include <thrift/compiler/parse/t_scope.h>
-#ifdef MINGW
-# include <windows.h> /* for GetFullPathName */
-#endif
 
 namespace {
 using namespace std;
@@ -53,6 +52,11 @@ extern string g_curdir;
  * Current file being parsed
  */
 extern string g_curpath;
+
+/**
+ * Directory containing template files
+ */
+extern string g_template_dir;
 
 /**
  * Search path for inclusions
@@ -81,10 +85,20 @@ extern int g_warn;
 extern int g_verbose;
 
 /**
- * MinGW doesn't have realpath, so use fallback implementation in that case,
- * otherwise this just calls through to realpath
+ * Placeholder struct to return key and value of an annotation during parsing.
  */
-char *saferealpath(const char *path, char *resolved_path);
+struct t_annotation {
+  std::string key;
+  std::string val;
+};
+
+/**
+ * Obtain the absolute path name given a path for any platform
+ *
+ * Remarks: This function only works with existing paths but can be
+ *          expanded to work with paths that will exist
+ */
+std::string compute_absolute_path(const std::string& path);
 
 /**
  * Report an error to the user. This is called yyerror for historical
@@ -122,12 +136,8 @@ void pwarning(int level, const char* fmt, ...);
  *
  * @param fmt C format string followed by additional arguments
  */
+[[noreturn]]
 void failure(const char* fmt, ...);
-
-/**
- * Converts a string filename into a thrift program name
- */
-string program_name(string filename);
 
 /**
  * Gets the directory path of a filename
@@ -183,9 +193,23 @@ void validate_const_type(t_const* c);
  */
 void validate_field_value(t_field* field, t_const_value* cv);
 
+const t_type* get_true_type(const t_type* type);
+
 /**
- * Parses a program
+ * Check members of a throws block
  */
-void parse(t_program* program, t_program* parent_program);
+bool validate_throws(t_struct* throws);
+
+/**
+ * Parses a program. already_parsed_paths is deliberately passed by value
+ * because it should be the set of files in the direct inclusion tree.
+ */
+void parse(
+    t_program* program,
+    std::set<std::string>& already_parsed_paths,
+    std::set<std::string> circular_deps = std::set<std::string>());
+
+void override_annotations(std::map<std::string, std::string>& where,
+                          const std::map<std::string, std::string>& from);
 
 #endif

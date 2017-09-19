@@ -6,14 +6,14 @@
  */
 #pragma once
 
-#include "service1.h"
+#include "thrift/compiler/test/fixtures/fatal/gen-cpp2/service1.h"
 #include <thrift/lib/cpp/TApplicationException.h>
-#include <folly/MoveWrapper.h>
 #include <folly/io/IOBuf.h>
 #include <folly/io/IOBufQueue.h>
 #include <thrift/lib/cpp/transport/THeader.h>
 #include <thrift/lib/cpp2/server/Cpp2ConnContext.h>
 #include <thrift/lib/cpp2/GeneratedCodeHelper.h>
+#include <thrift/lib/cpp2/GeneratedSerializationCodeHelper.h>
 
 namespace test_cpp2 { namespace cpp_reflection {
 
@@ -50,12 +50,10 @@ void service1AsyncProcessor::process_method1(std::unique_ptr<apache::thrift::Res
     if (req) {
       LOG(ERROR) << ex.what() << " in function method1";
       apache::thrift::TApplicationException x(apache::thrift::TApplicationException::TApplicationExceptionType::PROTOCOL_ERROR, ex.what());
-      folly::IOBufQueue queue = serializeException("method1", &prot, iprot->getSeqId(), nullptr, x);
+      folly::IOBufQueue queue = serializeException("method1", &prot, ctx->getProtoSeqId(), nullptr, x);
       queue.append(apache::thrift::transport::THeader::transform(queue.move(), ctx->getHeader()->getWriteTransforms(), ctx->getHeader()->getMinCompressBytes()));
-      auto queue_mw = folly::makeMoveWrapper(std::move(queue));
-      auto req_mw = folly::makeMoveWrapper(std::move(req));
-      eb->runInEventBaseThread([=]() mutable {
-        (*req_mw)->sendReply(queue_mw->move());
+      eb->runInEventBaseThread([queue = std::move(queue), req = std::move(req)]() mutable {
+        req->sendReply(queue.move());
       }
       );
       return;
@@ -64,7 +62,7 @@ void service1AsyncProcessor::process_method1(std::unique_ptr<apache::thrift::Res
       LOG(ERROR) << ex.what() << " in oneway function method1";
     }
   }
-  auto callback = folly::make_unique<apache::thrift::HandlerCallback<void>>(std::move(req), std::move(c), return_method1<ProtocolIn_,ProtocolOut_>, throw_method1<ProtocolIn_, ProtocolOut_>, throw_wrapped_method1<ProtocolIn_, ProtocolOut_>, iprot->getSeqId(), eb, tm, ctx);
+  auto callback = std::make_unique<apache::thrift::HandlerCallback<void>>(std::move(req), std::move(c), return_method1<ProtocolIn_,ProtocolOut_>, throw_wrapped_method1<ProtocolIn_, ProtocolOut_>, ctx->getProtoSeqId(), eb, tm, ctx);
   if (!callback->isRequestActive()) {
     callback.release()->deleteInThread();
     return;
@@ -78,43 +76,6 @@ folly::IOBufQueue service1AsyncProcessor::return_method1(int32_t protoSeqId, apa
   ProtocolOut_ prot;
   service1_method1_presult result;
   return serializeResponse("method1", &prot, protoSeqId, ctx, result);
-}
-
-template <class ProtocolIn_, class ProtocolOut_>
-void service1AsyncProcessor::throw_method1(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,std::exception_ptr ep,apache::thrift::Cpp2RequestContext* reqCtx) {
-  ProtocolOut_ prot;
-  try {
-    std::rethrow_exception(ep);
-  }
-  catch (const std::exception& e) {
-    auto ew = folly::exception_wrapper(ep, e);
-    if (req) {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in function method1";
-      apache::thrift::TApplicationException x(folly::exceptionStr(e).toStdString());
-      ctx->userExceptionWrapped(false, ew);
-      ctx->handlerErrorWrapped(ew);
-      folly::IOBufQueue queue = serializeException("method1", &prot, protoSeqId, ctx, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in oneway function method1";
-    }
-  }
-  catch (...) {
-    if (req) {
-      LOG(ERROR) << "<unknown exception>" << " in function method1";
-      apache::thrift::TApplicationException x("<unknown exception>");
-      folly::IOBufQueue queue = serializeException("method1", &prot, protoSeqId, nullptr, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << "<unknown exception>" << " in oneway function method1";
-    }
-  }
 }
 
 template <class ProtocolIn_, class ProtocolOut_>
@@ -167,12 +128,10 @@ void service1AsyncProcessor::process_method2(std::unique_ptr<apache::thrift::Res
     if (req) {
       LOG(ERROR) << ex.what() << " in function method2";
       apache::thrift::TApplicationException x(apache::thrift::TApplicationException::TApplicationExceptionType::PROTOCOL_ERROR, ex.what());
-      folly::IOBufQueue queue = serializeException("method2", &prot, iprot->getSeqId(), nullptr, x);
+      folly::IOBufQueue queue = serializeException("method2", &prot, ctx->getProtoSeqId(), nullptr, x);
       queue.append(apache::thrift::transport::THeader::transform(queue.move(), ctx->getHeader()->getWriteTransforms(), ctx->getHeader()->getMinCompressBytes()));
-      auto queue_mw = folly::makeMoveWrapper(std::move(queue));
-      auto req_mw = folly::makeMoveWrapper(std::move(req));
-      eb->runInEventBaseThread([=]() mutable {
-        (*req_mw)->sendReply(queue_mw->move());
+      eb->runInEventBaseThread([queue = std::move(queue), req = std::move(req)]() mutable {
+        req->sendReply(queue.move());
       }
       );
       return;
@@ -181,7 +140,7 @@ void service1AsyncProcessor::process_method2(std::unique_ptr<apache::thrift::Res
       LOG(ERROR) << ex.what() << " in oneway function method2";
     }
   }
-  auto callback = folly::make_unique<apache::thrift::HandlerCallback<void>>(std::move(req), std::move(c), return_method2<ProtocolIn_,ProtocolOut_>, throw_method2<ProtocolIn_, ProtocolOut_>, throw_wrapped_method2<ProtocolIn_, ProtocolOut_>, iprot->getSeqId(), eb, tm, ctx);
+  auto callback = std::make_unique<apache::thrift::HandlerCallback<void>>(std::move(req), std::move(c), return_method2<ProtocolIn_,ProtocolOut_>, throw_wrapped_method2<ProtocolIn_, ProtocolOut_>, ctx->getProtoSeqId(), eb, tm, ctx);
   if (!callback->isRequestActive()) {
     callback.release()->deleteInThread();
     return;
@@ -195,43 +154,6 @@ folly::IOBufQueue service1AsyncProcessor::return_method2(int32_t protoSeqId, apa
   ProtocolOut_ prot;
   service1_method2_presult result;
   return serializeResponse("method2", &prot, protoSeqId, ctx, result);
-}
-
-template <class ProtocolIn_, class ProtocolOut_>
-void service1AsyncProcessor::throw_method2(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,std::exception_ptr ep,apache::thrift::Cpp2RequestContext* reqCtx) {
-  ProtocolOut_ prot;
-  try {
-    std::rethrow_exception(ep);
-  }
-  catch (const std::exception& e) {
-    auto ew = folly::exception_wrapper(ep, e);
-    if (req) {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in function method2";
-      apache::thrift::TApplicationException x(folly::exceptionStr(e).toStdString());
-      ctx->userExceptionWrapped(false, ew);
-      ctx->handlerErrorWrapped(ew);
-      folly::IOBufQueue queue = serializeException("method2", &prot, protoSeqId, ctx, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in oneway function method2";
-    }
-  }
-  catch (...) {
-    if (req) {
-      LOG(ERROR) << "<unknown exception>" << " in function method2";
-      apache::thrift::TApplicationException x("<unknown exception>");
-      folly::IOBufQueue queue = serializeException("method2", &prot, protoSeqId, nullptr, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << "<unknown exception>" << " in oneway function method2";
-    }
-  }
 }
 
 template <class ProtocolIn_, class ProtocolOut_>
@@ -278,12 +200,10 @@ void service1AsyncProcessor::process_method3(std::unique_ptr<apache::thrift::Res
     if (req) {
       LOG(ERROR) << ex.what() << " in function method3";
       apache::thrift::TApplicationException x(apache::thrift::TApplicationException::TApplicationExceptionType::PROTOCOL_ERROR, ex.what());
-      folly::IOBufQueue queue = serializeException("method3", &prot, iprot->getSeqId(), nullptr, x);
+      folly::IOBufQueue queue = serializeException("method3", &prot, ctx->getProtoSeqId(), nullptr, x);
       queue.append(apache::thrift::transport::THeader::transform(queue.move(), ctx->getHeader()->getWriteTransforms(), ctx->getHeader()->getMinCompressBytes()));
-      auto queue_mw = folly::makeMoveWrapper(std::move(queue));
-      auto req_mw = folly::makeMoveWrapper(std::move(req));
-      eb->runInEventBaseThread([=]() mutable {
-        (*req_mw)->sendReply(queue_mw->move());
+      eb->runInEventBaseThread([queue = std::move(queue), req = std::move(req)]() mutable {
+        req->sendReply(queue.move());
       }
       );
       return;
@@ -292,7 +212,7 @@ void service1AsyncProcessor::process_method3(std::unique_ptr<apache::thrift::Res
       LOG(ERROR) << ex.what() << " in oneway function method3";
     }
   }
-  auto callback = folly::make_unique<apache::thrift::HandlerCallback<int32_t>>(std::move(req), std::move(c), return_method3<ProtocolIn_,ProtocolOut_>, throw_method3<ProtocolIn_, ProtocolOut_>, throw_wrapped_method3<ProtocolIn_, ProtocolOut_>, iprot->getSeqId(), eb, tm, ctx);
+  auto callback = std::make_unique<apache::thrift::HandlerCallback<int32_t>>(std::move(req), std::move(c), return_method3<ProtocolIn_,ProtocolOut_>, throw_wrapped_method3<ProtocolIn_, ProtocolOut_>, ctx->getProtoSeqId(), eb, tm, ctx);
   if (!callback->isRequestActive()) {
     callback.release()->deleteInThread();
     return;
@@ -308,43 +228,6 @@ folly::IOBufQueue service1AsyncProcessor::return_method3(int32_t protoSeqId, apa
   result.get<0>().value = const_cast<int32_t*>(&_return);
   result.setIsSet(0, true);
   return serializeResponse("method3", &prot, protoSeqId, ctx, result);
-}
-
-template <class ProtocolIn_, class ProtocolOut_>
-void service1AsyncProcessor::throw_method3(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,std::exception_ptr ep,apache::thrift::Cpp2RequestContext* reqCtx) {
-  ProtocolOut_ prot;
-  try {
-    std::rethrow_exception(ep);
-  }
-  catch (const std::exception& e) {
-    auto ew = folly::exception_wrapper(ep, e);
-    if (req) {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in function method3";
-      apache::thrift::TApplicationException x(folly::exceptionStr(e).toStdString());
-      ctx->userExceptionWrapped(false, ew);
-      ctx->handlerErrorWrapped(ew);
-      folly::IOBufQueue queue = serializeException("method3", &prot, protoSeqId, ctx, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in oneway function method3";
-    }
-  }
-  catch (...) {
-    if (req) {
-      LOG(ERROR) << "<unknown exception>" << " in function method3";
-      apache::thrift::TApplicationException x("<unknown exception>");
-      folly::IOBufQueue queue = serializeException("method3", &prot, protoSeqId, nullptr, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << "<unknown exception>" << " in oneway function method3";
-    }
-  }
 }
 
 template <class ProtocolIn_, class ProtocolOut_>
@@ -397,12 +280,10 @@ void service1AsyncProcessor::process_method4(std::unique_ptr<apache::thrift::Res
     if (req) {
       LOG(ERROR) << ex.what() << " in function method4";
       apache::thrift::TApplicationException x(apache::thrift::TApplicationException::TApplicationExceptionType::PROTOCOL_ERROR, ex.what());
-      folly::IOBufQueue queue = serializeException("method4", &prot, iprot->getSeqId(), nullptr, x);
+      folly::IOBufQueue queue = serializeException("method4", &prot, ctx->getProtoSeqId(), nullptr, x);
       queue.append(apache::thrift::transport::THeader::transform(queue.move(), ctx->getHeader()->getWriteTransforms(), ctx->getHeader()->getMinCompressBytes()));
-      auto queue_mw = folly::makeMoveWrapper(std::move(queue));
-      auto req_mw = folly::makeMoveWrapper(std::move(req));
-      eb->runInEventBaseThread([=]() mutable {
-        (*req_mw)->sendReply(queue_mw->move());
+      eb->runInEventBaseThread([queue = std::move(queue), req = std::move(req)]() mutable {
+        req->sendReply(queue.move());
       }
       );
       return;
@@ -411,7 +292,7 @@ void service1AsyncProcessor::process_method4(std::unique_ptr<apache::thrift::Res
       LOG(ERROR) << ex.what() << " in oneway function method4";
     }
   }
-  auto callback = folly::make_unique<apache::thrift::HandlerCallback<int32_t>>(std::move(req), std::move(c), return_method4<ProtocolIn_,ProtocolOut_>, throw_method4<ProtocolIn_, ProtocolOut_>, throw_wrapped_method4<ProtocolIn_, ProtocolOut_>, iprot->getSeqId(), eb, tm, ctx);
+  auto callback = std::make_unique<apache::thrift::HandlerCallback<int32_t>>(std::move(req), std::move(c), return_method4<ProtocolIn_,ProtocolOut_>, throw_wrapped_method4<ProtocolIn_, ProtocolOut_>, ctx->getProtoSeqId(), eb, tm, ctx);
   if (!callback->isRequestActive()) {
     callback.release()->deleteInThread();
     return;
@@ -427,43 +308,6 @@ folly::IOBufQueue service1AsyncProcessor::return_method4(int32_t protoSeqId, apa
   result.get<0>().value = const_cast<int32_t*>(&_return);
   result.setIsSet(0, true);
   return serializeResponse("method4", &prot, protoSeqId, ctx, result);
-}
-
-template <class ProtocolIn_, class ProtocolOut_>
-void service1AsyncProcessor::throw_method4(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,std::exception_ptr ep,apache::thrift::Cpp2RequestContext* reqCtx) {
-  ProtocolOut_ prot;
-  try {
-    std::rethrow_exception(ep);
-  }
-  catch (const std::exception& e) {
-    auto ew = folly::exception_wrapper(ep, e);
-    if (req) {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in function method4";
-      apache::thrift::TApplicationException x(folly::exceptionStr(e).toStdString());
-      ctx->userExceptionWrapped(false, ew);
-      ctx->handlerErrorWrapped(ew);
-      folly::IOBufQueue queue = serializeException("method4", &prot, protoSeqId, ctx, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in oneway function method4";
-    }
-  }
-  catch (...) {
-    if (req) {
-      LOG(ERROR) << "<unknown exception>" << " in function method4";
-      apache::thrift::TApplicationException x("<unknown exception>");
-      folly::IOBufQueue queue = serializeException("method4", &prot, protoSeqId, nullptr, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << "<unknown exception>" << " in oneway function method4";
-    }
-  }
 }
 
 template <class ProtocolIn_, class ProtocolOut_>
@@ -510,12 +354,10 @@ void service1AsyncProcessor::process_method5(std::unique_ptr<apache::thrift::Res
     if (req) {
       LOG(ERROR) << ex.what() << " in function method5";
       apache::thrift::TApplicationException x(apache::thrift::TApplicationException::TApplicationExceptionType::PROTOCOL_ERROR, ex.what());
-      folly::IOBufQueue queue = serializeException("method5", &prot, iprot->getSeqId(), nullptr, x);
+      folly::IOBufQueue queue = serializeException("method5", &prot, ctx->getProtoSeqId(), nullptr, x);
       queue.append(apache::thrift::transport::THeader::transform(queue.move(), ctx->getHeader()->getWriteTransforms(), ctx->getHeader()->getMinCompressBytes()));
-      auto queue_mw = folly::makeMoveWrapper(std::move(queue));
-      auto req_mw = folly::makeMoveWrapper(std::move(req));
-      eb->runInEventBaseThread([=]() mutable {
-        (*req_mw)->sendReply(queue_mw->move());
+      eb->runInEventBaseThread([queue = std::move(queue), req = std::move(req)]() mutable {
+        req->sendReply(queue.move());
       }
       );
       return;
@@ -524,7 +366,7 @@ void service1AsyncProcessor::process_method5(std::unique_ptr<apache::thrift::Res
       LOG(ERROR) << ex.what() << " in oneway function method5";
     }
   }
-  auto callback = folly::make_unique<apache::thrift::HandlerCallback<std::unique_ptr< ::test_cpp2::cpp_reflection::struct2>>>(std::move(req), std::move(c), return_method5<ProtocolIn_,ProtocolOut_>, throw_method5<ProtocolIn_, ProtocolOut_>, throw_wrapped_method5<ProtocolIn_, ProtocolOut_>, iprot->getSeqId(), eb, tm, ctx);
+  auto callback = std::make_unique<apache::thrift::HandlerCallback<std::unique_ptr< ::test_cpp2::cpp_reflection::struct2>>>(std::move(req), std::move(c), return_method5<ProtocolIn_,ProtocolOut_>, throw_wrapped_method5<ProtocolIn_, ProtocolOut_>, ctx->getProtoSeqId(), eb, tm, ctx);
   if (!callback->isRequestActive()) {
     callback.release()->deleteInThread();
     return;
@@ -540,43 +382,6 @@ folly::IOBufQueue service1AsyncProcessor::return_method5(int32_t protoSeqId, apa
   result.get<0>().value = const_cast< ::test_cpp2::cpp_reflection::struct2*>(&_return);
   result.setIsSet(0, true);
   return serializeResponse("method5", &prot, protoSeqId, ctx, result);
-}
-
-template <class ProtocolIn_, class ProtocolOut_>
-void service1AsyncProcessor::throw_method5(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,std::exception_ptr ep,apache::thrift::Cpp2RequestContext* reqCtx) {
-  ProtocolOut_ prot;
-  try {
-    std::rethrow_exception(ep);
-  }
-  catch (const std::exception& e) {
-    auto ew = folly::exception_wrapper(ep, e);
-    if (req) {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in function method5";
-      apache::thrift::TApplicationException x(folly::exceptionStr(e).toStdString());
-      ctx->userExceptionWrapped(false, ew);
-      ctx->handlerErrorWrapped(ew);
-      folly::IOBufQueue queue = serializeException("method5", &prot, protoSeqId, ctx, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in oneway function method5";
-    }
-  }
-  catch (...) {
-    if (req) {
-      LOG(ERROR) << "<unknown exception>" << " in function method5";
-      apache::thrift::TApplicationException x("<unknown exception>");
-      folly::IOBufQueue queue = serializeException("method5", &prot, protoSeqId, nullptr, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << "<unknown exception>" << " in oneway function method5";
-    }
-  }
 }
 
 template <class ProtocolIn_, class ProtocolOut_>
@@ -629,12 +434,10 @@ void service1AsyncProcessor::process_method6(std::unique_ptr<apache::thrift::Res
     if (req) {
       LOG(ERROR) << ex.what() << " in function method6";
       apache::thrift::TApplicationException x(apache::thrift::TApplicationException::TApplicationExceptionType::PROTOCOL_ERROR, ex.what());
-      folly::IOBufQueue queue = serializeException("method6", &prot, iprot->getSeqId(), nullptr, x);
+      folly::IOBufQueue queue = serializeException("method6", &prot, ctx->getProtoSeqId(), nullptr, x);
       queue.append(apache::thrift::transport::THeader::transform(queue.move(), ctx->getHeader()->getWriteTransforms(), ctx->getHeader()->getMinCompressBytes()));
-      auto queue_mw = folly::makeMoveWrapper(std::move(queue));
-      auto req_mw = folly::makeMoveWrapper(std::move(req));
-      eb->runInEventBaseThread([=]() mutable {
-        (*req_mw)->sendReply(queue_mw->move());
+      eb->runInEventBaseThread([queue = std::move(queue), req = std::move(req)]() mutable {
+        req->sendReply(queue.move());
       }
       );
       return;
@@ -643,7 +446,7 @@ void service1AsyncProcessor::process_method6(std::unique_ptr<apache::thrift::Res
       LOG(ERROR) << ex.what() << " in oneway function method6";
     }
   }
-  auto callback = folly::make_unique<apache::thrift::HandlerCallback<std::unique_ptr< ::test_cpp2::cpp_reflection::struct2>>>(std::move(req), std::move(c), return_method6<ProtocolIn_,ProtocolOut_>, throw_method6<ProtocolIn_, ProtocolOut_>, throw_wrapped_method6<ProtocolIn_, ProtocolOut_>, iprot->getSeqId(), eb, tm, ctx);
+  auto callback = std::make_unique<apache::thrift::HandlerCallback<std::unique_ptr< ::test_cpp2::cpp_reflection::struct2>>>(std::move(req), std::move(c), return_method6<ProtocolIn_,ProtocolOut_>, throw_wrapped_method6<ProtocolIn_, ProtocolOut_>, ctx->getProtoSeqId(), eb, tm, ctx);
   if (!callback->isRequestActive()) {
     callback.release()->deleteInThread();
     return;
@@ -659,43 +462,6 @@ folly::IOBufQueue service1AsyncProcessor::return_method6(int32_t protoSeqId, apa
   result.get<0>().value = const_cast< ::test_cpp2::cpp_reflection::struct2*>(&_return);
   result.setIsSet(0, true);
   return serializeResponse("method6", &prot, protoSeqId, ctx, result);
-}
-
-template <class ProtocolIn_, class ProtocolOut_>
-void service1AsyncProcessor::throw_method6(std::unique_ptr<apache::thrift::ResponseChannel::Request> req,int32_t protoSeqId,apache::thrift::ContextStack* ctx,std::exception_ptr ep,apache::thrift::Cpp2RequestContext* reqCtx) {
-  ProtocolOut_ prot;
-  try {
-    std::rethrow_exception(ep);
-  }
-  catch (const std::exception& e) {
-    auto ew = folly::exception_wrapper(ep, e);
-    if (req) {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in function method6";
-      apache::thrift::TApplicationException x(folly::exceptionStr(e).toStdString());
-      ctx->userExceptionWrapped(false, ew);
-      ctx->handlerErrorWrapped(ew);
-      folly::IOBufQueue queue = serializeException("method6", &prot, protoSeqId, ctx, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << folly::exceptionStr(e).toStdString() << " in oneway function method6";
-    }
-  }
-  catch (...) {
-    if (req) {
-      LOG(ERROR) << "<unknown exception>" << " in function method6";
-      apache::thrift::TApplicationException x("<unknown exception>");
-      folly::IOBufQueue queue = serializeException("method6", &prot, protoSeqId, nullptr, x);
-      queue.append(apache::thrift::transport::THeader::transform(queue.move(), reqCtx->getHeader()->getWriteTransforms(), reqCtx->getHeader()->getMinCompressBytes()));
-      req->sendReply(queue.move());
-      return;
-    }
-    else {
-      LOG(ERROR) << "<unknown exception>" << " in oneway function method6";
-    }
-  }
 }
 
 template <class ProtocolIn_, class ProtocolOut_>
@@ -722,32 +488,34 @@ void service1AsyncProcessor::throw_wrapped_method6(std::unique_ptr<apache::thrif
 }
 
 template <typename Protocol_>
-void service1AsyncClient::method1T(Protocol_* prot, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
+void service1AsyncClient::method1T(Protocol_* prot, bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
   auto header = std::make_shared<apache::thrift::transport::THeader>(apache::thrift::transport::THeader::ALLOW_BIG_FRAMES);
   header->setProtocolId(getChannel()->getProtocolId());
   header->setHeaders(rpcOptions.releaseWriteHeaders());
   connectionContext_->setRequestHeader(header.get());
   std::unique_ptr<apache::thrift::ContextStack> ctx = this->getContextStack(this->getServiceName(), "service1.method1", connectionContext_.get());
   service1_method1_pargs args;
-  apache::thrift::clientSendT<false>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), args, "method1", [](Protocol_* prot, service1_method1_pargs& args) { args.write(prot); }, [](Protocol_* prot, service1_method1_pargs& args) { return args.serializedSizeZC(prot); });
+  auto sizer = [&](Protocol_* p) { return args.serializedSizeZC(p); };
+  auto writer = [&](Protocol_* p) { args.write(p); };
+  apache::thrift::clientSendT<Protocol_>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), "method1", writer, sizer, false, useSync);
   connectionContext_->setRequestHeader(nullptr);
 }
 
 template <typename Protocol_>
 folly::exception_wrapper service1AsyncClient::recv_wrapped_method1T(Protocol_* prot, ::apache::thrift::ClientReceiveState& state) {
   if (state.isException()) {
-    return state.exceptionWrapper();
+    return std::move(state.exception());
   }
   prot->setInput(state.buf());
   auto guard = folly::makeGuard([&] {prot->setInput(nullptr);});
   apache::thrift::ContextStack* ctx = state.ctx();
-  std::string fname;
+  std::string _fname;
   int32_t protoSeqId = 0;
   apache::thrift::MessageType mtype;
   ctx->preRead();
   folly::exception_wrapper interior_ew;
-  auto caught_ew = folly::try_and_catch<apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
-    prot->readMessageBegin(fname, mtype, protoSeqId);
+  auto caught_ew = folly::try_and_catch<std::exception, apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
+    prot->readMessageBegin(_fname, mtype, protoSeqId);
     if (mtype == apache::thrift::T_EXCEPTION) {
       apache::thrift::TApplicationException x;
       x.read(prot);
@@ -761,7 +529,7 @@ folly::exception_wrapper service1AsyncClient::recv_wrapped_method1T(Protocol_* p
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::INVALID_MESSAGE_TYPE);
       return; // from try_and_catch
     }
-    if (fname.compare("method1") != 0) {
+    if (_fname.compare("method1") != 0) {
       prot->skip(apache::thrift::protocol::T_STRUCT);
       prot->readMessageEnd();
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::WRONG_METHOD_NAME);
@@ -788,12 +556,12 @@ template <typename Protocol_>
 void service1AsyncClient::recv_method1T(Protocol_* prot, ::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_method1T(prot, state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 
 template <typename Protocol_>
-void service1AsyncClient::method2T(Protocol_* prot, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t x, const  ::test_cpp2::cpp_reflection::struct1& y, double z) {
+void service1AsyncClient::method2T(Protocol_* prot, bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t x, const  ::test_cpp2::cpp_reflection::struct1& y, double z) {
   auto header = std::make_shared<apache::thrift::transport::THeader>(apache::thrift::transport::THeader::ALLOW_BIG_FRAMES);
   header->setProtocolId(getChannel()->getProtocolId());
   header->setHeaders(rpcOptions.releaseWriteHeaders());
@@ -803,25 +571,27 @@ void service1AsyncClient::method2T(Protocol_* prot, apache::thrift::RpcOptions& 
   args.get<0>().value = &x;
   args.get<1>().value = const_cast< ::test_cpp2::cpp_reflection::struct1*>(&y);
   args.get<2>().value = &z;
-  apache::thrift::clientSendT<false>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), args, "method2", [](Protocol_* prot, service1_method2_pargs& args) { args.write(prot); }, [](Protocol_* prot, service1_method2_pargs& args) { return args.serializedSizeZC(prot); });
+  auto sizer = [&](Protocol_* p) { return args.serializedSizeZC(p); };
+  auto writer = [&](Protocol_* p) { args.write(p); };
+  apache::thrift::clientSendT<Protocol_>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), "method2", writer, sizer, false, useSync);
   connectionContext_->setRequestHeader(nullptr);
 }
 
 template <typename Protocol_>
 folly::exception_wrapper service1AsyncClient::recv_wrapped_method2T(Protocol_* prot, ::apache::thrift::ClientReceiveState& state) {
   if (state.isException()) {
-    return state.exceptionWrapper();
+    return std::move(state.exception());
   }
   prot->setInput(state.buf());
   auto guard = folly::makeGuard([&] {prot->setInput(nullptr);});
   apache::thrift::ContextStack* ctx = state.ctx();
-  std::string fname;
+  std::string _fname;
   int32_t protoSeqId = 0;
   apache::thrift::MessageType mtype;
   ctx->preRead();
   folly::exception_wrapper interior_ew;
-  auto caught_ew = folly::try_and_catch<apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
-    prot->readMessageBegin(fname, mtype, protoSeqId);
+  auto caught_ew = folly::try_and_catch<std::exception, apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
+    prot->readMessageBegin(_fname, mtype, protoSeqId);
     if (mtype == apache::thrift::T_EXCEPTION) {
       apache::thrift::TApplicationException x;
       x.read(prot);
@@ -835,7 +605,7 @@ folly::exception_wrapper service1AsyncClient::recv_wrapped_method2T(Protocol_* p
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::INVALID_MESSAGE_TYPE);
       return; // from try_and_catch
     }
-    if (fname.compare("method2") != 0) {
+    if (_fname.compare("method2") != 0) {
       prot->skip(apache::thrift::protocol::T_STRUCT);
       prot->readMessageEnd();
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::WRONG_METHOD_NAME);
@@ -862,37 +632,39 @@ template <typename Protocol_>
 void service1AsyncClient::recv_method2T(Protocol_* prot, ::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_method2T(prot, state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 
 template <typename Protocol_>
-void service1AsyncClient::method3T(Protocol_* prot, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
+void service1AsyncClient::method3T(Protocol_* prot, bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
   auto header = std::make_shared<apache::thrift::transport::THeader>(apache::thrift::transport::THeader::ALLOW_BIG_FRAMES);
   header->setProtocolId(getChannel()->getProtocolId());
   header->setHeaders(rpcOptions.releaseWriteHeaders());
   connectionContext_->setRequestHeader(header.get());
   std::unique_ptr<apache::thrift::ContextStack> ctx = this->getContextStack(this->getServiceName(), "service1.method3", connectionContext_.get());
   service1_method3_pargs args;
-  apache::thrift::clientSendT<false>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), args, "method3", [](Protocol_* prot, service1_method3_pargs& args) { args.write(prot); }, [](Protocol_* prot, service1_method3_pargs& args) { return args.serializedSizeZC(prot); });
+  auto sizer = [&](Protocol_* p) { return args.serializedSizeZC(p); };
+  auto writer = [&](Protocol_* p) { args.write(p); };
+  apache::thrift::clientSendT<Protocol_>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), "method3", writer, sizer, false, useSync);
   connectionContext_->setRequestHeader(nullptr);
 }
 
 template <typename Protocol_>
 folly::exception_wrapper service1AsyncClient::recv_wrapped_method3T(Protocol_* prot, int32_t& _return, ::apache::thrift::ClientReceiveState& state) {
   if (state.isException()) {
-    return state.exceptionWrapper();
+    return std::move(state.exception());
   }
   prot->setInput(state.buf());
   auto guard = folly::makeGuard([&] {prot->setInput(nullptr);});
   apache::thrift::ContextStack* ctx = state.ctx();
-  std::string fname;
+  std::string _fname;
   int32_t protoSeqId = 0;
   apache::thrift::MessageType mtype;
   ctx->preRead();
   folly::exception_wrapper interior_ew;
-  auto caught_ew = folly::try_and_catch<apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
-    prot->readMessageBegin(fname, mtype, protoSeqId);
+  auto caught_ew = folly::try_and_catch<std::exception, apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
+    prot->readMessageBegin(_fname, mtype, protoSeqId);
     if (mtype == apache::thrift::T_EXCEPTION) {
       apache::thrift::TApplicationException x;
       x.read(prot);
@@ -906,7 +678,7 @@ folly::exception_wrapper service1AsyncClient::recv_wrapped_method3T(Protocol_* p
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::INVALID_MESSAGE_TYPE);
       return; // from try_and_catch
     }
-    if (fname.compare("method3") != 0) {
+    if (_fname.compare("method3") != 0) {
       prot->skip(apache::thrift::protocol::T_STRUCT);
       prot->readMessageEnd();
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::WRONG_METHOD_NAME);
@@ -943,13 +715,13 @@ int32_t service1AsyncClient::recv_method3T(Protocol_* prot, ::apache::thrift::Cl
   int32_t _return;
   auto ew = recv_wrapped_method3T(prot, _return, state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
   return _return;
 }
 
 template <typename Protocol_>
-void service1AsyncClient::method4T(Protocol_* prot, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t i, const  ::test_cpp2::cpp_reflection::struct1& j, double k) {
+void service1AsyncClient::method4T(Protocol_* prot, bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t i, const  ::test_cpp2::cpp_reflection::struct1& j, double k) {
   auto header = std::make_shared<apache::thrift::transport::THeader>(apache::thrift::transport::THeader::ALLOW_BIG_FRAMES);
   header->setProtocolId(getChannel()->getProtocolId());
   header->setHeaders(rpcOptions.releaseWriteHeaders());
@@ -959,25 +731,27 @@ void service1AsyncClient::method4T(Protocol_* prot, apache::thrift::RpcOptions& 
   args.get<0>().value = &i;
   args.get<1>().value = const_cast< ::test_cpp2::cpp_reflection::struct1*>(&j);
   args.get<2>().value = &k;
-  apache::thrift::clientSendT<false>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), args, "method4", [](Protocol_* prot, service1_method4_pargs& args) { args.write(prot); }, [](Protocol_* prot, service1_method4_pargs& args) { return args.serializedSizeZC(prot); });
+  auto sizer = [&](Protocol_* p) { return args.serializedSizeZC(p); };
+  auto writer = [&](Protocol_* p) { args.write(p); };
+  apache::thrift::clientSendT<Protocol_>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), "method4", writer, sizer, false, useSync);
   connectionContext_->setRequestHeader(nullptr);
 }
 
 template <typename Protocol_>
 folly::exception_wrapper service1AsyncClient::recv_wrapped_method4T(Protocol_* prot, int32_t& _return, ::apache::thrift::ClientReceiveState& state) {
   if (state.isException()) {
-    return state.exceptionWrapper();
+    return std::move(state.exception());
   }
   prot->setInput(state.buf());
   auto guard = folly::makeGuard([&] {prot->setInput(nullptr);});
   apache::thrift::ContextStack* ctx = state.ctx();
-  std::string fname;
+  std::string _fname;
   int32_t protoSeqId = 0;
   apache::thrift::MessageType mtype;
   ctx->preRead();
   folly::exception_wrapper interior_ew;
-  auto caught_ew = folly::try_and_catch<apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
-    prot->readMessageBegin(fname, mtype, protoSeqId);
+  auto caught_ew = folly::try_and_catch<std::exception, apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
+    prot->readMessageBegin(_fname, mtype, protoSeqId);
     if (mtype == apache::thrift::T_EXCEPTION) {
       apache::thrift::TApplicationException x;
       x.read(prot);
@@ -991,7 +765,7 @@ folly::exception_wrapper service1AsyncClient::recv_wrapped_method4T(Protocol_* p
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::INVALID_MESSAGE_TYPE);
       return; // from try_and_catch
     }
-    if (fname.compare("method4") != 0) {
+    if (_fname.compare("method4") != 0) {
       prot->skip(apache::thrift::protocol::T_STRUCT);
       prot->readMessageEnd();
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::WRONG_METHOD_NAME);
@@ -1028,38 +802,40 @@ int32_t service1AsyncClient::recv_method4T(Protocol_* prot, ::apache::thrift::Cl
   int32_t _return;
   auto ew = recv_wrapped_method4T(prot, _return, state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
   return _return;
 }
 
 template <typename Protocol_>
-void service1AsyncClient::method5T(Protocol_* prot, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
+void service1AsyncClient::method5T(Protocol_* prot, bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
   auto header = std::make_shared<apache::thrift::transport::THeader>(apache::thrift::transport::THeader::ALLOW_BIG_FRAMES);
   header->setProtocolId(getChannel()->getProtocolId());
   header->setHeaders(rpcOptions.releaseWriteHeaders());
   connectionContext_->setRequestHeader(header.get());
   std::unique_ptr<apache::thrift::ContextStack> ctx = this->getContextStack(this->getServiceName(), "service1.method5", connectionContext_.get());
   service1_method5_pargs args;
-  apache::thrift::clientSendT<false>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), args, "method5", [](Protocol_* prot, service1_method5_pargs& args) { args.write(prot); }, [](Protocol_* prot, service1_method5_pargs& args) { return args.serializedSizeZC(prot); });
+  auto sizer = [&](Protocol_* p) { return args.serializedSizeZC(p); };
+  auto writer = [&](Protocol_* p) { args.write(p); };
+  apache::thrift::clientSendT<Protocol_>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), "method5", writer, sizer, false, useSync);
   connectionContext_->setRequestHeader(nullptr);
 }
 
 template <typename Protocol_>
 folly::exception_wrapper service1AsyncClient::recv_wrapped_method5T(Protocol_* prot,  ::test_cpp2::cpp_reflection::struct2& _return, ::apache::thrift::ClientReceiveState& state) {
   if (state.isException()) {
-    return state.exceptionWrapper();
+    return std::move(state.exception());
   }
   prot->setInput(state.buf());
   auto guard = folly::makeGuard([&] {prot->setInput(nullptr);});
   apache::thrift::ContextStack* ctx = state.ctx();
-  std::string fname;
+  std::string _fname;
   int32_t protoSeqId = 0;
   apache::thrift::MessageType mtype;
   ctx->preRead();
   folly::exception_wrapper interior_ew;
-  auto caught_ew = folly::try_and_catch<apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
-    prot->readMessageBegin(fname, mtype, protoSeqId);
+  auto caught_ew = folly::try_and_catch<std::exception, apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
+    prot->readMessageBegin(_fname, mtype, protoSeqId);
     if (mtype == apache::thrift::T_EXCEPTION) {
       apache::thrift::TApplicationException x;
       x.read(prot);
@@ -1073,7 +849,7 @@ folly::exception_wrapper service1AsyncClient::recv_wrapped_method5T(Protocol_* p
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::INVALID_MESSAGE_TYPE);
       return; // from try_and_catch
     }
-    if (fname.compare("method5") != 0) {
+    if (_fname.compare("method5") != 0) {
       prot->skip(apache::thrift::protocol::T_STRUCT);
       prot->readMessageEnd();
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::WRONG_METHOD_NAME);
@@ -1109,12 +885,12 @@ template <typename Protocol_>
 void service1AsyncClient::recv_method5T(Protocol_* prot,  ::test_cpp2::cpp_reflection::struct2& _return, ::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_method5T(prot, _return, state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 
 template <typename Protocol_>
-void service1AsyncClient::method6T(Protocol_* prot, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t l, const  ::test_cpp2::cpp_reflection::struct1& m, double n) {
+void service1AsyncClient::method6T(Protocol_* prot, bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback, int32_t l, const  ::test_cpp2::cpp_reflection::struct1& m, double n) {
   auto header = std::make_shared<apache::thrift::transport::THeader>(apache::thrift::transport::THeader::ALLOW_BIG_FRAMES);
   header->setProtocolId(getChannel()->getProtocolId());
   header->setHeaders(rpcOptions.releaseWriteHeaders());
@@ -1124,25 +900,27 @@ void service1AsyncClient::method6T(Protocol_* prot, apache::thrift::RpcOptions& 
   args.get<0>().value = &l;
   args.get<1>().value = const_cast< ::test_cpp2::cpp_reflection::struct1*>(&m);
   args.get<2>().value = &n;
-  apache::thrift::clientSendT<false>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), args, "method6", [](Protocol_* prot, service1_method6_pargs& args) { args.write(prot); }, [](Protocol_* prot, service1_method6_pargs& args) { return args.serializedSizeZC(prot); });
+  auto sizer = [&](Protocol_* p) { return args.serializedSizeZC(p); };
+  auto writer = [&](Protocol_* p) { args.write(p); };
+  apache::thrift::clientSendT<Protocol_>(prot, rpcOptions, std::move(callback), std::move(ctx), header, channel_.get(), "method6", writer, sizer, false, useSync);
   connectionContext_->setRequestHeader(nullptr);
 }
 
 template <typename Protocol_>
 folly::exception_wrapper service1AsyncClient::recv_wrapped_method6T(Protocol_* prot,  ::test_cpp2::cpp_reflection::struct2& _return, ::apache::thrift::ClientReceiveState& state) {
   if (state.isException()) {
-    return state.exceptionWrapper();
+    return std::move(state.exception());
   }
   prot->setInput(state.buf());
   auto guard = folly::makeGuard([&] {prot->setInput(nullptr);});
   apache::thrift::ContextStack* ctx = state.ctx();
-  std::string fname;
+  std::string _fname;
   int32_t protoSeqId = 0;
   apache::thrift::MessageType mtype;
   ctx->preRead();
   folly::exception_wrapper interior_ew;
-  auto caught_ew = folly::try_and_catch<apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
-    prot->readMessageBegin(fname, mtype, protoSeqId);
+  auto caught_ew = folly::try_and_catch<std::exception, apache::thrift::TException, apache::thrift::protocol::TProtocolException>([&]() {
+    prot->readMessageBegin(_fname, mtype, protoSeqId);
     if (mtype == apache::thrift::T_EXCEPTION) {
       apache::thrift::TApplicationException x;
       x.read(prot);
@@ -1156,7 +934,7 @@ folly::exception_wrapper service1AsyncClient::recv_wrapped_method6T(Protocol_* p
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::INVALID_MESSAGE_TYPE);
       return; // from try_and_catch
     }
-    if (fname.compare("method6") != 0) {
+    if (_fname.compare("method6") != 0) {
       prot->skip(apache::thrift::protocol::T_STRUCT);
       prot->readMessageEnd();
       interior_ew = folly::make_exception_wrapper<apache::thrift::TApplicationException>(apache::thrift::TApplicationException::TApplicationExceptionType::WRONG_METHOD_NAME);
@@ -1192,7 +970,7 @@ template <typename Protocol_>
 void service1AsyncClient::recv_method6T(Protocol_* prot,  ::test_cpp2::cpp_reflection::struct2& _return, ::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_method6T(prot, _return, state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 

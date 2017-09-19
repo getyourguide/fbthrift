@@ -4,7 +4,7 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "module_reflection.h"
+#include "thrift/compiler/test/fixtures/optionals/gen-cpp/module_reflection.h"
 #include <thrift/lib/cpp/Reflection.h>
 
  namespace module_reflection_ {
@@ -84,6 +84,13 @@ void reflectionInitializer_11029503283921871788(::apache::thrift::reflection::Sc
     f.name = "name";
     f.order = 3;
   }
+  {
+    ::apache::thrift::reflection::StructField& f = dt.fields[5];
+    f.isRequired = false;
+    f.type = 2U;
+    f.name = "hasAC";
+    f.order = 4;
+  }
   reflectionInitializer_11194926431654439212(schema);  // struct module.Color
 }
 
@@ -111,7 +118,7 @@ static void reflectionInitializer_11268218794008757992(::apache::thrift::reflect
     {"DOG", 1},
     {"TARANTULA", 3},
   };
-  dt.enumValues.insert(boost::container::ordered_unique_range_t(), enumValues, enumValues + 3);
+  dt.enumValues.insert(enumValues, enumValues + 3);
 }
 
 static void  reflectionInitializer_11268218794008757992(::apache::thrift::reflection::Schema&);  // enum module.Animal

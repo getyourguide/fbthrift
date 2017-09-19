@@ -4,12 +4,15 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "includes_types.h"
+#include "thrift/compiler/test/fixtures/refs/gen-cpp/includes_types.h"
+#include "thrift/compiler/test/fixtures/refs/gen-cpp/includes_data.h"
 
-#include "includes_reflection.h"
+#include "thrift/compiler/test/fixtures/refs/gen-cpp/includes_reflection.h"
 
 #include <algorithm>
 #include <string.h>
+
+#include <folly/Indestructible.h>
 
 namespace cpp1 {
 
@@ -24,9 +27,9 @@ bool Included::operator == (const Included & rhs) const {
   return true;
 }
 
-void Included::readFromJson(const char* jsonText, size_t len)
+void Included::readFromJson(const char* jsonText, size_t len, const folly::json::serialization_opts& opts)
 {
-  folly::dynamic parsed = folly::parseJson(folly::StringPiece(jsonText, len));
+  folly::dynamic parsed = folly::parseJson(folly::StringPiece(jsonText, len), opts);
   if (parsed["some_val"] != nullptr) {
     int64_t _tmp1 = (int64_t)parsed["some_val"].asInt();
     if (imaxabs(_tmp1) > 0x7fff) {
@@ -39,16 +42,27 @@ void Included::readFromJson(const char* jsonText, size_t len)
     this->__isset.some_val = false;
   }
 }
-void Included::readFromJson(const char* jsonText)
+void Included::readFromJson(const char* jsonText, const folly::json::serialization_opts& opts)
 {
-  readFromJson(jsonText, strlen(jsonText));
+  readFromJson(jsonText, strlen(jsonText), opts);
 }
+
+void Included::translateFieldName(
+    FOLLY_MAYBE_UNUSED folly::StringPiece _fname,
+    FOLLY_MAYBE_UNUSED int16_t& fid,
+    FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "some_val") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I16;
+  }
+};
 
 uint32_t Included::read(apache::thrift::protocol::TProtocol* iprot) {
 
   uint32_t xfer = 0;
-  std::string fname;
-  apache::thrift::protocol::TType ftype;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
   int16_t fid;
 
   ::apache::thrift::reflection::Schema * schema = iprot->getSchema();
@@ -56,7 +70,7 @@ uint32_t Included::read(apache::thrift::protocol::TProtocol* iprot) {
      ::cpp1::includes_reflection_::reflectionInitializer_16202005076139393548(*schema);
     iprot->setNextStructType(Included::_reflection_id);
   }
-  xfer += iprot->readStructBegin(fname);
+  xfer += iprot->readStructBegin(_fname);
 
   using apache::thrift::protocol::TProtocolException;
 
@@ -64,22 +78,22 @@ uint32_t Included::read(apache::thrift::protocol::TProtocol* iprot) {
 
   while (true)
   {
-    xfer += iprot->readFieldBegin(fname, ftype, fid);
-    if (ftype == apache::thrift::protocol::T_STOP) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
       break;
     }
     switch (fid)
     {
       case 1:
-        if (ftype == apache::thrift::protocol::T_I16) {
+        if (_ftype == apache::thrift::protocol::T_I16) {
           xfer += iprot->readI16(this->some_val);
           this->__isset.some_val = true;
         } else {
-          xfer += iprot->skip(ftype);
+          xfer += iprot->skip(_ftype);
         }
         break;
       default:
-        xfer += iprot->skip(ftype);
+        xfer += iprot->skip(_ftype);
         break;
     }
     xfer += iprot->readFieldEnd();
@@ -115,18 +129,14 @@ void swap(Included &a, Included &b) {
 
 void merge(const Included& from, Included& to) {
   using apache::thrift::merge;
-  if (from.__isset.some_val) {
-    merge(from.some_val, to.some_val);
-    to.__isset.some_val = true;
-  }
+  merge(from.some_val, to.some_val);
+  to.__isset.some_val = to.__isset.some_val || from.__isset.some_val;
 }
 
 void merge(Included&& from, Included& to) {
   using apache::thrift::merge;
-  if (from.__isset.some_val) {
-    merge(std::move(from.some_val), to.some_val);
-    to.__isset.some_val = true;
-  }
+  merge(std::move(from.some_val), to.some_val);
+  to.__isset.some_val = to.__isset.some_val || from.__isset.some_val;
 }
 
 } // namespace

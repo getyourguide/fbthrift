@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,6 @@
 #include <memory>
 #include <stdio.h>
 #include <iostream>
-#include <sys/time.h>
-#include <unistd.h>
 
 #include <thrift/lib/cpp/async/TEventServer.h>
 #include <thrift/lib/cpp/async/TSyncToAsyncProcessor.h>
@@ -35,7 +33,6 @@
 #include <thrift/lib/cpp/server/example/TSimpleServer.h>
 #include <thrift/lib/cpp/transport/TBufferTransports.h>
 #include <thrift/lib/cpp/transport/THttpClient.h>
-#include <thrift/lib/cpp/transport/TTransportUtils.h>
 #include <thrift/lib/cpp/transport/TSocket.h>
 #include <thrift/lib/cpp/transport/TSSLSocket.h>
 #include <thrift/lib/cpp/util/ScopedServerThread.h>
@@ -46,6 +43,9 @@
 #include <thrift/lib/cpp/util/example/TThreadPoolServerCreator.h>
 
 #include <thrift/test/gen-cpp/Service.h>
+
+#include <folly/portability/SysTime.h>
+#include <folly/portability/Unistd.h>
 
 #include <gtest/gtest.h>
 
@@ -93,8 +93,9 @@ public:
     : iprot_(),
       oprot_() {}
 
-  void* getContext(const char* fn_name,
-                   TConnectionContext* connectionContext) override {
+  void* getContext(
+      const char* /* fn_name */,
+      TConnectionContext* connectionContext) override {
     iprot_ = dynamic_pointer_cast<THeaderProtocol>
       (connectionContext->getInputProtocol());
     oprot_ = dynamic_pointer_cast<THeaderProtocol>
@@ -107,10 +108,10 @@ public:
    * Before writing, get the input headers and replay them to the output
    * headers
    */
-  void preWrite(void* ctx, const char* fn_name) override {
+  void preWrite(void* /* ctx */, const char* /* fn_name */) override {
     if (iprot_.get() != nullptr && oprot_.get() != nullptr) {
       auto headers = iprot_->getHeaders();
-      oprot_->getWriteHeaders() = headers;
+      oprot_->setHeaders(headers);
       oprot_->setIdentity(testIdentity);
     }
   }
@@ -135,7 +136,7 @@ enum ServerType {
   SERVER_TYPE_EVENT = 5,
 };
 
-void runClient(ClientType clientType, ServerType sType, int port) {
+void runClient(ClientType clientType, ServerType, int port) {
   auto socket = make_shared<TSocket>("localhost", port);
   shared_ptr<TTransport> transport;
   shared_ptr<TProtocol> protocol;
@@ -188,7 +189,7 @@ void runClient(ClientType clientType, ServerType sType, int port) {
     EXPECT_EQ(hprotocol->getPeerIdentity(), testIdentity);
 
     // ensure that the write headers were cleared after issuing the command
-    EXPECT_TRUE(hprotocol->getWriteHeaders().empty());
+    EXPECT_TRUE(hprotocol->isWriteHeadersEmpty());
     EXPECT_TRUE(hprotocol->getPersistentWriteHeaders().empty());
 
     auto headers = hprotocol->getHeaders();
@@ -222,7 +223,7 @@ void runClient(ClientType clientType, ServerType sType, int port) {
   // test that headers were cleared after sending the last message
   if (clientType == CLIENT_TYPE_HEADER) {
     auto hprotocol = static_pointer_cast<THeaderProtocol>(protocol);
-    ASSERT_TRUE(hprotocol->getWriteHeaders().empty());
+    ASSERT_TRUE(hprotocol->isWriteHeadersEmpty());
   }
 
   EXPECT_EQ(testClient.echoByte(5), 5);
@@ -406,4 +407,29 @@ TEST(THeaderTest, unframedBadRead) {
   EXPECT_THROW(
       protocol->readMessageBegin(name, messageType, seqId),
       TTransportException);
+}
+
+TEST(THeaderTest, removeBadHeaderStringSize) {
+  uint8_t badHeader[] = {
+    0x00, 0x00, 0x00, 0x13, // Frame size is corrupted here
+    0x0F, 0xFF, 0x00, 0x00, // THRIFT_HEADER_CLIENT_TYPE
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x01, // Header size
+    0x00, // Proto ID
+    0x00, // Num transforms
+    0x01, // Info ID Key value
+    0x01, // Num headers
+    0xFF, 0xFF, 0xFF, 0xFF, // Malformed varint32 string size
+    0x00 // String should go here
+  };
+  folly::IOBufQueue queue;
+  queue.append(folly::IOBuf::wrapBuffer(badHeader, sizeof(badHeader)));
+  // Try to remove the bad header
+  THeader header;
+  size_t needed;
+  std::map<std::string, std::string> persistentHeaders;
+  EXPECT_THROW(
+    auto buf = header.removeHeader(&queue, needed, persistentHeaders),
+    TTransportException
+  );
 }

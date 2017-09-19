@@ -4,53 +4,47 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "module_types.h"
+#include "thrift/compiler/test/fixtures/optionals/gen-cpp2/module_types.h"
 
-#include "module_types.tcc"
+#include "thrift/compiler/test/fixtures/optionals/gen-cpp2/module_types.tcc"
 
 #include <algorithm>
 
+#include <folly/Indestructible.h>
+
+#include "thrift/compiler/test/fixtures/optionals/gen-cpp2/module_data.h"
+
+
+
 namespace cpp2 {
 
-Animal _kAnimalValues[] = {
-  Animal::DOG,
-  Animal::CAT,
-  Animal::TARANTULA
-};
-
-const char* _kAnimalNames[] = {
-  "DOG",
-  "CAT",
-  "TARANTULA"
-};
-
-const std::map<Animal, const char*> _Animal_VALUES_TO_NAMES(apache::thrift::TEnumIterator<Animal>(3, _kAnimalValues, _kAnimalNames), apache::thrift::TEnumIterator<Animal>(-1, nullptr, nullptr));
-const std::map<const char*, Animal, apache::thrift::ltstr> _Animal_NAMES_TO_VALUES(apache::thrift::TEnumInverseIterator<Animal>(3, _kAnimalValues, _kAnimalNames), apache::thrift::TEnumInverseIterator<Animal>(-1, nullptr, nullptr));
+const _Animal_EnumMapFactory::ValuesToNamesMapType _Animal_VALUES_TO_NAMES = _Animal_EnumMapFactory::makeValuesToNamesMap();
+const _Animal_EnumMapFactory::NamesToValuesMapType _Animal_NAMES_TO_VALUES = _Animal_EnumMapFactory::makeNamesToValuesMap();
 
 } // cpp2
+namespace std {
+
+} // std
 namespace apache { namespace thrift {
 
-template <> const char* TEnumTraitsBase< ::cpp2::Animal>::findName( ::cpp2::Animal value) {
-  return findName( ::cpp2::_Animal_VALUES_TO_NAMES, value);
+template <> const std::size_t TEnumTraits< ::cpp2::Animal>::size = 3;
+template <> const folly::Range<const  ::cpp2::Animal*> TEnumTraits< ::cpp2::Animal>::values = folly::range( ::cpp2::_AnimalEnumDataStorage::values);
+template <> const folly::Range<const folly::StringPiece*> TEnumTraits< ::cpp2::Animal>::names = folly::range( ::cpp2::_AnimalEnumDataStorage::names);
+template <> const char* TEnumTraits< ::cpp2::Animal>::findName( ::cpp2::Animal value) {
+  static auto const map = folly::Indestructible< ::cpp2::_Animal_EnumMapFactory::ValuesToNamesMapType>{ ::cpp2::_Animal_EnumMapFactory::makeValuesToNamesMap()};
+  return findName(*map, value);
 }
 
-template <> bool TEnumTraitsBase< ::cpp2::Animal>::findValue(const char* name,  ::cpp2::Animal* outValue) {
-  return findValue( ::cpp2::_Animal_NAMES_TO_VALUES, name, outValue);
+template <> bool TEnumTraits< ::cpp2::Animal>::findValue(const char* name,  ::cpp2::Animal* outValue) {
+  static auto const map = folly::Indestructible< ::cpp2::_Animal_EnumMapFactory::NamesToValuesMapType>{ ::cpp2::_Animal_EnumMapFactory::makeNamesToValuesMap()};
+  return findValue(*map, name, outValue);
 }
 
 }} // apache::thrift
 namespace cpp2 {
 
-template uint32_t Color::read<apache::thrift::BinaryProtocolReader>(apache::thrift::BinaryProtocolReader*);
-template uint32_t Color::write<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Color::serializedSize<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Color::serializedSizeZC<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Color::read<apache::thrift::CompactProtocolReader>(apache::thrift::CompactProtocolReader*);
-template uint32_t Color::write<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Color::serializedSize<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Color::serializedSizeZC<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-
 void Color::__clear() {
+  // clear all fields
   red = 0;
   green = 0;
   blue = 0;
@@ -73,6 +67,26 @@ bool Color::operator==(const Color& rhs) const {
   return true;
 }
 
+void Color::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "red") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_DOUBLE;
+  }
+  else if (_fname == "green") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_DOUBLE;
+  }
+  else if (_fname == "blue") {
+    fid = 3;
+    _ftype = apache::thrift::protocol::T_DOUBLE;
+  }
+  else if (_fname == "alpha") {
+    fid = 4;
+    _ftype = apache::thrift::protocol::T_DOUBLE;
+  }
+}
+
 void swap(Color& a, Color& b) {
   using ::std::swap;
   swap(a.red, b.red);
@@ -81,26 +95,28 @@ void swap(Color& a, Color& b) {
   swap(a.alpha, b.alpha);
 }
 
+template uint32_t Color::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t Color::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t Color::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Color::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Color::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t Color::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t Color::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t Color::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
+
 } // cpp2
 namespace apache { namespace thrift {
 
 }} // apache::thrift
 namespace cpp2 {
 
-template uint32_t Vehicle::read<apache::thrift::BinaryProtocolReader>(apache::thrift::BinaryProtocolReader*);
-template uint32_t Vehicle::write<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Vehicle::serializedSize<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Vehicle::serializedSizeZC<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Vehicle::read<apache::thrift::CompactProtocolReader>(apache::thrift::CompactProtocolReader*);
-template uint32_t Vehicle::write<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Vehicle::serializedSize<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Vehicle::serializedSizeZC<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-
 void Vehicle::__clear() {
+  // clear all fields
   ::apache::thrift::Cpp2Ops<  ::cpp2::Color>::clear(&color);
   licensePlate.clear();
   description.clear();
   name.clear();
+  hasAC.clear();
 }
 
 bool Vehicle::operator==(const Vehicle& rhs) const {
@@ -116,7 +132,34 @@ bool Vehicle::operator==(const Vehicle& rhs) const {
   if (!((name == rhs.name))) {
     return false;
   }
+  if (!((hasAC == rhs.hasAC))) {
+    return false;
+  }
   return true;
+}
+
+void Vehicle::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "color") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_STRUCT;
+  }
+  else if (_fname == "licensePlate") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "description") {
+    fid = 3;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "name") {
+    fid = 4;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "hasAC") {
+    fid = 5;
+    _ftype = apache::thrift::protocol::T_BOOL;
+  }
 }
 
 void swap(Vehicle& a, Vehicle& b) {
@@ -125,7 +168,17 @@ void swap(Vehicle& a, Vehicle& b) {
   swap(a.licensePlate, b.licensePlate);
   swap(a.description, b.description);
   swap(a.name, b.name);
+  swap(a.hasAC, b.hasAC);
 }
+
+template uint32_t Vehicle::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t Vehicle::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t Vehicle::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Vehicle::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Vehicle::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t Vehicle::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t Vehicle::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t Vehicle::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 } // cpp2
 namespace apache { namespace thrift {
@@ -133,18 +186,10 @@ namespace apache { namespace thrift {
 }} // apache::thrift
 namespace cpp2 {
 
-template uint32_t Person::read<apache::thrift::BinaryProtocolReader>(apache::thrift::BinaryProtocolReader*);
-template uint32_t Person::write<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Person::serializedSize<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Person::serializedSizeZC<apache::thrift::BinaryProtocolWriter>(apache::thrift::BinaryProtocolWriter*) const;
-template uint32_t Person::read<apache::thrift::CompactProtocolReader>(apache::thrift::CompactProtocolReader*);
-template uint32_t Person::write<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Person::serializedSize<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-template uint32_t Person::serializedSizeZC<apache::thrift::CompactProtocolWriter>(apache::thrift::CompactProtocolWriter*) const;
-
 void Person::__clear() {
+  // clear all fields
   id = 0;
-  name = std::string();
+  name = apache::thrift::StringTraits< std::string>::fromStringLiteral("");
   age.clear();
   address.clear();
   favoriteColor.clear();
@@ -189,6 +234,50 @@ bool Person::operator==(const Person& rhs) const {
   return true;
 }
 
+void Person::translateFieldName(FOLLY_MAYBE_UNUSED folly::StringPiece _fname, FOLLY_MAYBE_UNUSED int16_t& fid, FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "id") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I64;
+  }
+  else if (_fname == "name") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "age") {
+    fid = 3;
+    _ftype = apache::thrift::protocol::T_I16;
+  }
+  else if (_fname == "address") {
+    fid = 4;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+  else if (_fname == "favoriteColor") {
+    fid = 5;
+    _ftype = apache::thrift::protocol::T_STRUCT;
+  }
+  else if (_fname == "friends") {
+    fid = 6;
+    _ftype = apache::thrift::protocol::T_SET;
+  }
+  else if (_fname == "bestFriend") {
+    fid = 7;
+    _ftype = apache::thrift::protocol::T_I64;
+  }
+  else if (_fname == "petNames") {
+    fid = 8;
+    _ftype = apache::thrift::protocol::T_MAP;
+  }
+  else if (_fname == "afraidOfAnimal") {
+    fid = 9;
+    _ftype = apache::thrift::protocol::T_I32;
+  }
+  else if (_fname == "vehicles") {
+    fid = 10;
+    _ftype = apache::thrift::protocol::T_LIST;
+  }
+}
+
 void swap(Person& a, Person& b) {
   using ::std::swap;
   swap(a.id, b.id);
@@ -202,6 +291,15 @@ void swap(Person& a, Person& b) {
   swap(a.afraidOfAnimal, b.afraidOfAnimal);
   swap(a.vehicles, b.vehicles);
 }
+
+template uint32_t Person::read<>(apache::thrift::BinaryProtocolReader*);
+template uint32_t Person::write<>(apache::thrift::BinaryProtocolWriter*) const;
+template uint32_t Person::serializedSize<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Person::serializedSizeZC<>(apache::thrift::BinaryProtocolWriter const*) const;
+template uint32_t Person::read<>(apache::thrift::CompactProtocolReader*);
+template uint32_t Person::write<>(apache::thrift::CompactProtocolWriter*) const;
+template uint32_t Person::serializedSize<>(apache::thrift::CompactProtocolWriter const*) const;
+template uint32_t Person::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 } // cpp2
 namespace apache { namespace thrift {

@@ -27,10 +27,10 @@ namespace json thrift.test
 enum Numberz
 {
   ONE = 1,
-  TWO,
-  THREE,
+  TWO = 2,
+  THREE = 3,
   FIVE = 5,
-  SIX,
+  SIX = 6,
   EIGHT = 8
 }
 
@@ -75,7 +75,7 @@ struct Insanity
 {
   1: map<Numberz, UserId> userMap,
   2: list<Xtruct> xtructs,
-  3: hash_map<string, string> str2str,
+  3: map<string, string> (cpp.template = 'std::unordered_map') str2str,
 }
 
 struct CrazyNesting {
@@ -116,10 +116,6 @@ service ThriftTest
   list<i32>    testList(1: list<i32> thing),
   Numberz      testEnum(1: Numberz thing),
   UserId       testTypedef(1: UserId thing),
-  i32          testRequestCount();
-  i32          testPreServe();
-  i32          testNewConnection();
-  i32          testConnectionDestroyed();
 
   map<i32,map<i32,i32>> testMapMap(1: i32 hello),
 

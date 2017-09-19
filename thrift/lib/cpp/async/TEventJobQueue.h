@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +18,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 #ifndef THRIFT_ASYNC_TEVENTJOBQUEUE_H_
 #define THRIFT_ASYNC_TEVENTJOBQUEUE_H_ 1
 
@@ -87,12 +88,13 @@ class TEventJobQueue {
   class JobThread:
       public apache::thrift::concurrency::Runnable,
       public folly::NotificationQueue<TEventRunnable*>::Consumer {
-
-  public:
-    explicit JobThread(TEventJobQueue *parent) {}
+   public:
+    explicit JobThread(TEventJobQueue* /* parent */) {}
     ~JobThread() override {}
 
-    folly::EventBase *getEventBase() { return &eventBase_; }
+    folly::EventBase* getEventBase() {
+      return &eventBase_;
+    }
 
     void join() {
       thread_->join();
@@ -142,7 +144,7 @@ class TEventJobQueue {
     /**
      * A new runnable arrived - run it!
      */
-    void messageAvailable(TEventRunnable*&& runnable) override {
+    void messageAvailable(TEventRunnable*&& runnable) noexcept override {
       runnable->setEventBase(&eventBase_);
       runnable->run();
     }

@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -31,8 +33,6 @@
 #include <thrift/lib/cpp2/test/util/TestThriftServerFactory.h>
 #include <thrift/lib/cpp2/test/util/TestInterface.h>
 
-#include <boost/cast.hpp>
-#include <boost/lexical_cast.hpp>
 #include <memory>
 
 using namespace apache::thrift;
@@ -122,12 +122,4 @@ TEST(ThriftServer, IdleTimeoutAfterTest) {
   base.loopForever();
   EXPECT_TRUE(checker.getClosed());
   client_channelp->setCloseCallback(nullptr);
-}
-
-int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
-  google::InitGoogleLogging(argv[0]);
-  google::ParseCommandLineFlags(&argc, &argv, true);
-
-  return RUN_ALL_TESTS();
 }

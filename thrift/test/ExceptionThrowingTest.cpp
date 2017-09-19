@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <folly/ExceptionWrapper.h>
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp/async/THeaderAsyncChannel.h>
@@ -53,7 +52,7 @@ std::unique_ptr<ScopedServerThread> createThriftServer() {
   server->setPort(0);
   server->setInterface(std::unique_ptr<ExceptionThrowingHandler>(
     new ExceptionThrowingHandler));
-  return folly::make_unique<ScopedServerThread>(server);
+  return std::make_unique<ScopedServerThread>(server);
 }
 
 TEST(ExceptionThrowingTest, Thrift1Client) {
@@ -142,85 +141,74 @@ TEST(ExceptionThrowingTest, Thrift2Client) {
   auto* serverAddr = serverThread->getAddress();
   std::shared_ptr<TAsyncSocket> socket(TAsyncSocket::newSocket(
       &eb, *serverAddr));
-  std::unique_ptr<HeaderClientChannel, folly::DelayedDestruction::Destructor> channel(
-      new HeaderClientChannel(socket));
+  auto channel = HeaderClientChannel::newChannel(socket);
   ExceptionThrowingServiceAsyncClient client(std::move(channel));
 
   // Verify that recv_echo works
   bool echoDone = false;
   client.echo(
-    [&echoDone] (ClientReceiveState&& state) {
-      EXPECT_FALSE(state.exceptionWrapper());
-      try {
-        std::string result;
-        ExceptionThrowingServiceAsyncClient::recv_echo(result, state);
-        EXPECT_EQ(result, "Hello World");
-        echoDone = true;
-      } catch (const std::exception& e) {
-      }
-    },
-    "Hello World"
-  );
+      [&echoDone](ClientReceiveState&& state) {
+        EXPECT_FALSE(state.exception());
+        try {
+          std::string result;
+          ExceptionThrowingServiceAsyncClient::recv_echo(result, state);
+          EXPECT_EQ(result, "Hello World");
+          echoDone = true;
+        } catch (const std::exception& e) {
+        }
+      },
+      "Hello World");
   eb.loop();
   EXPECT_TRUE(echoDone);
 
   // Verify that recv_wrapped_echo works
   echoDone = false;
   client.echo(
-    [&echoDone] (ClientReceiveState&& state) {
-      EXPECT_FALSE(state.exceptionWrapper());
-      std::string result;
-      auto ew = ExceptionThrowingServiceAsyncClient::recv_wrapped_echo(
-        result, state);
-      if (!ew) {
-        EXPECT_EQ(result, "Hello World");
-        echoDone = true;
-      }
-    },
-    "Hello World"
-  );
+      [&echoDone](ClientReceiveState&& state) {
+        EXPECT_FALSE(state.exception());
+        std::string result;
+        auto ew = ExceptionThrowingServiceAsyncClient::recv_wrapped_echo(
+            result, state);
+        if (!ew) {
+          EXPECT_EQ(result, "Hello World");
+          echoDone = true;
+        }
+      },
+      "Hello World");
   eb.loop();
   EXPECT_TRUE(echoDone);
 
   // recv_throwException
   bool exceptionThrown = false;
   client.throwException(
-    [&exceptionThrown] (ClientReceiveState&& state) {
-      EXPECT_FALSE(state.exceptionWrapper());
-      try {
-        ExceptionThrowingServiceAsyncClient::recv_throwException(state);
-      } catch (const SimpleException& e) {
-        EXPECT_EQ(e.message, "Hello World");
-        exceptionThrown = true;
-      }
-    },
-    "Hello World"
-  );
+      [&exceptionThrown](ClientReceiveState&& state) {
+        EXPECT_FALSE(state.exception());
+        try {
+          ExceptionThrowingServiceAsyncClient::recv_throwException(state);
+        } catch (const SimpleException& e) {
+          EXPECT_EQ(e.message, "Hello World");
+          exceptionThrown = true;
+        }
+      },
+      "Hello World");
   eb.loop();
   EXPECT_TRUE(exceptionThrown);
 
   // recv_wrapped_throwException
   exceptionThrown = false;
   client.throwException(
-    [&exceptionThrown] (ClientReceiveState&& state) {
-      EXPECT_FALSE(state.exceptionWrapper());
-      auto ew =
-        ExceptionThrowingServiceAsyncClient::recv_wrapped_throwException(state);
-      if (ew && ew.with_exception(
-        [] (const SimpleException& e) {
-          EXPECT_EQ(e.message, "Hello World");
-      })) {
-        exceptionThrown = true;
-      }
-    },
-    "Hello World"
-  );
+      [&exceptionThrown](ClientReceiveState&& state) {
+        EXPECT_FALSE(state.exception());
+        auto ew =
+            ExceptionThrowingServiceAsyncClient::recv_wrapped_throwException(
+                state);
+        if (ew && ew.with_exception([](const SimpleException& e) {
+              EXPECT_EQ(e.message, "Hello World");
+            })) {
+          exceptionThrown = true;
+        }
+      },
+      "Hello World");
   eb.loop();
   EXPECT_TRUE(exceptionThrown);
-}
-
-int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
-
-  return RUN_ALL_TESTS();
 }

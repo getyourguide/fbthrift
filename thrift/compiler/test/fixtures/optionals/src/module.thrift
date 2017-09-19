@@ -1,3 +1,5 @@
+namespace java.swift test.fixtures.optionals
+
 struct Color {
   1: double red;
   2: double green;
@@ -7,8 +9,8 @@ struct Color {
 
 enum Animal {
   DOG = 1,
-  CAT,
-  TARANTULA,
+  CAT = 2,
+  TARANTULA = 3,
 }
 
 struct Vehicle {
@@ -16,6 +18,7 @@ struct Vehicle {
   2: optional string licensePlate;
   3: optional string description;
   4: optional string name;
+  5: optional bool hasAC = false;
 }
 
 typedef i64 PersonID

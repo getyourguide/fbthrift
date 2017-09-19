@@ -79,7 +79,7 @@ class t_js_generator : public t_oop_generator {
   std::string render_recv_throw(std::string var);
   std::string render_recv_return(std::string var);
 
-  std::string render_const_value(t_type* type, t_const_value* value);
+  std::string render_const_value(t_type* type, const t_const_value* value);
 
 
   /**
@@ -175,7 +175,7 @@ class t_js_generator : public t_oop_generator {
       "//\n";
   }
 
-  std::vector<std::string> js_namespace_pieces(t_program* p) {
+  std::vector<std::string> js_namespace_pieces(const t_program* p) {
       std::string ns = p->get_namespace("js");
 
       std::string::size_type   loc;
@@ -195,7 +195,7 @@ class t_js_generator : public t_oop_generator {
       return pieces;
   }
 
-  std::string js_type_namespace(t_program* p) {
+  std::string js_type_namespace(const t_program* p) {
     if (gen_node_) {
       if (p != nullptr && p != program_) {
         return p->get_name() + "_ttypes.";
@@ -205,14 +205,14 @@ class t_js_generator : public t_oop_generator {
     return js_namespace(p);
   }
 
-  std::string js_export_namespace(t_program* p) {
+  std::string js_export_namespace(const t_program* p) {
     if (gen_node_) {
       return "exports.";
     }
     return js_namespace(p);
   }
 
-  std::string js_namespace(t_program* p) {
+  std::string js_namespace(const t_program* p) {
       std::string ns = p->get_namespace("js");
       if (ns.size() > 0) {
           ns += ".";
@@ -222,7 +222,7 @@ class t_js_generator : public t_oop_generator {
       return ns;
   }
 
-  std::string js_node_module(t_program* p) {
+  std::string js_node_module(const t_program* p) {
       std::string node_module = p->get_namespace("node_module");
       if (node_module.size() == 0) {
           node_module = ".";
@@ -258,7 +258,7 @@ class t_js_generator : public t_oop_generator {
  */
 void t_js_generator::init_generator() {
   // Make output directory
-  MKDIR(get_out_dir().c_str());
+  make_dir(get_out_dir().c_str());
 
   string outdir = get_out_dir();
 
@@ -381,7 +381,9 @@ void t_js_generator::generate_const(t_const* tconst) {
  * is NOT performed in this function as it is always run beforehand using the
  * validate_types method in main.cc
  */
-string t_js_generator::render_const_value(t_type* type, t_const_value* value) {
+string t_js_generator::render_const_value(
+    t_type* type,
+    const t_const_value* value) {
   std::ostringstream out;
 
   type = get_true_type(type);
@@ -1255,7 +1257,6 @@ void t_js_generator::generate_deserialize_field(ofstream &out,
       case t_base_type::TYPE_VOID:
         throw "compiler error: cannot serialize void field in a struct: " +
           name;
-        break;
       case t_base_type::TYPE_STRING:
         out << "readString()";
         break;
@@ -1494,7 +1495,6 @@ void t_js_generator::generate_serialize_field(ofstream &out,
       case t_base_type::TYPE_VOID:
         throw
           "compiler error: cannot serialize void field in a struct: " + name;
-        break;
       case t_base_type::TYPE_STRING:
         out << "writeString(" << name << ")";
         break;

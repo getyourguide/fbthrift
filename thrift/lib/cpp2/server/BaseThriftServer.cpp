@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2016-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <thrift/lib/cpp2/server/BaseThriftServer.h>
 
 #include <folly/Conv.h>
@@ -21,17 +20,12 @@
 #include <folly/Random.h>
 #include <folly/Logging.h>
 #include <folly/ScopeGuard.h>
+#include <folly/portability/Sockets.h>
 
+#include <fcntl.h>
 #include <iostream>
 #include <random>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <netdb.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <assert.h>
-#include <signal.h>
+#include <thread>
 
 namespace apache {
 namespace thrift {
@@ -43,11 +37,14 @@ using namespace apache::thrift::async;
 using namespace std;
 using std::shared_ptr;
 
-const int BaseThriftServer::T_ASYNC_DEFAULT_WORKER_THREADS =
-    sysconf(_SC_NPROCESSORS_ONLN);
+const size_t BaseThriftServer::T_ASYNC_DEFAULT_WORKER_THREADS =
+    std::thread::hardware_concurrency();
 
 const std::chrono::milliseconds BaseThriftServer::DEFAULT_TASK_EXPIRE_TIME =
     std::chrono::milliseconds(5000);
+
+const std::chrono::milliseconds BaseThriftServer::DEFAULT_QUEUE_TIMEOUT =
+    std::chrono::milliseconds(0);
 
 const std::chrono::milliseconds BaseThriftServer::DEFAULT_TIMEOUT =
     std::chrono::milliseconds(60000);
@@ -93,31 +90,28 @@ BaseThriftServer::CumulativeFailureInjection::test() const {
 
 bool BaseThriftServer::getTaskExpireTimeForRequest(
     const apache::thrift::transport::THeader& requestHeader,
-    std::chrono::milliseconds& softTimeout,
-    std::chrono::milliseconds& hardTimeout) const {
-  softTimeout = getTaskExpireTime();
-  if (softTimeout == std::chrono::milliseconds(0)) {
-    hardTimeout = softTimeout;
-    return false;
+    std::chrono::milliseconds& queueTimeout,
+    std::chrono::milliseconds& taskTimeout) const {
+  taskTimeout = getTaskExpireTime();
+
+  queueTimeout = requestHeader.getClientQueueTimeout();
+  if (queueTimeout == std::chrono::milliseconds(0)) {
+    queueTimeout = getQueueTimeout();
   }
-  if (getUseClientTimeout()) {
+
+  if (taskTimeout != std::chrono::milliseconds(0) && getUseClientTimeout()) {
     // we add 10% to the client timeout so that the request is much more likely
     // to timeout on the client side than to read the timeout from the server
     // as a TApplicationException (which can be confusing)
-    hardTimeout = std::chrono::milliseconds(
+    taskTimeout = std::chrono::milliseconds(
         (uint32_t)(requestHeader.getClientTimeout().count() * 1.1));
-    if (hardTimeout > std::chrono::milliseconds(0)) {
-      if (hardTimeout < softTimeout ||
-          softTimeout == std::chrono::milliseconds(0)) {
-        softTimeout = hardTimeout;
-        return false;
-      } else {
-        return true;
-      }
-    }
   }
-  hardTimeout = softTimeout;
-  return false;
+  // Queue timeout shouldn't be greater than task timeout
+  if (taskTimeout < queueTimeout &&
+      taskTimeout != std::chrono::milliseconds(0)) {
+    queueTimeout = taskTimeout;
+  }
+  return queueTimeout != taskTimeout;
 }
 
 int64_t BaseThriftServer::getLoad(const std::string& counter,
@@ -127,35 +121,22 @@ int64_t BaseThriftServer::getLoad(const std::string& counter,
   }
 
   auto reqload = getRequestLoad();
-  auto connload = getConnectionLoad();
-  auto queueload = getQueueLoad();
 
   if (VLOG_IS_ON(1)) {
     FB_LOG_EVERY_MS(INFO, 1000 * 10)
-        << getLoadInfo(reqload, connload, queueload);
+        << getLoadInfo(reqload);
   }
 
-  return std::max({reqload, connload, queueload});
+  return reqload;
 }
 
-int64_t BaseThriftServer::getQueueLoad() {
-  auto tm = getThreadManager();
-  if (tm) {
-    auto codel = tm->getCodel();
-    if (codel) {
-      return codel->getLoad();
-    }
-  }
-
-  return 0;
+int64_t BaseThriftServer::getRequestLoad() {
+  return activeRequests_;
 }
 
-std::string BaseThriftServer::getLoadInfo(int64_t reqload,
-                                           int64_t connload,
-                                           int64_t queueload) {
+std::string BaseThriftServer::getLoadInfo(int64_t load) {
   std::stringstream stream;
-  stream << "Load is: " << reqload << "% requests, " << connload
-         << "% connections, " << queueload << "% queue time";
+  stream << "Load is: " << load << "% requests";
   return stream.str();
 }
 }

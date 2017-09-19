@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,20 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #ifndef _THRIFT_CONCURRENCY_THREADMANAGER_H_
 #define _THRIFT_CONCURRENCY_THREADMANAGER_H_ 1
 
 #include <sys/types.h>
-#include <unistd.h>
 
 #include <array>
 #include <functional>
 #include <memory>
 
 #include <folly/Executor.h>
+#include <folly/io/async/Request.h>
 #include <folly/LifoSem.h>
 #include <folly/RWSpinLock.h>
+#include <folly/portability/GFlags.h>
+#include <folly/portability/Unistd.h>
 #include <wangle/concurrent/Codel.h>
 
 #include <thrift/lib/cpp/concurrency/FunctionRunner.h>
@@ -34,16 +35,9 @@
 #include <thrift/lib/cpp/concurrency/Util.h>
 #include <thrift/lib/cpp/concurrency/Monitor.h>
 
-#ifndef NO_LIB_GFLAGS
-  #include <gflags/gflags.h>
-  DECLARE_bool(codel_enabled);
-#endif
+DECLARE_bool(codel_enabled);
 
 namespace apache { namespace thrift { namespace concurrency {
-
-#ifdef NO_LIB_GFLAGS
-  extern bool FLAGS_codel_enabled;
-#endif
 
 class Runnable;
 class ThreadFactory;
@@ -235,26 +229,46 @@ class ThreadManager : public folly::Executor {
                            size_t maxQueueLen = 0);
 
   /**
+   * Creates a thread manager with support for priorities. Unlike
+   * PriorityThreadManager, requests are still served from a single
+   * thread pool. Arguments are the same as the standard threadManager,
+   * except that MaxQueueLen is the max for any single priority
+   */
+  template <typename SemType = folly::LifoSem>
+  static std::shared_ptr<ThreadManager>
+  newPriorityQueueThreadManager(
+    size_t numThreads,
+    bool enableTaskStats = false,
+    size_t maxQueueLen = 0
+  );
+
+  /**
    * Get an internal statistics.
    *
-   * @param waitTimeUs - average time (us) task spent in a queue
-   * @param runTimeUs - average time (us) task spent running
+   * @param waitTime - average time (us) task spent in a queue
+   * @param runTime - average time (us) task spent running
    * @param maxItems - max items collected for stats
    */
-  virtual void getStats(int64_t& waitTimeUs, int64_t& runTimeUs,
+  virtual void getStats(std::chrono::microseconds& waitTime,
+                        std::chrono::microseconds& runTime,
                         int64_t /*maxItems*/) {
-    waitTimeUs = 0;
-    runTimeUs = 0;
+    waitTime = std::chrono::microseconds::zero();
+    runTime = std::chrono::microseconds::zero();
   }
+
+  struct RunStats {
+    const std::string& threadPoolName;
+    SystemClockTimePoint queueBegin;
+    SystemClockTimePoint workBegin;
+    SystemClockTimePoint workEnd;
+  };
 
   class Observer {
    public:
     virtual ~Observer() {}
 
-    virtual void addStats(const std::string& threadPoolName,
-                          const SystemClockTimePoint& queueBegin,
-                          const SystemClockTimePoint& workBegin,
-                          const SystemClockTimePoint& workEnd) = 0;
+    virtual void preRun(folly::RequestContext*) = 0;
+    virtual void postRun(folly::RequestContext*, const RunStats&) = 0;
   };
 
   static void setObserver(std::shared_ptr<Observer> observer);
@@ -267,6 +281,7 @@ class ThreadManager : public folly::Executor {
   class ImplT;
 
   typedef ImplT<folly::LifoSem> Impl;
+
  protected:
   static folly::RWSpinLock observerLock_;
   static std::shared_ptr<Observer> observer_;
@@ -295,6 +310,9 @@ class PriorityThreadManager : public ThreadManager {
   using ThreadManager::removeWorker;
   virtual void removeWorker(PRIORITY priority, size_t value) = 0;
 
+  using ThreadManager::workerCount;
+  virtual size_t workerCount(PRIORITY priority) = 0;
+
   using ThreadManager::add;
   virtual void add(PRIORITY priority,
                    std::shared_ptr<Runnable> task,
@@ -306,7 +324,7 @@ class PriorityThreadManager : public ThreadManager {
   using ThreadManager::tryAdd;
   virtual bool tryAdd(PRIORITY priority, std::shared_ptr<Runnable> task) = 0;
 
-  virtual uint8_t getNumPriorities() const override {
+  uint8_t getNumPriorities() const override {
     return N_PRIORITIES;
   }
 

@@ -1,0 +1,101 @@
+<%!
+
+  Copyright 2016 Facebook, Inc.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+%>template <class Protocol_>
+uint32_t <%struct:name%>::read(Protocol_* iprot) {
+  uint32_t xfer = 0;
+  std::string _fname;
+  apache::thrift::protocol::TType _ftype;
+  int16_t fid;
+
+  xfer += iprot->readStructBegin(_fname);
+
+  using apache::thrift::TProtocolException;
+
+<%#struct:fields%><%#field:required?%>
+  bool isset_<%field:name%> = false;
+<%/field:required?%><%/struct:fields%>
+
+  while (true) {
+    xfer += iprot->readFieldBegin(_fname, _ftype, fid);
+    if (_ftype == apache::thrift::protocol::T_STOP) {
+      break;
+    }
+    if (fid == std::numeric_limits<int16_t>::min()) {
+      this->translateFieldName(_fname, fid, _ftype);
+    }
+    switch (fid) {
+<%#struct:fields%><%#field:type%>
+      case <%field:key%>:
+      {
+        if (_ftype == apache::thrift::protocol::<% > module_types_tcc/struct_type%>) {
+<%#field:optionals?%>
+          this-><%field:name%> = <% > types/type%>();
+<%/field:optionals?%>
+<%#field:cpp_ref?%>
+          std::unique_ptr<<% > types/type%>> ptr = std::make_unique<<% > types/type%>>();
+<%/field:cpp_ref?%>
+<%#type:resolves_to_base?%>
+<%#field:cpp_ref?%>
+          xfer += iprot->read<% > module_types_tcc/struct_field_type%>((*this-><%field:name%><%#field:optionals?%>.value()<%/field:optionals?%><%type:cpp_indirection%>));
+<%/field:cpp_ref?%>
+<%^field:cpp_ref?%>
+          xfer += iprot->read<% > module_types_tcc/struct_field_type%>(this-><%field:name%><%#field:optionals?%>.value()<%/field:optionals?%><%type:cpp_indirection%>);
+<%/field:cpp_ref?%>
+<%/type:resolves_to_base?%>
+<%#type:resolves_to_container_or_enum?%>
+<%^type:enum?%><%^field:cpp_ref?%><%^field:optionals?%>
+          this-><%field:name%> = <% > types/type%>();
+<%/field:optionals?%><%/field:cpp_ref?%><%/type:enum?%>
+          xfer += ::apache::thrift::detail::pm::protocol_methods< <% > module_types_tcc/protocol_methods%>, <% > types/type%>>::read(*iprot, <%#field:cpp_ref?%>*ptr<%/field:cpp_ref?%><%^field:cpp_ref?%>this-><%field:name%><%/field:cpp_ref?%><%#field:optionals?%>.value()<%/field:optionals?%>);
+<%/type:resolves_to_container_or_enum?%>
+<%#type:struct?%>
+          xfer += ::apache::thrift::Cpp2Ops< <% > types/type%>>::read(iprot, <%#field:cpp_ref?%>ptr.get()<%/field:cpp_ref?%><%^field:cpp_ref?%>&this-><%field:name%><%/field:cpp_ref?%><%#field:optionals?%>.value()<%/field:optionals?%>);
+<%/type:struct?%>
+<%#field:cpp_ref?%>
+          this-><%field:name%> = std::move(ptr);
+<%/field:cpp_ref?%>
+<%#field:required?%>
+          isset_<%field:name%> = true;
+<%/field:required?%>
+<%^struct:optionals?%><%^field:required?%><%^field:cpp_ref?%>
+          this->__isset.<%field:name%> = true;
+<%/field:cpp_ref?%><%/field:required?%><%/struct:optionals?%>
+        } else {
+          xfer += iprot->skip(_ftype);
+        }
+        break;
+      }
+<%/field:type%><%/struct:fields%>
+      default:
+      {
+        xfer += iprot->skip(_ftype);
+        break;
+      }
+    }
+    xfer += iprot->readFieldEnd();
+  }
+  xfer += iprot->readStructEnd();
+
+<%#struct:fields%><%#field:required?%>
+  if (!isset_<%field:name%>) {
+    TProtocolException::throwMissingRequiredField("<%field:name%>", "<%struct:name%>");
+  }
+<%/field:required?%><%/struct:fields%>
+  return xfer;
+}
+<%!
+%>

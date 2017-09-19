@@ -21,8 +21,9 @@
 #include <folly/io/async/EventBase.h>
 #include <thrift/lib/cpp/transport/TTransportException.h>
 #include <folly/io/async/AsyncSocket.h>
+#include <folly/portability/SysUio.h>
+
 #include <thrift/lib/cpp/thrift_config.h>
-#include <sys/uio.h>
 #include <inttypes.h>
 #include <memory>
 
@@ -79,7 +80,6 @@ class TAsyncTransport : virtual public folly::AsyncTransportWrapper {
   virtual void setReadCallback(TAsyncTransport::ReadCallback* callback) {
     setReadCB(callback);
   }
-  TAsyncTransport::ReadCallback* getReadCallback() const override = 0;
 };
 
 }}} // apache::thrift::async

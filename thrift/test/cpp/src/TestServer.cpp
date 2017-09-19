@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@
 #include <thrift/lib/cpp/server/example/TThreadedServer.h>
 #include <thrift/lib/cpp/server/example/TThreadPoolServer.h>
 #include <thrift/lib/cpp/transport/TServerSocket.h>
-#include <thrift/lib/cpp/transport/TTransportUtils.h>
 #include <thrift/lib/cpp/transport/THeader.h>
 #include <thrift/lib/cpp/transport/TSSLSocket.h>
 #include <thrift/lib/cpp/transport/TSSLServerSocket.h>
@@ -167,26 +166,6 @@ class TestHandler : public ThriftTestIf {
     return thing;
   }
 
-  int32_t testRequestCount() override {
-    printf("testRequestCount not implemented\n");
-    return 0;
-  }
-
-  int32_t testPreServe() override {
-    printf("testPreServe not implemented\n");
-    return 0;
-  }
-
-  int32_t testNewConnection() override {
-    printf("testNewConnection not implemented\n");
-    return 0;
-  }
-
-  int32_t testConnectionDestroyed() override {
-    printf("testConnectionDestroyed not implemented\n");
-    return 0;
-  }
-
   void testMapMap(map<int32_t, map<int32_t, int32_t>>& mapmap,
                   const int32_t hello) override {
     printf("testMapMap(%d)\n", hello);
@@ -203,8 +182,9 @@ class TestHandler : public ThriftTestIf {
 
   }
 
-  void testInsanity(map<UserId, map<Numberz, Insanity>>& insane,
-                    const Insanity& argument) override {
+  void testInsanity(
+      map<UserId, map<Numberz, Insanity>>& insane,
+      const Insanity& /* argument */) override {
     printf("testInsanity()\n");
 
     Xtruct hello;
@@ -220,20 +200,20 @@ class TestHandler : public ThriftTestIf {
     goodbye.i64_thing = 4;
 
     Insanity crazy;
-    crazy.userMap.insert(make_pair(EIGHT, 8));
+    crazy.userMap.insert(make_pair(Numberz::EIGHT, 8));
     crazy.xtructs.push_back(goodbye);
 
     Insanity looney;
-    crazy.userMap.insert(make_pair(FIVE, 5));
+    crazy.userMap.insert(make_pair(Numberz::FIVE, 5));
     crazy.xtructs.push_back(hello);
 
     map<Numberz, Insanity> first_map;
     map<Numberz, Insanity> second_map;
 
-    first_map.insert(make_pair(TWO, crazy));
-    first_map.insert(make_pair(THREE, crazy));
+    first_map.insert(make_pair(Numberz::TWO, crazy));
+    first_map.insert(make_pair(Numberz::THREE, crazy));
 
-    second_map.insert(make_pair(SIX, looney));
+    second_map.insert(make_pair(Numberz::SIX, looney));
 
     insane.insert(make_pair(1, first_map));
     insane.insert(make_pair(2, second_map));
@@ -274,13 +254,14 @@ class TestHandler : public ThriftTestIf {
 
   }
 
-  void testMulti(Xtruct& hello,
-                 const int8_t arg0,
-                 const int32_t arg1,
-                 const int64_t arg2,
-                 const std::map<int16_t, std::string>& arg3,
-                 const Numberz arg4,
-                 const UserId arg5) override {
+  void testMulti(
+      Xtruct& hello,
+      const int8_t arg0,
+      const int32_t arg1,
+      const int64_t arg2,
+      const std::map<int16_t, std::string>& /* arg3 */,
+      const Numberz /* arg4 */,
+      const UserId /* arg5 */) override {
     printf("testMulti()\n");
 
     hello.string_thing = "Hello2";
@@ -337,26 +318,28 @@ class TestHandler : public ThriftTestIf {
 
 
 class TestProcessorEventHandler : public TProcessorEventHandler {
-  void* getContext(const char* fn_name,
-                   TConnectionContext* serverContext) override {
+  void* getContext(const char* fn_name, TConnectionContext* /* serverContext */)
+      override {
     return new std::string(fn_name);
   }
-  void freeContext(void* ctx, const char* fn_name) override {
+  void freeContext(void* ctx, const char* /* fn_name */) override {
     delete static_cast<std::string*>(ctx);
   }
   void preRead(void* ctx, const char* fn_name) override {
     communicate("preRead", ctx, fn_name);
   }
-  void postRead(void* ctx,
-                const char* fn_name,
-                apache::thrift::transport::THeader* header,
-                uint32_t bytes) override {
+  void postRead(
+      void* ctx,
+      const char* fn_name,
+      apache::thrift::transport::THeader*,
+      uint32_t /* bytes */) override {
     communicate("postRead", ctx, fn_name);
   }
   void preWrite(void* ctx, const char* fn_name) override {
     communicate("preWrite", ctx, fn_name);
   }
-  void postWrite(void* ctx, const char* fn_name, uint32_t bytes) override {
+  void postWrite(void* ctx, const char* fn_name, uint32_t /* bytes */)
+      override {
     communicate("postWrite", ctx, fn_name);
   }
   void asyncComplete(void* ctx, const char* fn_name) override {
@@ -447,7 +430,7 @@ int main(int argc, char **argv) {
     }
   } catch (std::exception& e) {
     cerr << e.what() << endl;
-    cerr << usage;
+    cerr << usage.str();
   }
 
     // OpenSSL may trigger SIGPIPE when remote sends connection reset.

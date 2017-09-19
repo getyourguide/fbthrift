@@ -1,20 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements. See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership. The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * Copyright 2016 Facebook, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include <sstream>
@@ -22,17 +19,10 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include <cctype>
-#include <stdexcept>
-
-#include <folly/Format.h>
-#include <folly/gen/Base.h>
-#include <folly/gen/String.h>
-#include <sys/stat.h>
 
 #include <thrift/compiler/platform.h>
 #include <thrift/compiler/generate/t_java_generator.h>
-using namespace folly;
+
 using namespace std;
 
 /**
@@ -77,16 +67,18 @@ class t_android_lite_generator : public t_java_generator {
                      bool in_init=false,
                      bool skip_generic=false) override;
 
-   void print_const_value(std::ostream& out,
-                                  std::string name,
-                                  t_type* type,
-                                  t_const_value* value,
-                                  bool in_static,
-                                  bool defval=false) override;
-    string render_const_value(ostream& out,
-                              string name,
-                              t_type* type,
-                              t_const_value* value) override;
+    virtual void print_const_value(
+        std::ostream& out,
+        std::string name,
+        t_type* type,
+        const t_const_value* value,
+        bool in_static,
+        bool defval=false) override;
+    string render_const_value(
+        ostream& out,
+        string name,
+        t_type* type,
+        const t_const_value* value) override;
 
     void output_case_statement(t_struct *tstruct);
     void output_property(t_field* tfield, const string parent_name);
@@ -150,7 +142,7 @@ class t_android_lite_generator : public t_java_generator {
     string program_name_;
     string package_dir_;
     bool annotate_;
-    unordered_set<string> used_types_;
+    set<string> used_types_;
 
     // We build up the text of the 3 files in these streams before
     // outputting them into their actual files all in one go.
@@ -171,19 +163,19 @@ string t_android_lite_generator::temp_variable(const string& prefix,
 }
 
 void t_android_lite_generator::init_generator() {
-  MKDIR(get_out_dir().c_str());
+  make_dir(get_out_dir().c_str());
   string dir = package_name_;
   string subdir = get_out_dir();
   string::size_type loc;
 
   while((loc = dir.find(".")) != string::npos) {
     subdir = subdir + "/" + dir.substr(0, loc);
-    MKDIR(subdir.c_str());
+    make_dir(subdir.c_str());
     dir = dir.substr(loc + 1);
   }
   if (dir.size() > 0) {
     subdir = subdir + "/" + dir;
-    MKDIR(subdir.c_str());
+    make_dir(subdir.c_str());
   }
 
   package_dir_ = subdir;
@@ -371,11 +363,11 @@ void t_android_lite_generator::record_type_use(t_type* ttype) {
 }
 
 string t_android_lite_generator::java_type_imports() {
-  return
-    gen::from(used_types_)
-    | gen::order
-    | gen::map([](const string &v) { return sformat("import {};\n", v); })
-    | gen::unsplit<string>("");
+  std::string type_imports;
+  for (const string& used_type : used_types_) {
+    type_imports += "import " + used_type + ";\n";
+  }
+  return type_imports;
 }
 
 // When we open-source the android compiler, we'll need to also release
@@ -775,8 +767,11 @@ void t_android_lite_generator::generate_consts(vector<t_const*> tconsts) {
   consts_stream.close();
 }
 
-string t_android_lite_generator::render_const_value(ostream& out, string name,
-    t_type *type, t_const_value* value) {
+string t_android_lite_generator::render_const_value(
+    ostream& out,
+    string name,
+    t_type *type,
+    const t_const_value* value) {
   // Everything can be handled by the call to super except enums
   if (!type->is_enum()) {
     return t_java_generator::render_const_value(out, name, type, value);
@@ -786,8 +781,13 @@ string t_android_lite_generator::render_const_value(ostream& out, string name,
   return full_enum_name(tenum, value->get_integer());
 }
 
-void t_android_lite_generator::print_const_value(ostream& out, string name,
-    t_type* type, t_const_value* value, bool in_static, bool defval) {
+void t_android_lite_generator::print_const_value(
+    ostream& out,
+    string name,
+    t_type* type,
+    const t_const_value* value,
+    bool in_static,
+    bool defval) {
   if (!type->is_struct() && !type->is_enum()) {
     t_java_generator::print_const_value(out, name, type, value, in_static,
         defval);

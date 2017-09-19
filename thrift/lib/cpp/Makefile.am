@@ -17,10 +17,12 @@
 # under the License.
 #
 
+
 SUBDIRS = .
 
 pkgconfigdir = $(libdir)/pkgconfig
 
+if WITH_CPP
 lib_LTLIBRARIES = libthrift.la
 pkgconfig_DATA = thrift.pc
 libthrift_la_LDFLAGS = -version-info $(LT_VERSION) $(BOOST_LDFLAGS)
@@ -30,6 +32,7 @@ libthrift_la_LDFLAGS = -version-info $(LT_VERSION) $(BOOST_LDFLAGS)
 if AMX_HAVE_ZLIB
 lib_LTLIBRARIES += libthriftz.la
 pkgconfig_DATA += thrift-z.pc
+endif
 endif
 
 AM_CXXFLAGS = -Wall
@@ -58,11 +61,10 @@ libthrift_la_SOURCES = EventHandlerBase.cpp \
                        protocol/TDebugProtocol.cpp \
                        protocol/TJSONProtocol.cpp \
                        protocol/TBase64Utils.cpp \
-                       protocol/TMultiplexedProtocol.cpp \
+                       protocol/TProtocolException.cpp \
                        protocol/TSimpleJSONProtocol.cpp \
                        transport/TTransportException.cpp \
                        transport/TFDTransport.cpp \
-                       transport/TFileTransport.cpp \
                        transport/TSimpleFileTransport.cpp \
                        transport/THeaderTransport.cpp \
                        transport/THttpTransport.cpp \
@@ -74,11 +76,9 @@ libthrift_la_SOURCES = EventHandlerBase.cpp \
                        transport/TSocketPool.cpp \
                        transport/TServerSocket.cpp \
                        transport/TSSLServerSocket.cpp \
-                       transport/TTransportUtils.cpp \
                        transport/TBufferTransports.cpp \
                        transport/THeader.cpp \
                        server/TServer.cpp \
-                       processor/PeekProcessor.cpp \
                        util/FdUtils.cpp \
                        util/THttpParser.cpp \
                        util/SocketRetriever.cpp \
@@ -95,7 +95,7 @@ libthriftz_la_SOURCES = \
 
 
 # Flags for the various libraries
-libthrift_la_LIBADD     = $(FOLLY_LIBS) -lboost_system -lboost_thread
+libthrift_la_LIBADD     = $(FOLLY_LIBS) $(BOOST_SYSTEM_LIB) $(BOOST_THREAD_LIB)
 
 libthriftz_la_CPPFLAGS  = $(AM_CPPFLAGS) $(ZLIB_CPPFLAGS)
 libthriftz_la_CXXFLAGS  = $(AM_CXXFLAGS)
@@ -103,6 +103,7 @@ libthriftz_la_LDFLAGS   = -version-info $(LT_VERSION) $(BOOST_LDFLAGS)
 
 include_thriftdir = $(includedir)/thrift/lib/cpp/
 include_thrift_HEADERS = \
+                         DistinctTable.h \
                          EventHandlerBase.h \
                          Reflection.h \
                          TDispatchProcessor.h \
@@ -137,8 +138,6 @@ include_protocol_HEADERS = \
                          protocol/TCompactProtocol.tcc \
                          protocol/TDebugProtocol.h \
                          protocol/TBase64Utils.h \
-                         protocol/TMultiplexedProtocol.h \
-                         protocol/TProtocolDecorator.h \
                          protocol/TJSONProtocol.h \
                          protocol/TSimpleJSONProtocol.h \
                          protocol/TProtocolTap.h \
@@ -152,7 +151,6 @@ include_transportdir = $(include_thriftdir)/transport
 include_transport_HEADERS = \
                          transport/THeader.h \
                          transport/TFDTransport.h \
-                         transport/TFileTransport.h \
                          transport/TSimpleFileTransport.h \
                          transport/TServerSocket.h \
                          transport/TSSLServerSocket.h \
@@ -168,7 +166,6 @@ include_transport_HEADERS = \
                          transport/TVirtualTransport.h \
                          transport/TTransport.h \
                          transport/TTransportException.h \
-                         transport/TTransportUtils.h \
                          transport/TNullTransport.h \
                          transport/TBufferTransports.h \
                          transport/TShortReadTransport.h \
@@ -179,12 +176,6 @@ include_server_HEADERS = \
                          server/TServer.h \
                          server/TConnectionContext.h \
                          server/TServerObserver.h
-
-include_processordir = $(include_thriftdir)/processor
-include_processor_HEADERS = \
-                         processor/PeekProcessor.h \
-                         processor/StatsProcessor.h \
-                         processor/TMultiplexedProcessor.h
 
 include_asyncdir = $(include_thriftdir)/async
 include_async_HEADERS = \
@@ -232,7 +223,8 @@ include_utilkerberos_HEADERS = \
 	util/kerberos/FBKrb5GetCreds.h \
 	util/kerberos/Krb5OlderVersionStubs.h \
 	util/kerberos/Krb5Tgts.h \
-	util/kerberos/Krb5Util.h
+	util/kerberos/Krb5Util.h \
+	util/kerberos/Krb5CredentialsCacheManagerLogger.h
 
 include_testdir = $(include_thriftdir)/test
 include_test_HEADERS = \

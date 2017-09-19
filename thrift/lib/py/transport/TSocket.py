@@ -30,9 +30,14 @@ import sys
 import errno
 import select
 import socket
-import fcntl
 import warnings
 import time
+
+try:
+    import fcntl
+except ImportError:
+    # Windows doesn't have this module
+    fcntl = None
 
 class ConnectionEpoll:
     """ epoll is preferred over select due to its efficiency and ability to
@@ -124,9 +129,9 @@ class ConnectionSelect:
         # avoid dying horribly by trying again with the appropriately
         # shortened timout.
         deadline = time.clock() + float(timeout or 0)
-        poll_timeout = timeout
+        poll_timeout = timeout if timeout is None or timeout > 0 else None
         while True:
-            if timeout > 0:
+            if timeout is not None and timeout > 0:
                 poll_timeout = max(0, deadline - time.clock())
             try:
                 return select.select(list(self.readable), list(self.writable),
@@ -185,6 +190,10 @@ class TSocketBase(TTransportBase):
             self._setHandleCloseOnExec(handle)
 
     def _setHandleCloseOnExec(self, handle):
+        # Windows doesn't have this module, don't set the handle in this case.
+        if fcntl is None:
+            return
+
         flags = fcntl.fcntl(handle, fcntl.F_GETFD, 0)
         if flags < 0:
             raise IOError('Error in retrieving file options')
@@ -262,6 +271,7 @@ class TSocket(TSocketBase):
                 try:
                     handle.connect(res[4])
                 except socket.error as e:
+                    self.close()
                     if res is not res0[-1]:
                         continue
                     else:
@@ -277,10 +287,16 @@ class TSocket(TSocketBase):
             raise TTransportException(TTransportException.NOT_OPEN, message)
 
     def read(self, sz):
-        buff = self.handle.recv(sz)
-        if len(buff) == 0:
+        try:
+            buff = self.handle.recv(sz)
+            if len(buff) == 0:
+                raise TTransportException(type=TTransportException.END_OF_FILE,
+                                          message='TSocket read 0 bytes')
+        except socket.error as e:
+            message = 'Socket read failed with error %s (%s)' % \
+                      (e.errno, e.strerror)
             raise TTransportException(type=TTransportException.END_OF_FILE,
-                                      message='TSocket read 0 bytes')
+                                      message=message)
         return buff
 
     def write(self, buff):
@@ -330,7 +346,6 @@ class TServerSocket(TSocketBase, TServerTransportBase):
     def __exit__(self, type, value, traceback):
         if self.isListening():
             self.close()
-        return self
 
     def getSocketName(self):
         warnings.warn('getSocketName() is deprecated for TServerSocket.  '
@@ -387,8 +402,8 @@ class TServerSocket(TSocketBase, TServerTransportBase):
             handle.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self._setHandleCloseOnExec(handle)
 
-            # Always set IPV6_V6ONLY for IPv6 sockets
-            if res[0] == socket.AF_INET6:
+            # Always set IPV6_V6ONLY for IPv6 sockets when not on Windows
+            if res[0] == socket.AF_INET6 and sys.platform != 'win32':
                 handle.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, True)
 
             handle.settimeout(None)

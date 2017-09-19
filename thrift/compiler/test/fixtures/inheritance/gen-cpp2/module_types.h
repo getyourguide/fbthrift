@@ -6,16 +6,25 @@
  */
 #pragma once
 
+#include <folly/io/Cursor.h>
+#include <folly/io/IOBuf.h>
+#include <thrift/lib/cpp/TApplicationException.h>
+#include <thrift/lib/cpp2/GeneratedHeaderHelper.h>
 #include <thrift/lib/cpp2/Thrift.h>
 #include <thrift/lib/cpp2/protocol/Protocol.h>
-#include <thrift/lib/cpp/TApplicationException.h>
-#include <folly/io/IOBuf.h>
-#include <folly/io/Cursor.h>
-#include <boost/operators.hpp>
 
 
+// BEGIN declare_enums
 
+// END declare_enums
+// BEGIN struct_indirection
 
-namespace cpp2 {
+// END struct_indirection
+// BEGIN forward_declare
 
-} // cpp2
+// END forward_declare
+// BEGIN typedefs
+
+// END typedefs
+// BEGIN hash_and_equal_to
+// END hash_and_equal_to

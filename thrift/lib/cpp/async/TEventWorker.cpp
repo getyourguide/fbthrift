@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <thrift/lib/cpp/async/TEventWorker.h>
 
+#include <folly/portability/Sockets.h>
 #include <thrift/lib/cpp/async/TEventConnection.h>
 #include <thrift/lib/cpp/async/TEventServer.h>
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
@@ -23,15 +23,10 @@
 #include <thrift/lib/cpp/async/TEventTask.h>
 #include <thrift/lib/cpp/concurrency/Util.h>
 
+#include <folly/portability/SysUio.h>
+
 #include <iostream>
-#include <sys/socket.h>
-#include <sys/uio.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <netdb.h>
 #include <fcntl.h>
-#include <errno.h>
-#include <assert.h>
 
 namespace apache { namespace thrift { namespace async {
 
@@ -93,8 +88,9 @@ void TEventWorker::returnConnection(TEventConnection* connection) {
   }
 }
 
-void TEventWorker::connectionAccepted(int fd, const folly::SocketAddress& clientAddr)
-  noexcept {
+void TEventWorker::connectionAccepted(
+    int fd,
+    const folly::SocketAddress& /* clientAddr */) noexcept {
   TAsyncSocket *asyncSock = nullptr;
   TAsyncSSLSocket *sslSock = nullptr;
   if (server_->getSSLContext()) {
@@ -106,7 +102,8 @@ void TEventWorker::connectionAccepted(int fd, const folly::SocketAddress& client
   }
 
   if (maxNumActiveConnections_ > 0 &&
-      maxNumActiveConnections_ <= activeConnectionList_.size()) {
+      static_cast<uint32_t>(maxNumActiveConnections_) <=
+          activeConnectionList_.size()) {
     T_ERROR("Too many active connections (%ld), max allowed is (%d)",
             activeConnectionList_.size(), maxNumActiveConnections_);
     asyncSock->destroy();
@@ -115,7 +112,8 @@ void TEventWorker::connectionAccepted(int fd, const folly::SocketAddress& client
 
   if (sslSock != nullptr) {
     // The connection may be deleted in sslAccept().
-    sslSock->sslAccept(this, server_->getRecvTimeout());
+    sslSock->sslAccept(
+        this, std::chrono::milliseconds(server_->getRecvTimeout()));
   } else {
     finishConnectionAccepted(asyncSock);
   }
@@ -172,8 +170,8 @@ void TEventWorker::acceptStopped() noexcept {
  * Register the core libevent events onto the proper base.
  */
 void TEventWorker::registerEvents() {
-  if (server_->getCallTimeout() > 0) {
-    eventBase_.setMaxLatency(server_->getCallTimeout() * Util::US_PER_MS,
+  if (server_->getCallTimeout() > std::chrono::milliseconds::zero()) {
+    eventBase_.setMaxLatency(server_->getCallTimeout(),
                            std::bind(&TEventWorker::maxLatencyCob, this));
   }
 
@@ -227,7 +225,7 @@ bool TEventWorker::notifyCompletion(TaskCompletionMessage &&msg) {
 /**
   * A task called notifyCompletion(); make the appropriate callback
   */
-void TEventWorker::messageAvailable(TaskCompletionMessage &&msg) {
+void TEventWorker::messageAvailable(TaskCompletionMessage&& msg) noexcept {
   // for now, just invoke task complete.  Next diff will also handle
   // input/output memory buffers.
   msg.connection->handleAsyncTaskComplete(true);

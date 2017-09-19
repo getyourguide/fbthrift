@@ -18,24 +18,23 @@
 
 #include <cstring>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/poll.h>
-#include <sys/un.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <netdb.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <unistd.h>
+
+#include <folly/portability/Fcntl.h>
+#include <folly/portability/Sockets.h>
+#include <folly/portability/Unistd.h>
 
 #include <thrift/lib/cpp/transport/TSocket.h>
 #include <thrift/lib/cpp/util/FdUtils.h>
+
 #include <memory>
 
 namespace apache { namespace thrift { namespace transport {
 
 using namespace std;
 using std::shared_ptr;
+
+namespace fsp = folly::portability::sockets;
 
 TServerSocket::TServerSocket(int port) :
   port_(port),
@@ -155,9 +154,10 @@ void TServerSocket::listen() {
   }
 
   if (!path_.empty()) {
-    serverSocket_ = socket(PF_UNIX, SOCK_STREAM, IPPROTO_IP);
+    serverSocket_ = fsp::socket(PF_UNIX, SOCK_STREAM, IPPROTO_IP);
   } else {
-    serverSocket_ = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    serverSocket_ = fsp::socket(
+        res->ai_family, res->ai_socktype, res->ai_protocol);
   }
 
   if (serverSocket_ == -1) {

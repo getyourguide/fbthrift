@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ using namespace apache::thrift;
 using namespace apache::thrift::async;
 using namespace apache::thrift::concurrency;
 using namespace apache::thrift::transport;
-using folly::makeMoveWrapper;
 
 // D defined funcs
 class ThriftServerInterface {
@@ -38,26 +37,27 @@ class DProcessor : public AsyncProcessor {
  public:
   explicit DProcessor(ThriftServerInterface* iface) : iface_(iface) {}
 
-  void process(std::unique_ptr<ResponseChannel::Request> req,
-               std::unique_ptr<folly::IOBuf> buf,
-               protocol::PROTOCOL_TYPES protType,
-               Cpp2RequestContext* context,
-               folly::EventBase* eb,
-               concurrency::ThreadManager* tm) override {
+  void process(
+      std::unique_ptr<ResponseChannel::Request> req,
+      std::unique_ptr<folly::IOBuf> buf,
+      protocol::PROTOCOL_TYPES protType,
+      Cpp2RequestContext*,
+      folly::EventBase* eb,
+      concurrency::ThreadManager* tm) override {
     assert(iface_);
-    auto reqd = makeMoveWrapper(std::move(req));
-    auto bufd = makeMoveWrapper(std::move(buf));
-    tm->add(FunctionRunner::create([=] () mutable {
-        (*bufd)->coalesce();
+    tm->add(FunctionRunner::create([
+      this, eb, protType, req = std::move(req), buf=std::move(buf)
+    ] () mutable {
+        buf->coalesce();
         uint64_t resp;
         char* data;
         iface_->process(
-          (*reqd).release(), eb, (*bufd)->writableData(),
-          (*bufd)->length(), protType);
+          req.release(), eb, buf->writableData(),
+          buf->length(), protType);
     }));
   }
 
-  bool isOnewayMethod(const folly::IOBuf* buf, const THeader* header) override {
+  bool isOnewayMethod(const folly::IOBuf*, const THeader*) override {
     return false;
   }
  private:
@@ -132,10 +132,13 @@ void thriftserver_sendReply(
   ResponseChannel::Request* req, folly::EventBase* eb,
   const char* bytes, size_t len) {
 
-  auto buf = makeMoveWrapper(folly::IOBuf::copyBuffer(bytes, len));
-  eb->runInEventBaseThread([=] () mutable {
-    req->sendReply(std::move(*buf));
-    delete req;
+  auto buf = folly::IOBuf::copyBuffer(bytes, len);
+  eb->runInEventBaseThread([
+    req = std::unique_ptr<ResponseChannel::Request>(req),
+    buf = std::move(buf)
+  ] () mutable {
+    req->sendReply(std::move(buf));
+    req.reset();
   });
 }
 

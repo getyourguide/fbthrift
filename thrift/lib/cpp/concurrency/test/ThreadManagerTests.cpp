@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,9 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <numa.h>
 
 #include <chrono>
@@ -25,7 +22,10 @@
 #include <random>
 #include <thread>
 
+#include <folly/Baton.h>
 #include <folly/Synchronized.h>
+#include <folly/portability/SysResource.h>
+#include <folly/portability/SysTime.h>
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp/concurrency/FunctionRunner.h>
 #include <thrift/lib/cpp/concurrency/Monitor.h>
@@ -38,6 +38,15 @@
 using namespace apache::thrift::concurrency;
 
 DECLARE_bool(thrift_numa_enabled);
+
+class ThreadManagerTest : public testing::Test {
+ public:
+  ~ThreadManagerTest() override {
+    ThreadManager::setObserver(nullptr);
+  }
+ private:
+  gflags::FlagSaver flagsaver_;
+};
 
 // Loops until x==y for up to timeout ms.
 // The end result is the same as of {EXPECT,ASSERT}_EQ(x,y)
@@ -173,27 +182,31 @@ static void loadTest(size_t numTasks, int64_t timeout, size_t numWorkers) {
   EXPECT_LT(overheadPct, 0.10);
 
   // Get the task stats
-  int64_t waitTimeUs;
-  int64_t runTimeUs;
+  std::chrono::microseconds waitTimeUs;
+  std::chrono::microseconds runTimeUs;
   threadManager->getStats(waitTimeUs, runTimeUs, numTasks * 2);
 
   // Compute the best possible average wait time
   int64_t fullIterations = numTasks / numWorkers;
   int64_t tasksOnLastIteration = numTasks % numWorkers;
-  int64_t expectedTotalWaitTimeMs =
+  auto expectedTotalWaitTimeMs = std::chrono::milliseconds(
     numWorkers * ((fullIterations * (fullIterations - 1)) / 2) * timeout +
-    tasksOnLastIteration * fullIterations * timeout;
-  int64_t idealAvgWaitUs =
-    (expectedTotalWaitTimeMs * Util::US_PER_MS) / numTasks;
+    tasksOnLastIteration * fullIterations * timeout);
+  auto idealAvgWaitUs = std::chrono::microseconds(expectedTotalWaitTimeMs) /
+    numTasks;
 
-  LOG(INFO) << "avg wait time: " << waitTimeUs << "us "
-            << "avg run time: " << runTimeUs << "us "
-            << "ideal wait time: " << idealAvgWaitUs << "us";
+  LOG(INFO) << "avg wait time: " << waitTimeUs.count() << "us "
+            << "avg run time: " << runTimeUs.count() << "us "
+            << "ideal wait time: " << idealAvgWaitUs.count() << "us";
 
+  const auto doubleMilliToMicro = [](double val) {
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::duration<double, std::milli>(val));
+  };
   // Verify that the average run time was more than the timeout, but not
   // more than 10% over.
-  EXPECT_GE(runTimeUs, timeout * Util::US_PER_MS);
-  EXPECT_LT(runTimeUs, timeout * Util::US_PER_MS * 1.10);
+  EXPECT_GE(runTimeUs, std::chrono::milliseconds(timeout));
+  EXPECT_LT(runTimeUs, doubleMilliToMicro(timeout * 1.10));
   // Verify that the average wait time was within 10% of the ideal wait time.
   // The calculation for ideal average wait time assumes all tasks were started
   // instantaneously, in reality, starting 1000 tasks takes some non-zero amount
@@ -201,11 +214,11 @@ static void loadTest(size_t numTasks, int64_t timeout, size_t numWorkers) {
   // ideal wait time. Account for this by accepting an actual avg wait time that
   // is less than ideal avg wait time by up to the time it took to start all the
   // tasks.
-  EXPECT_GE(waitTimeUs, idealAvgWaitUs - taskStartTime * Util::US_PER_MS);
-  EXPECT_LT(waitTimeUs, idealAvgWaitUs * 1.10);
+  EXPECT_GE(waitTimeUs, idealAvgWaitUs - doubleMilliToMicro(taskStartTime));
+  EXPECT_LT(waitTimeUs, doubleMilliToMicro(idealAvgWaitUs.count() * 1.10));
 }
 
-TEST(ThreadManagerTest, LoadTest) {
+TEST_F(ThreadManagerTest, LoadTest) {
   size_t numTasks = 10000;
   int64_t timeout = 50;
   size_t numWorkers = 100;
@@ -355,7 +368,7 @@ static void blockTest(int64_t /*timeout*/, size_t numWorkers) {
   CHECK_EQUAL_TIMEOUT(threadManager->totalTaskCount(), 0);
 }
 
-TEST(ThreadManagerTest, BlockTest) {
+TEST_F(ThreadManagerTest, BlockTest) {
   int64_t timeout = 50;
   size_t numWorkers = 100;
   blockTest(timeout, numWorkers);
@@ -371,8 +384,8 @@ static void expireTestCallback(std::shared_ptr<Runnable>,
   }
 }
 
-static void expireTest(int64_t numWorkers, int64_t expirationTimeMs) {
-  int64_t maxPendingTasks = numWorkers;
+static void expireTest(size_t numWorkers, int64_t expirationTimeMs) {
+  size_t maxPendingTasks = numWorkers;
   size_t activeTasks = numWorkers + maxPendingTasks;
   Monitor monitor;
 
@@ -391,7 +404,7 @@ static void expireTest(int64_t numWorkers, int64_t expirationTimeMs) {
 
   Monitor bmonitor;
   bool blocked = true;
-  for (int64_t n = 0; n < numWorkers + maxPendingTasks; ++n) {
+  for (size_t n = 0; n < numWorkers + maxPendingTasks; ++n) {
     auto task = std::make_shared<BlockTask>(
         &monitor, &bmonitor, &blocked, &activeTasks);
     tasks.push_back(task);
@@ -428,8 +441,8 @@ static void expireTest(int64_t numWorkers, int64_t expirationTimeMs) {
   }
 }
 
-TEST(ThreadManagerTest, ExpireTest) {
-  int64_t numWorkers = 100;
+TEST_F(ThreadManagerTest, ExpireTest) {
+  size_t numWorkers = 100;
   int64_t expireTimeMs = 50;
   expireTest(numWorkers, expireTimeMs);
 }
@@ -541,7 +554,7 @@ class WorkerCountChanger : public Runnable {
 
 // Run lots of tasks, while several threads are all changing
 // the number of worker threads.
-TEST(ThreadManagerTest, AddRemoveWorker) {
+TEST_F(ThreadManagerTest, AddRemoveWorker) {
   // Number of tasks to run
   int64_t numTasks = 100000;
   // Minimum number of workers to keep at any point in time
@@ -596,7 +609,7 @@ TEST(ThreadManagerTest, AddRemoveWorker) {
   EXPECT_EQ(0, currentTaskObjects);
 }
 
-TEST(ThreadManagerTest, NeverStartedTest) {
+TEST_F(ThreadManagerTest, NeverStartedTest) {
   // Test destroying a ThreadManager that was never started.
   // This ensures that calling stop() on an unstarted ThreadManager works
   // properly.
@@ -612,7 +625,7 @@ TEST(ThreadManagerTest, NeverStartedTest) {
   }
 }
 
-TEST(ThreadManagerTest, OnlyStartedTest) {
+TEST_F(ThreadManagerTest, OnlyStartedTest) {
   // Destroy a ThreadManager that has a ThreadFactory and was started.
   for (int i = 0; i < 1000; ++i) {
     auto threadManager = ThreadManager::newSimpleThreadManager(10);
@@ -629,16 +642,16 @@ class TestObserver : public ThreadManager::Observer {
     , timeout(timeout)
     , expectedName(expectedName) {}
 
-  void addStats(const std::string& threadPoolName,
-                const SystemClockTimePoint& queueBegin,
-                const SystemClockTimePoint& workBegin,
-                const SystemClockTimePoint& workEnd) override {
-    EXPECT_EQ(expectedName, threadPoolName);
+  void preRun(folly::RequestContext*) override {}
+  void postRun(
+      folly::RequestContext*,
+      const ThreadManager::RunStats& stats) override {
+    EXPECT_EQ(expectedName, stats.threadPoolName);
 
     // Note: Technically could fail if system clock changes.
-    EXPECT_GT((workBegin - queueBegin).count(), 0);
-    EXPECT_GT((workEnd - workBegin).count(), 0);
-    EXPECT_GT((workEnd - workBegin).count(), timeout - 1);
+    EXPECT_GT((stats.workBegin - stats.queueBegin).count(), 0);
+    EXPECT_GT((stats.workEnd - stats.workBegin).count(), 0);
+    EXPECT_GT((stats.workEnd - stats.workBegin).count(), timeout - 1);
     ++timesCalled;
   }
 
@@ -647,8 +660,8 @@ class TestObserver : public ThreadManager::Observer {
   std::string expectedName;
 };
 
-TEST(ThreadManagerTest, NumaThreadManagerTest) {
-  google::FlagSaver saver;
+TEST_F(ThreadManagerTest, NumaThreadManagerTest) {
+  gflags::FlagSaver saver;
   FLAGS_thrift_numa_enabled = true;
 
   if (numa_available() == -1) {
@@ -656,7 +669,7 @@ TEST(ThreadManagerTest, NumaThreadManagerTest) {
     return;
   }
 
-  auto numa = folly::make_unique<NumaThreadManager>(2);
+  auto numa = std::make_unique<NumaThreadManager>(2);
   bool failed = false;
 
   numa->setNamePrefix("foo");
@@ -765,17 +778,17 @@ class DummyFailureClass {
   std::shared_ptr<ThreadManager> threadManager_;
 };
 
-TEST(ThreadManagerTest, ThreadStartFailureTest) {
+TEST_F(ThreadManagerTest, ThreadStartFailureTest) {
   for (int i = 0; i < 10; i++) {
     EXPECT_THROW(DummyFailureClass(), int);
   }
 }
 
-TEST(ThreadManagerTest, NumaThreadManagerBind) {
-  google::FlagSaver saver;
+TEST_F(ThreadManagerTest, NumaThreadManagerBind) {
+  gflags::FlagSaver saver;
   FLAGS_thrift_numa_enabled = true;
 
-  auto numa = folly::make_unique<NumaThreadManager>(2);
+  auto numa = std::make_unique<NumaThreadManager>(2);
   numa->setNamePrefix("foo");
   numa->start();
 
@@ -790,7 +803,7 @@ TEST(ThreadManagerTest, NumaThreadManagerBind) {
   numa->join();
 }
 
-TEST(ThreadManagerTest, ObserverTest) {
+TEST_F(ThreadManagerTest, ObserverTest) {
   int64_t timeout = 1000;
   auto observer = std::make_shared<TestObserver>(1000, "foo");
   ThreadManager::setObserver(observer);
@@ -809,7 +822,42 @@ TEST(ThreadManagerTest, ObserverTest) {
   EXPECT_EQ(1, observer->timesCalled);
 }
 
-TEST(ThreadManagerTest, PosixThreadFactoryPriority) {
+TEST_F(ThreadManagerTest, ObserverAssignedAfterStart) {
+  class MyTask : public Runnable {
+   public:
+    void run() override {}
+  };
+  class MyObserver : public ThreadManager::Observer {
+   public:
+    MyObserver(std::string name, std::shared_ptr<std::string> tgt) :
+      name_(std::move(name)), tgt_(std::move(tgt)) {}
+    void preRun(folly::RequestContext*) override {}
+    void postRun(
+        folly::RequestContext*,
+        const ThreadManager::RunStats&) override {
+      *tgt_ = name_;
+    }
+   private:
+    std::string name_;
+    std::shared_ptr<std::string> tgt_;
+  };
+
+  // start a tm
+  auto tm = ThreadManager::newSimpleThreadManager(1);
+  tm->setNamePrefix("foo");
+  tm->threadFactory(std::make_shared<PosixThreadFactory>());
+  tm->start();
+  // set the observer w/ observable side-effect
+  auto tgt = std::make_shared<std::string>();
+  ThreadManager::setObserver(std::make_shared<MyObserver>("bar", tgt));
+  // add a task - observable side-effect should trigger
+  tm->add(std::make_shared<MyTask>());
+  tm->join();
+  // confirm the side-effect
+  EXPECT_EQ("bar", *tgt);
+}
+
+TEST_F(ThreadManagerTest, PosixThreadFactoryPriority) {
   auto getNiceValue = [](PosixThreadFactory::PRIORITY prio) -> int {
     PosixThreadFactory factory(PosixThreadFactory::OTHER, prio);
     factory.setDetached(false);
@@ -835,4 +883,72 @@ TEST(ThreadManagerTest, PosixThreadFactoryPriority) {
       EXPECT_EQ(i, getNiceValue(PosixThreadFactory::INHERITED));
     }
   }).join();
+}
+
+TEST_F(ThreadManagerTest, PriorityThreadManagerWorkerCount) {
+  auto threadManager = PriorityThreadManager::newPriorityThreadManager({{
+      1 /*HIGH_IMPORTANT*/,
+      2 /*HIGH*/,
+      3 /*IMPORTANT*/,
+      4 /*NORMAL*/,
+      5 /*BEST_EFFORT*/
+  }});
+  threadManager->start();
+
+  EXPECT_EQ(1, threadManager->workerCount(PRIORITY::HIGH_IMPORTANT));
+  EXPECT_EQ(2, threadManager->workerCount(PRIORITY::HIGH));
+  EXPECT_EQ(3, threadManager->workerCount(PRIORITY::IMPORTANT));
+  EXPECT_EQ(4, threadManager->workerCount(PRIORITY::NORMAL));
+  EXPECT_EQ(5, threadManager->workerCount(PRIORITY::BEST_EFFORT));
+
+  threadManager->addWorker(PRIORITY::HIGH_IMPORTANT, 1);
+  threadManager->addWorker(PRIORITY::HIGH, 1);
+  threadManager->addWorker(PRIORITY::IMPORTANT, 1);
+  threadManager->addWorker(PRIORITY::NORMAL, 1);
+  threadManager->addWorker(PRIORITY::BEST_EFFORT, 1);
+
+  EXPECT_EQ(2, threadManager->workerCount(PRIORITY::HIGH_IMPORTANT));
+  EXPECT_EQ(3, threadManager->workerCount(PRIORITY::HIGH));
+  EXPECT_EQ(4, threadManager->workerCount(PRIORITY::IMPORTANT));
+  EXPECT_EQ(5, threadManager->workerCount(PRIORITY::NORMAL));
+  EXPECT_EQ(6, threadManager->workerCount(PRIORITY::BEST_EFFORT));
+
+  threadManager->removeWorker(PRIORITY::HIGH_IMPORTANT, 1);
+  threadManager->removeWorker(PRIORITY::HIGH, 1);
+  threadManager->removeWorker(PRIORITY::IMPORTANT, 1);
+  threadManager->removeWorker(PRIORITY::NORMAL, 1);
+  threadManager->removeWorker(PRIORITY::BEST_EFFORT, 1);
+
+  EXPECT_EQ(1, threadManager->workerCount(PRIORITY::HIGH_IMPORTANT));
+  EXPECT_EQ(2, threadManager->workerCount(PRIORITY::HIGH));
+  EXPECT_EQ(3, threadManager->workerCount(PRIORITY::IMPORTANT));
+  EXPECT_EQ(4, threadManager->workerCount(PRIORITY::NORMAL));
+  EXPECT_EQ(5, threadManager->workerCount(PRIORITY::BEST_EFFORT));
+}
+
+TEST_F(ThreadManagerTest, PriorityQueueThreadManagerExecutor) {
+  auto threadManager = ThreadManager::newPriorityQueueThreadManager(
+    1,
+    true /*stats*/,
+    10
+  );
+  threadManager->start();
+  folly::Baton<> reqSyncBaton;
+  folly::Baton<> reqDoneBaton;
+  // block the TM
+  threadManager->add([&] {reqSyncBaton.wait();});
+
+  std::string foo = "";
+  threadManager->addWithPriority([&] {foo += "a"; reqDoneBaton.post();}, 0);
+  // Should be added by default at highest priority
+  threadManager->add([&] {foo += "b";});
+  threadManager->addWithPriority([&] {foo += "c";}, 1);
+
+  // unblock the TM
+  reqSyncBaton.post();
+
+  // wait until the request that's supposed to finish last is done
+  reqDoneBaton.wait();
+
+  EXPECT_EQ("bca", foo);
 }

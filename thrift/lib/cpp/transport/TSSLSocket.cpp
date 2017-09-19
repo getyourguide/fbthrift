@@ -16,22 +16,21 @@
 
 #include <thrift/lib/cpp/transport/TSSLSocket.h>
 
-#include <arpa/inet.h>
+#include <folly/String.h>
+#include <folly/portability/OpenSSL.h>
+#include <folly/portability/Sockets.h>
+
 #include <boost/lexical_cast.hpp>
 #include <boost/scoped_array.hpp>
 #include <errno.h>
-#include <folly/String.h>
-#include <glog/logging.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
+#include <mutex>
 #include <string>
 #include <vector>
 
-#include <thrift/lib/cpp/concurrency/ProfiledMutex.h>
-
-using apache::thrift::concurrency::ProfiledMutex;
 using boost::lexical_cast;
 using boost::scoped_array;
 using std::exception;
@@ -41,7 +40,7 @@ using std::string;
 using std::vector;
 
 struct CRYPTO_dynlock_value {
-  ProfiledMutex<std::mutex> mutex;
+  std::mutex mutex;
 };
 
 namespace apache { namespace thrift { namespace transport {
@@ -248,7 +247,7 @@ bool TSSLSocket::validatePeerName(SSL* ssl) {
         if (name == nullptr) {
           continue;
         }
-        char* data = (char*)ASN1_STRING_data(name->d.ia5);
+        char* data = (char*)ASN1_STRING_get0_data(name->d.ia5);
         int length = ASN1_STRING_length(name->d.ia5);
         switch (name->type) {
           case GEN_DNS:

@@ -77,6 +77,9 @@ def init_parser():
             dest="outputDir", default='.',
             help='Set the output directory for gen-* packages (default:'
             'current directory)')),
+        (['--templates'], dict(metavar='dir',
+            default='.',
+            help='Directory with templates for template-based generators')),
         (['--out'], {}),
         (['-I'], dict(metavar='dir', dest="includeDirs", action="append",
             help='Add a directory to the list of directories searched for'
@@ -105,6 +108,8 @@ def init_parser():
             'generator. Many options will not require values.')),
         (['--fbcode_dir'], {}),
         (['--record-genfiles'], {}),
+        # Only used as a passthrough from the C++ compiler
+        (['--python-compiler'], {}),
     ]
 
     for i, j in rules:
@@ -152,6 +157,8 @@ def parseParameters(parser, args):
         if len(tmp) == 1:
             tmp.append('')
         lang, switches = tmp
+        if "mstch_cpp2" == lang:
+            lang = "cpp2"
         if lang not in generator_registry.generator_factory_map:
             raise ArgumentError('Language {0} not defined.'.format(lang))
         switches = toDict(switches)
@@ -167,6 +174,8 @@ def parseParameters(parser, args):
         raise ArgumentError('Output directory is not a directory.')
     if not os.access(opts.outputDir, os.W_OK | os.X_OK):
         raise ArgumentError('Output directory is not writeable.')
+    if opts.recurse:
+        raise ArgumentError('Recurse is not allowed with py generators')
 
     return dict(
         to_generate=to_generate,
@@ -206,12 +215,6 @@ class Configuration(object):
         from thrift_compiler.frontend import t_program
         assert isinstance(program, t_program)
         assert isinstance(languages, dict)
-
-        if self.recurse:
-            for inc in program.includes:
-                # Propagate output path from parent to child programs
-                inc.out_path = program.out_path
-                self.generate(inc, languages)
 
         # Generate code
 

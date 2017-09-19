@@ -6,21 +6,13 @@
  */
 #pragma once
 
-#include "module_types.h"
+#include "thrift/compiler/test/fixtures/basic-cpp-async/gen-cpp/module_types.h"
 
 
 
 struct module_constants {
 };
 
-struct  __attribute__((__deprecated__("module_constants_codemod is a transitional class only intended for codemods from the deprecated moduleConstants to module_constants. Consider switching to the latter as soon as possible."))) module_constants_codemod {
-};
-
-class __attribute__((__deprecated__("moduleConstants suffers from the 'static initialization order fiasco' (https://isocpp.org/wiki/faq/ctors#static-init-order) and may CRASH your program. Instead, use module_constants::CONSTANT_NAME()"))) moduleConstants {
-public:
-  moduleConstants();
-
-};
 
 
 

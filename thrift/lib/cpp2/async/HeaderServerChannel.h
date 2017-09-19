@@ -19,7 +19,8 @@
 #ifndef THRIFT_ASYNC_THEADERSERVERCHANNEL_H_
 #define THRIFT_ASYNC_THEADERSERVERCHANNEL_H_ 1
 
-#include <folly/io/async/HHWheelTimer.h>
+#include <thrift/lib/cpp/TApplicationException.h>
+#include <thrift/lib/cpp/transport/TTransportException.h>
 #include <thrift/lib/cpp2/async/MessageChannel.h>
 #include <thrift/lib/cpp2/async/ServerChannel.h>
 #include <thrift/lib/cpp2/async/HeaderChannelTrait.h>
@@ -132,13 +133,44 @@ protected:
     void sendReply(std::unique_ptr<folly::IOBuf>&&,
                    MessageChannel::SendCallback* cb = nullptr) override;
 
+    void serializeAndSendError(
+      apache::thrift::transport::THeader& header,
+      TApplicationException& tae,
+      const std::string& methodName,
+      int32_t protoSeqId,
+      MessageChannel::SendCallback* cb);
+
     void sendErrorWrapped(folly::exception_wrapper ex,
                           std::string exCode,
                           MessageChannel::SendCallback* cb = nullptr) override;
 
+    void sendErrorWrapped(folly::exception_wrapper ex,
+                          std::string exCode,
+                          const std::string& methodName,
+                          int32_t protoSeqId,
+                          MessageChannel::SendCallback* cb = nullptr);
+
+    /* We differentiate between two types of timeouts:
+       1) Task timeouts refer to timeouts that fire while the request is
+       currently being proceesed
+       2) Queue timeouts refer to timeouts that fire before processing
+       of the request has begun
+    */
+    enum TimeoutResponseType {
+      TASK,
+      QUEUE
+    };
+
+    void sendTimeoutResponse(const std::string& methodName,
+                             int32_t protoSeqId,
+                             MessageChannel::SendCallback* cb,
+                             const std::map<std::string, std::string>& headers,
+                             TimeoutResponseType responseType);
+
    private:
     HeaderServerChannel* channel_;
     std::unique_ptr<apache::thrift::transport::THeader> header_;
+    std::unique_ptr<apache::thrift::transport::THeader> timeoutHeader_;
     uint32_t InOrderRecvSeqId_{0}; // Used internally for in-order requests
     std::atomic<bool> active_;
   };
@@ -172,6 +204,12 @@ protected:
     cpp2Channel_->setQueueSends(queueSends);
   }
 
+  void setDefaultWriteTransforms(std::vector<uint16_t>& writeTrans) {
+    writeTrans_ = writeTrans;
+  }
+
+  std::vector<uint16_t>& getDefaultWriteTransforms() { return writeTrans_; }
+
   void closeNow() {
     cpp2Channel_->closeNow();
   }
@@ -193,6 +231,41 @@ protected:
     HeaderServerChannel& channel_;
   };
 
+  class ServerSaslNegotiationHandler : public SaslNegotiationHandler {
+  public:
+    explicit ServerSaslNegotiationHandler(HeaderServerChannel& channel)
+      : channel_(channel) {}
+
+    bool handleSecurityMessage(
+        std::unique_ptr<folly::IOBuf>&& buf,
+        std::unique_ptr<apache::thrift::transport::THeader>&& header) override;
+
+   private:
+    HeaderServerChannel& channel_;
+  };
+
+  class SaslServerCallback : public SaslServer::Callback {
+   public:
+    explicit SaslServerCallback(HeaderServerChannel& channel)
+      : channel_(channel), header_(nullptr) {}
+    void saslSendClient(std::unique_ptr<folly::IOBuf>&&) override;
+    void saslError(folly::exception_wrapper&&) override;
+    void saslComplete() override;
+
+    void setHeader(
+        std::unique_ptr<apache::thrift::transport::THeader>&& header) {
+      header_ = std::move(header);
+    }
+   private:
+    HeaderServerChannel& channel_;
+    std::unique_ptr<apache::thrift::transport::THeader> header_;
+  };
+
+  SaslServerCallback* getSaslServerCallback() {
+    return &saslServerCallback_;
+  }
+
+
 protected:
   void setPersistentAuthHeader(bool auth) override {
     setPersistentHeader("thrift_auth", auth ? "1" : "0");
@@ -207,10 +280,6 @@ private:
     cpp2Channel_->getProtectionHandler()->setProtectionState(newState,
                                                              saslServer_.get());
   }
-
-  std::unique_ptr<folly::IOBuf> handleSecurityMessage(
-      std::unique_ptr<folly::IOBuf>&& buf,
-      std::unique_ptr<apache::thrift::transport::THeader>&& header);
 
   static std::string getTHeaderPayloadString(folly::IOBuf* buf);
   static std::string getTransportDebugString(
@@ -232,32 +301,17 @@ private:
 
   folly::Optional<bool> outOfOrder_;
 
+  std::vector<uint16_t> writeTrans_;
+
   static const int MAX_REQUEST_SIZE = 2000;
   static std::atomic<uint32_t> sample_;
   uint32_t sampleRate_;
 
   uint32_t timeoutSASL_;
 
-  class SaslServerCallback : public SaslServer::Callback {
-   public:
-    explicit SaslServerCallback(HeaderServerChannel& channel)
-      : channel_(channel), header_(nullptr) {}
-    void saslSendClient(std::unique_ptr<folly::IOBuf>&&) override;
-    void saslError(folly::exception_wrapper&&) override;
-    void saslComplete() override;
-
-    void setHeader(
-        std::unique_ptr<apache::thrift::transport::THeader>&& header) {
-      header_ = std::move(header);
-    }
-   private:
-    HeaderServerChannel& channel_;
-    std::unique_ptr<apache::thrift::transport::THeader> header_;
-  } saslServerCallback_;
+  SaslServerCallback saslServerCallback_;
 
   std::shared_ptr<Cpp2Channel> cpp2Channel_;
-
-  folly::HHWheelTimer::UniquePtr timer_;
 };
 
 }} // apache::thrift

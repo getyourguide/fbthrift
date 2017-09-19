@@ -19,15 +19,15 @@
 #include <thrift/perf/cpp/ClientWorker2.h>
 
 #include <thrift/lib/cpp/ClientUtil.h>
-#include <thrift/lib/cpp/test/loadgen/RNG.h>
-#include <thrift/perf/cpp/ClientLoadConfig.h>
-#include <thrift/lib/cpp/async/TAsyncSocket.h>
 #include <thrift/lib/cpp/async/TAsyncSSLSocket.h>
+#include <thrift/lib/cpp/async/TAsyncSocket.h>
+#include <thrift/lib/cpp/test/loadgen/RNG.h>
+#include <thrift/lib/cpp/util/kerberos/Krb5CredentialsCacheManager.h>
+#include <thrift/lib/cpp/util/kerberos/Krb5CredentialsCacheManagerLogger.h>
 #include <thrift/lib/cpp2/async/GssSaslClient.h>
 #include <thrift/lib/cpp2/async/HeaderClientChannel.h>
 #include <thrift/lib/cpp2/security/KerberosSASLThreadManager.h>
-#include <thrift/lib/cpp2/security/SecurityLogger.h>
-#include <thrift/lib/cpp/util/kerberos/Krb5CredentialsCacheManager.h>
+#include <thrift/perf/cpp/ClientLoadConfig.h>
 
 using namespace boost;
 using namespace apache::thrift::protocol;
@@ -56,6 +56,9 @@ std::shared_ptr<ClientWorker2::Client> ClientWorker2::createConnection() {
       if (!config->SASLServiceTier().empty()) {
         configs["thrift_security_service_tier"] = config->SASLServiceTier();
       }
+    }
+    if (config->useSSLTFO()) {
+      configs["tls_tcp_fastopen"] = "true";
     }
     channel = facebook::servicerouter::cpp2::getClientFactory()
       .getChannel(config->srTier(), ebm_.getEventBase(), options, configs);
@@ -107,11 +110,13 @@ std::shared_ptr<ClientWorker2::Client> ClientWorker2::createConnection() {
 
     if (config->SASLPolicy() == "required" ||
         config->SASLPolicy() == "permitted") {
-      static auto securityLogger = std::make_shared<SecurityLogger>();
-      static auto saslThreadManager =
-        std::make_shared<SaslThreadManager>(securityLogger);
+      static auto krb5CredentialsCacheManagerLogger =
+          std::make_shared<krb5::Krb5CredentialsCacheManagerLogger>();
+      static auto saslThreadManager = std::make_shared<SaslThreadManager>(
+          krb5CredentialsCacheManagerLogger);
       static auto credentialsCacheManager =
-        std::make_shared<krb5::Krb5CredentialsCacheManager>(securityLogger);
+          std::make_shared<krb5::Krb5CredentialsCacheManager>(
+              krb5CredentialsCacheManagerLogger);
       headerChannel->setSaslClient(std::unique_ptr<apache::thrift::SaslClient>(
         new apache::thrift::GssSaslClient(socket->getEventBase())
       ));
@@ -170,6 +175,10 @@ void ClientWorker2::performOperation(const std::shared_ptr<Client>& client,
       return performEcho(client);
     case ClientLoadConfig::OP_ADD:
       return performAdd(client);
+    case ClientLoadConfig::OP_LARGE_CONTAINER:
+      return performLargeContainer(client);
+    case ClientLoadConfig::OP_ITER_ALL_FIELDS:
+      return performIterAllFields(client);
     case ClientLoadConfig::NUM_OPS:
       // fall through
       break;
@@ -224,7 +233,7 @@ void ClientWorker2::performThrowError(const std::shared_ptr<Client>& client) {
     client->sync_throwError(code);
     T_ERROR("throwError() didn't throw any exception");
   } catch (const LoadError& error) {
-    assert(error.code == code);
+    assert(static_cast<uint32_t>(error.code) == code);
   }
 }
 
@@ -278,6 +287,24 @@ void ClientWorker2::performAdd(const std::shared_ptr<Client>& client) {
   if (result != a + b) {
     T_ERROR("add(%" PRId64 ", %" PRId64 " gave wrong result %" PRId64
             "(expected %" PRId64 ")", a, b, result, a + b);
+  }
+}
+
+void ClientWorker2::performLargeContainer(
+    const std::shared_ptr<Client>& client) {
+  std::vector<BigStruct> items;
+  getConfig()->makeBigContainer<BigStruct>(items);
+  client->sync_largeContainer(items);
+}
+
+void ClientWorker2::performIterAllFields(
+    const std::shared_ptr<Client>& client) {
+  std::vector<BigStruct> items;
+  std::vector<BigStruct> out;
+  getConfig()->makeBigContainer<BigStruct>(items);
+  client->sync_iterAllFields(out, items);
+  if (items != out) {
+    T_ERROR("iterAllFields gave wrong result");
   }
 }
 

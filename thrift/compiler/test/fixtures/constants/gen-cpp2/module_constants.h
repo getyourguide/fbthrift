@@ -6,16 +6,20 @@
  */
 #pragma once
 
-#include "module_types.h"
 #include <thrift/lib/cpp2/protocol/Protocol.h>
+
+#include "module_types.h"
+
 namespace cpp2 {
 
 struct module_constants {
+
   static constexpr int32_t const myInt_ = 1337;
 
   static constexpr int32_t myInt() {
     return myInt_;
   }
+
   // consider using folly::StringPiece instead of std::string whenever possible
   // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
@@ -26,12 +30,9 @@ struct module_constants {
     return name_;
   }
 
-  static std::vector<std::map<std::string, int32_t>> const& states() {
-    static std::vector<std::map<std::string, int32_t>> const instance(std::initializer_list<std::map<std::string, int32_t>>{{{apache::thrift::StringTraits< std::string>::fromStringLiteral("San Diego"), 3211000}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("Sacramento"), 479600}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("SF"), 837400}}, {{apache::thrift::StringTraits< std::string>::fromStringLiteral("New York"), 8406000}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("Albany"), 98400}}});
-    return instance;
-  }
+  static std::vector<std::map<std::string, int32_t>> const& states();
 
-  static constexpr double const x_ = 1.0;
+  static constexpr double const x_ = 1;
 
   static constexpr double x() {
     return x_;
@@ -43,26 +44,56 @@ struct module_constants {
     return y_;
   }
 
-  static constexpr double const z_ = 1000000000.0;
+  static constexpr double const z_ = 1000000000;
 
   static constexpr double z() {
     return z_;
   }
 
-  static  ::cpp2::Internship const& instagram() {
-    static  ::cpp2::Internship const instance( ::cpp2::Internship(apache::thrift::FRAGILE, 12, apache::thrift::StringTraits< std::string>::fromStringLiteral("Software Engineer"),  ::cpp2::Company::INSTAGRAM));
-    return instance;
+  static constexpr double const zeroDoubleValue_ = 0;
+
+  static constexpr double zeroDoubleValue() {
+    return zeroDoubleValue_;
   }
 
-  static std::vector< ::cpp2::Range> const& kRanges() {
-    static std::vector< ::cpp2::Range> const instance(std::initializer_list< ::cpp2::Range>{ ::cpp2::Range(apache::thrift::FRAGILE, 1, 2),  ::cpp2::Range(apache::thrift::FRAGILE, 5, 6)});
-    return instance;
+  static constexpr double const longDoubleValue_ = 2.59961000990301e-05;
+
+  static constexpr double longDoubleValue() {
+    return longDoubleValue_;
   }
 
-  static std::vector< ::cpp2::Internship> const& internList() {
-    static std::vector< ::cpp2::Internship> const instance(std::initializer_list< ::cpp2::Internship>{ ::cpp2::Internship(apache::thrift::FRAGILE, 12, apache::thrift::StringTraits< std::string>::fromStringLiteral("Software Engineer"),  ::cpp2::Company::INSTAGRAM),  ::cpp2::Internship(apache::thrift::FRAGILE, 10, apache::thrift::StringTraits< std::string>::fromStringLiteral("Sales Intern"),  ::cpp2::Company::FACEBOOK)});
-    return instance;
-  }
+  static  ::cpp2::Internship const& instagram();
+
+  static std::vector< ::cpp2::Range> const& kRanges();
+
+  static std::vector< ::cpp2::Internship> const& internList();
+
+  static  ::cpp2::struct1 const& pod_0();
+
+  static  ::cpp2::struct1 const& pod_1();
+
+  static  ::cpp2::struct2 const& pod_2();
+
+  static  ::cpp2::struct3 const& pod_3();
+
+  static  ::cpp2::union1 const& u_1_1();
+
+  static  ::cpp2::union1 const& u_1_2();
+
+  static  ::cpp2::union1 const& u_1_3();
+
+  static  ::cpp2::union2 const& u_2_1();
+
+  static  ::cpp2::union2 const& u_2_2();
+
+  static  ::cpp2::union2 const& u_2_3();
+
+  static  ::cpp2::union2 const& u_2_4();
+
+  static  ::cpp2::union2 const& u_2_5();
+
+  static  ::cpp2::union2 const& u_2_6();
+
   // consider using folly::StringPiece instead of std::string whenever possible
   // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
@@ -72,6 +103,7 @@ struct module_constants {
   static constexpr char const * apostrophe() {
     return apostrophe_;
   }
+
   // consider using folly::StringPiece instead of std::string whenever possible
   // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
@@ -81,6 +113,7 @@ struct module_constants {
   static constexpr char const * tripleApostrophe() {
     return tripleApostrophe_;
   }
+
   // consider using folly::StringPiece instead of std::string whenever possible
   // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
@@ -90,6 +123,7 @@ struct module_constants {
   static constexpr char const * quotationMark() {
     return quotationMark_;
   }
+
   // consider using folly::StringPiece instead of std::string whenever possible
   // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
@@ -99,6 +133,7 @@ struct module_constants {
   static constexpr char const * backslash() {
     return backslash_;
   }
+
   // consider using folly::StringPiece instead of std::string whenever possible
   // to referencing this statically allocated string constant, in order to
   // prevent unnecessary allocations
@@ -109,133 +144,78 @@ struct module_constants {
     return escaped_a_;
   }
 
-  static std::map<std::string, int32_t> const& char2ascii() {
-    static std::map<std::string, int32_t> const instance({{apache::thrift::StringTraits< std::string>::fromStringLiteral("'"), 39}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("\""), 34}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("\\"), 92}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("\x61"), 97}});
-    return instance;
-  }
-};
+  static std::map<std::string, int32_t> const& char2ascii();
 
-struct __attribute__((__deprecated__("module_constants_codemod is a transitional class only intended for codemods from the deprecated moduleConstants to module_constants. Consider switching to the latter as soon as possible."))) module_constants_codemod {
-  static constexpr int32_t myInt() {
-    return 1337;
-  }
+  static std::vector<std::string> const& escaped_strings();
 
-  static std::string const& name() {
-    static std::string const instance(apache::thrift::StringTraits< std::string>::fromStringLiteral("Mark Zuckerberg"));
-    return instance;
+  static constexpr bool const false_c_ = false;
+
+  static constexpr bool false_c() {
+    return false_c_;
   }
 
-  static std::vector<std::map<std::string, int32_t>> const& states() {
-    static std::vector<std::map<std::string, int32_t>> const instance(std::initializer_list<std::map<std::string, int32_t>>{{{apache::thrift::StringTraits< std::string>::fromStringLiteral("San Diego"), 3211000}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("Sacramento"), 479600}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("SF"), 837400}}, {{apache::thrift::StringTraits< std::string>::fromStringLiteral("New York"), 8406000}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("Albany"), 98400}}});
-    return instance;
+  static constexpr bool const true_c_ = true;
+
+  static constexpr bool true_c() {
+    return true_c_;
   }
 
-  static constexpr double x() {
-    return 1.0;
+  static constexpr int8_t const zero_byte_ = static_cast<int8_t>(0);
+
+  static constexpr int8_t zero_byte() {
+    return zero_byte_;
   }
 
-  static constexpr double y() {
-    return 1000000;
+  static constexpr int16_t const zero16_ = static_cast<int16_t>(0);
+
+  static constexpr int16_t zero16() {
+    return zero16_;
   }
 
-  static constexpr double z() {
-    return 1000000000.0;
+  static constexpr int32_t const zero32_ = 0;
+
+  static constexpr int32_t zero32() {
+    return zero32_;
   }
 
-  static  ::cpp2::Internship const& instagram() {
-    static  ::cpp2::Internship const instance( ::cpp2::Internship(apache::thrift::FRAGILE, 12, apache::thrift::StringTraits< std::string>::fromStringLiteral("Software Engineer"),  ::cpp2::Company::INSTAGRAM));
-    return instance;
+  static constexpr int64_t const zero64_ = 0LL;
+
+  static constexpr int64_t zero64() {
+    return zero64_;
   }
 
-  static std::vector< ::cpp2::Range> const& kRanges() {
-    static std::vector< ::cpp2::Range> const instance(std::initializer_list< ::cpp2::Range>{ ::cpp2::Range(apache::thrift::FRAGILE, 1, 2),  ::cpp2::Range(apache::thrift::FRAGILE, 5, 6)});
-    return instance;
+  static constexpr double const zero_dot_zero_ = 0;
+
+  static constexpr double zero_dot_zero() {
+    return zero_dot_zero_;
   }
 
-  static std::vector< ::cpp2::Internship> const& internList() {
-    static std::vector< ::cpp2::Internship> const instance(std::initializer_list< ::cpp2::Internship>{ ::cpp2::Internship(apache::thrift::FRAGILE, 12, apache::thrift::StringTraits< std::string>::fromStringLiteral("Software Engineer"),  ::cpp2::Company::INSTAGRAM),  ::cpp2::Internship(apache::thrift::FRAGILE, 10, apache::thrift::StringTraits< std::string>::fromStringLiteral("Sales Intern"),  ::cpp2::Company::FACEBOOK)});
-    return instance;
+  // consider using folly::StringPiece instead of std::string whenever possible
+  // to referencing this statically allocated string constant, in order to
+  // prevent unnecessary allocations
+
+  static constexpr char const * const empty_string_ = "";
+
+  static constexpr char const * empty_string() {
+    return empty_string_;
   }
 
-  static std::string const& apostrophe() {
-    static std::string const instance(apache::thrift::StringTraits< std::string>::fromStringLiteral("'"));
-    return instance;
-  }
+  static std::vector<int32_t> const& empty_int_list();
 
-  static std::string const& tripleApostrophe() {
-    static std::string const instance(apache::thrift::StringTraits< std::string>::fromStringLiteral("'''"));
-    return instance;
-  }
+  static std::vector<std::string> const& empty_string_list();
 
-  static std::string const& quotationMark() {
-    static std::string const instance(apache::thrift::StringTraits< std::string>::fromStringLiteral("\""));
-    return instance;
-  }
+  static std::set<int32_t> const& empty_int_set();
 
-  static std::string const& backslash() {
-    static std::string const instance(apache::thrift::StringTraits< std::string>::fromStringLiteral("\\"));
-    return instance;
-  }
+  static std::set<std::string> const& empty_string_set();
 
-  static std::string const& escaped_a() {
-    static std::string const instance(apache::thrift::StringTraits< std::string>::fromStringLiteral("\x61"));
-    return instance;
-  }
+  static std::map<int32_t, int32_t> const& empty_int_int_map();
 
-  static std::map<std::string, int32_t> const& char2ascii() {
-    static std::map<std::string, int32_t> const instance({{apache::thrift::StringTraits< std::string>::fromStringLiteral("'"), 39}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("\""), 34}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("\\"), 92}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("\x61"), 97}});
-    return instance;
-  }
-};
+  static std::map<int32_t, std::string> const& empty_int_string_map();
 
-class __attribute__((__deprecated__("moduleConstants suffers from the 'static initialization order fiasco' (https://isocpp.org/wiki/faq/ctors#static-init-order) and may CRASH you program. Instead, use module_constants::CONSTANT_NAME()"))) moduleConstants {
- public:
-  moduleConstants() :
-      myInt(1337),
-      name(apache::thrift::StringTraits< std::string>::fromStringLiteral("Mark Zuckerberg")),
-      states(std::initializer_list<std::map<std::string, int32_t>>{{{apache::thrift::StringTraits< std::string>::fromStringLiteral("San Diego"), 3211000}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("Sacramento"), 479600}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("SF"), 837400}}, {{apache::thrift::StringTraits< std::string>::fromStringLiteral("New York"), 8406000}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("Albany"), 98400}}}),
-      x(1.0),
-      y(1000000),
-      z(1000000000.0),
-      instagram( ::cpp2::Internship(apache::thrift::FRAGILE, 12, apache::thrift::StringTraits< std::string>::fromStringLiteral("Software Engineer"),  ::cpp2::Company::INSTAGRAM)),
-      kRanges(std::initializer_list< ::cpp2::Range>{ ::cpp2::Range(apache::thrift::FRAGILE, 1, 2),  ::cpp2::Range(apache::thrift::FRAGILE, 5, 6)}),
-      internList(std::initializer_list< ::cpp2::Internship>{ ::cpp2::Internship(apache::thrift::FRAGILE, 12, apache::thrift::StringTraits< std::string>::fromStringLiteral("Software Engineer"),  ::cpp2::Company::INSTAGRAM),  ::cpp2::Internship(apache::thrift::FRAGILE, 10, apache::thrift::StringTraits< std::string>::fromStringLiteral("Sales Intern"),  ::cpp2::Company::FACEBOOK)}),
-      apostrophe(apache::thrift::StringTraits< std::string>::fromStringLiteral("'")),
-      tripleApostrophe(apache::thrift::StringTraits< std::string>::fromStringLiteral("'''")),
-      quotationMark(apache::thrift::StringTraits< std::string>::fromStringLiteral("\"")),
-      backslash(apache::thrift::StringTraits< std::string>::fromStringLiteral("\\")),
-      escaped_a(apache::thrift::StringTraits< std::string>::fromStringLiteral("\x61")),
-      char2ascii({{apache::thrift::StringTraits< std::string>::fromStringLiteral("'"), 39}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("\""), 34}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("\\"), 92}, {apache::thrift::StringTraits< std::string>::fromStringLiteral("\x61"), 97}}) {}
+  static std::map<std::string, int32_t> const& empty_string_int_map();
 
-  int32_t myInt;
+  static std::map<std::string, std::string> const& empty_string_string_map();
 
-  std::string name;
-
-  std::vector<std::map<std::string, int32_t>> states;
-
-  double x;
-
-  double y;
-
-  double z;
-
-   ::cpp2::Internship instagram;
-
-  std::vector< ::cpp2::Range> kRanges;
-
-  std::vector< ::cpp2::Internship> internList;
-
-  std::string apostrophe;
-
-  std::string tripleApostrophe;
-
-  std::string quotationMark;
-
-  std::string backslash;
-
-  std::string escaped_a;
-
-  std::map<std::string, int32_t> char2ascii;
 };
 
 } // cpp2

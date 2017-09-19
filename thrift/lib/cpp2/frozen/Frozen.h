@@ -33,6 +33,7 @@
 #include <folly/Demangle.h>
 #include <folly/Hash.h>
 #include <folly/MapUtil.h>
+#include <folly/Memory.h>
 #include <folly/Optional.h>
 #include <folly/Range.h>
 #include <folly/experimental/Bits.h>
@@ -80,7 +81,7 @@ typedef uint8_t byte;
  */
 struct DebugLine {
   int level;
-  explicit DebugLine(int level) : level(level) {}
+  explicit DebugLine(int _level) : level(_level) {}
 };
 
 std::ostream& operator<<(std::ostream& os, DebugLine dl);
@@ -91,8 +92,8 @@ std::ostream& operator<<(std::ostream& os, DebugLine dl);
 struct FieldPosition {
   int32_t offset;    // byte offset from owning structure's start
   int32_t bitOffset; // bit offset from owning structure's start
-  explicit FieldPosition(int32_t offset = 0, int32_t bitOffset = 0)
-      : offset(offset), bitOffset(bitOffset) {
+  explicit FieldPosition(int32_t _offset = 0, int32_t _bitOffset = 0)
+      : offset(_offset), bitOffset(_bitOffset) {
     DCHECK(!offset || !bitOffset);
   }
 };
@@ -187,7 +188,7 @@ struct LayoutBase {
    * needed for representing fields which were not present in a serialized
    * structure.
    */
-  explicit LayoutBase(std::type_index type) : type(std::move(type)) {}
+  explicit LayoutBase(std::type_index _type) : type(std::move(_type)) {}
 
   /**
    * Internal: Updates the size of this structure according the the result of a
@@ -225,9 +226,9 @@ struct LayoutBase {
    * 'schema'. Child classes must implement.
    */
   template <typename SchemaInfo>
-  void save(typename SchemaInfo::Schema& schema,
+  void save(typename SchemaInfo::Schema&,
             typename SchemaInfo::Layout& layout,
-            typename SchemaInfo::Helper& helper) const {
+            typename SchemaInfo::Helper&) const {
     layout.setSize(size);
     layout.setBits(bits);
   }
@@ -237,7 +238,7 @@ struct LayoutBase {
    * context of 'schema'. Child classes must implement.
    */
   template <typename SchemaInfo>
-  void load(const typename SchemaInfo::Schema& schema,
+  void load(const typename SchemaInfo::Schema&,
             const typename SchemaInfo::Layout& layout) {
     size = layout.getSize();
     bits = layout.getBits();
@@ -302,7 +303,7 @@ struct FieldBase {
   FieldPosition pos;
   const char* name;
 
-  explicit FieldBase(int32_t key, const char* name) : key(key), name(name) {}
+  explicit FieldBase(int32_t _key, const char* _name) : key(_key), name(_name) {}
   virtual ~FieldBase() {}
 
   virtual void clear() = 0;
@@ -312,7 +313,7 @@ template <class T, class Layout = Layout<typename std::decay<T>::type>>
 struct Field final : public FieldBase {
   Layout layout;
 
-  explicit Field(int32_t key, const char* name) : FieldBase(key, name) {}
+  explicit Field(int32_t _key, const char* _name) : FieldBase(_key, _name) {}
 
   /**
    * Prints a description of this layout to the given stream, recursively.
@@ -373,7 +374,7 @@ struct Field final : public FieldBase {
 
     typename SchemaInfo::Layout myLayout;
     this->layout.template save<SchemaInfo>(schema, myLayout, helper);
-    field.setLayoutId(std::move(helper.add(std::move(myLayout))));
+    field.setLayoutId(helper.add(std::move(myLayout)));
     parent.addField(std::move(field));
   }
 };
@@ -406,7 +407,6 @@ class ViewBase {
   ViewBase(const Layout* layout, ViewPosition position)
       : layout_(layout), position_(position) {}
 
-
   explicit operator bool() const {
     return position_.start && !layout_->empty();
   }
@@ -419,8 +419,6 @@ class ViewBase {
     layout_->thaw(position_, ret);
     return ret;
   }
-
-  const Self* operator->() const { return static_cast<const Self*>(this); }
 };
 
 /*
@@ -438,6 +436,56 @@ T thaw(T value) {
 };
 
 /**
+ * Internal utility for recursively maximizing child fields.
+ *
+ * Lays out 'field' at position 'fieldPos', then recurse into the field value
+ * to adjust 'field.layout'.
+ */
+template <class T, class Layout>
+FieldPosition maximizeField(FieldPosition fieldPos, Field<T, Layout>& field) {
+  auto& layout = field.layout;
+  bool inlineBits = layout.size == 0;
+  FieldPosition nextPos = fieldPos;
+  if (inlineBits) {
+    //  candidate for inlining, place at offset zero and continue
+    FieldPosition inlinedField(0, fieldPos.bitOffset);
+    FieldPosition after = layout.maximize();
+    if (after.offset) {
+      // consumed full bytes for layout, can't be inlined
+      inlineBits = false;
+    } else {
+      // only consumed bits, layout at bit offset
+      layout.resize(after, true);
+      field.pos = inlinedField;
+      nextPos.bitOffset += layout.bits;
+    }
+  }
+  if (!inlineBits) {
+    FieldPosition normalField(fieldPos.offset, 0);
+    FieldPosition after = layout.maximize();
+    layout.resize(after, false);
+    field.pos = normalField;
+    nextPos.offset += layout.size;
+  }
+  return nextPos;
+}
+
+/**
+ * The maximumally sized layout for type T. That is, the layout which can
+ * accomodate all values of type T, as opposed to only a particular example
+ * value.
+ */
+template<class T>
+Layout<T> maximumLayout() {
+  Layout<T> layout;
+  // layout all fields, recursively
+  layout.resize(layout.maximize(), false);
+  // layout once again to reflect now-uninlined fields
+  layout.resize(layout.maximize(), false);
+  return layout;
+}
+
+/**
  * LayoutRoot calculates the layout necessary to store a given object,
  * recursively. The logic of layout should closely match that of freezing.
  */
@@ -448,13 +496,14 @@ class LayoutRoot {
    * fixed point is reached.
    */
   template <class T>
-  size_t doLayout(const T& root, Layout<T>& layout) {
-    for (int t = 0; t < 1000; ++t) {
+  size_t doLayout(const T& root, Layout<T>& _layout, size_t& resizes) {
+    for (resizes = 0; resizes < 1000; ++resizes) {
       resized_ = false;
-      cursor_ = layout.size;
-      auto after = layout.layout(*this, root, {0, 0});
-      if (!layout.resize(after, false) && !resized_) {
-        return cursor_;
+      cursor_ = _layout.size;
+      auto after = _layout.layout(*this, root, {0, 0});
+      resized_ = _layout.resize(after, false) || resized_;
+      if (!resized_) {
+        return cursor_ + kPaddingBytes;
       }
     }
     assert(false); // layout should always reach a fixed point.
@@ -465,10 +514,11 @@ class LayoutRoot {
   /**
    * Padding is added to the end of the frozen region because packed ints end up
    * inflating memory access when reading/writing. Without padding, a read of
-   * the last bit of an integer at the end of the layout would read up to 7
+   * the last bit of an integer at the end of the layout would read up to 8
    * additional bytes if the field was declared as an int64_t.
    */
-  static constexpr size_t kPaddingBytes = 7;
+  static constexpr size_t kPaddingBytes = 8;
+  static constexpr size_t kMaxAlignment = 8;
 
   /**
    * Adjust 'layout' so it is sufficient for freezing root, and return the total
@@ -476,11 +526,25 @@ class LayoutRoot {
    */
   template <class T>
   static size_t layout(const T& root, Layout<T>& layout) {
-    return LayoutRoot().doLayout(root, layout) + kPaddingBytes;
+    size_t resizes;
+    return LayoutRoot().doLayout(root, layout, resizes);
   }
 
   /**
-   * Internal utility for recursing into child fields.
+   * Adjust 'layout' so it is sufficient for freezing root, providing upper
+   * bound storage size estimate and indication of whether the layout changed.
+   */
+  template <class T>
+  static void
+  layout(const T& root, Layout<T>& layout, bool& layoutChanged, size_t& size) {
+    LayoutRoot layoutRoot;
+    size_t resizes;
+    size = layoutRoot.doLayout(root, layout, resizes);
+    layoutChanged = resizes > 0;
+  }
+
+  /**
+   * Internal utility for recrusively laying out child fields.
    *
    * Lays out 'field' at position 'fieldPos', then recurse into the field value
    * to adjust 'field.layout'.
@@ -490,29 +554,33 @@ class LayoutRoot {
                             FieldPosition fieldPos,
                             Field<T, Layout>& field,
                             const Arg& value) {
-    auto& layout = field.layout;
-    bool inlineBits = layout.size == 0;
+    auto& _layout = field.layout;
+    bool inlineBits = _layout.size == 0;
     FieldPosition nextPos = fieldPos;
     if (inlineBits) {
       //  candidate for inlining, place at offset zero and continue from 'self'
       FieldPosition inlinedField(0, fieldPos.bitOffset);
-      FieldPosition after = layout.layout(*this, value, self(inlinedField));
+      FieldPosition after = _layout.layout(*this, value, self(inlinedField));
       if (after.offset) {
         // consumed full bytes for layout, can't be inlined
         inlineBits = false;
       } else {
         // only consumed bits, layout at bit offset
-        resized_ = layout.resize(after, true) || resized_;
-        field.pos = inlinedField;
-        nextPos.bitOffset += layout.bits;
+        resized_ = _layout.resize(after, true) || resized_;
+        if (!_layout.empty()) {
+          field.pos = inlinedField;
+          nextPos.bitOffset += _layout.bits;
+        }
       }
     }
     if (!inlineBits) {
       FieldPosition normalField(fieldPos.offset, 0);
-      FieldPosition after = layout.layout(*this, value, self(normalField));
-      resized_ = layout.resize(after, false) || resized_;
-      field.pos = normalField;
-      nextPos.offset += layout.size;
+      FieldPosition after = _layout.layout(*this, value, self(normalField));
+      resized_ = _layout.resize(after, false) || resized_;
+      if (!_layout.empty()) {
+        field.pos = normalField;
+        nextPos.offset += _layout.size;
+      }
     }
     return nextPos;
   }
@@ -534,16 +602,19 @@ class LayoutRoot {
    * Simulates appending count bytes, returning their offset (in bytes) from
    * origin.
    */
-  size_t layoutBytesDistance(size_t origin, size_t count) {
+  size_t layoutBytesDistance(size_t origin, size_t count, size_t align) {
+    assert(0 == (align & (align - 1)));
     if (count == 0) {
       return 0;
     }
     if (cursor_ < origin) {
       cursor_ = origin;
     }
-    size_t start = cursor_;
+    // assume worst case alignment is hit when we're actually freezing
+    cursor_ += align - 1;
+    auto worstCaseDistance = cursor_ - origin;
     cursor_ += count;
-    return start - origin;
+    return worstCaseDistance;
   }
 
  protected:
@@ -582,10 +653,11 @@ class FreezeRoot {
  protected:
   template <class T>
   typename Layout<T>::View doFreeze(const Layout<T>& layout, const T& root) {
-    folly::MutableByteRange range;
+    folly::MutableByteRange range, tail;
     size_t dist;
-    appendBytes(0, layout.size, range, dist);
+    appendBytes(nullptr, layout.size, range, dist, 1);
     layout.freeze(*this, root, {range.begin(), 0});
+    appendBytes(range.end(), LayoutRoot::kPaddingBytes, tail, dist, 1);
     return layout.view({range.begin(), 0});
   }
 
@@ -601,9 +673,7 @@ class FreezeRoot {
   void freezeField(FreezePosition self,
                    const Field<T, Layout>& field,
                    const Arg& value) {
-    if (!field.layout.empty()) {
-      field.layout.freeze(*this, value, self(field.pos));
-    }
+    field.layout.freeze(*this, value, self(field.pos));
   }
 
   template <class T, class Layout>
@@ -622,57 +692,59 @@ class FreezeRoot {
    * Appends bytes to the store, setting an output range and a distance from a
    * given origin.
    */
-  void appendBytes(byte* origin,
-                   size_t n,
-                   folly::MutableByteRange& range,
-                   size_t& distance) {
-    doAppendBytes(origin, n, range, distance);
+  void appendBytes(
+      byte* origin,
+      size_t n,
+      folly::MutableByteRange& range,
+      size_t& distance,
+      size_t align) {
+    doAppendBytes(origin, n, range, distance, align);
   }
 
  private:
-  virtual void doAppendBytes(byte* origin,
-                             size_t n,
-                             folly::MutableByteRange& range,
-                             size_t& distance) = 0;
+  virtual void doAppendBytes(
+      byte* origin,
+      size_t n,
+      folly::MutableByteRange& range,
+      size_t& distance,
+      size_t align) = 0;
 };
+
+inline size_t alignBy(size_t start, size_t alignment) {
+  return ((start - 1) | (alignment - 1)) + 1;
+}
 
 /**
  * A FreezeRoot that writes to a given ByteRange
  */
 class ByteRangeFreezer final : public FreezeRoot {
  protected:
-  explicit ByteRangeFreezer(folly::MutableByteRange write) : write_(write) {}
+  explicit ByteRangeFreezer(folly::MutableByteRange& write) : write_(write) {}
 
  public:
   template <class T>
-  static typename Layout<T>::View freeze(const Layout<T>& layout,
-                                         const T& root,
-                                         folly::MutableByteRange write) {
-    return ByteRangeFreezer(write).doFreeze(layout, root);
+  static typename Layout<T>::View freeze(
+      const Layout<T>& layout,
+      const T& root,
+      folly::MutableByteRange& write) {
+    ByteRangeFreezer freezer(write);
+    auto view = freezer.doFreeze(layout, root);
+    return view;
   }
 
  private:
-  void doAppendBytes(byte* origin,
-                     size_t n,
-                     folly::MutableByteRange& range,
-                     size_t& distance) override {
-    range.reset(write_.begin(), n);
-    if (n) {
-      if (n > write_.size() || origin > write_.begin()) {
-        throw LayoutException();
-      }
-      distance = write_.begin() - origin;
-      write_.advance(n);
-    } else {
-      distance = 0;
-    }
-  }
+  void doAppendBytes(
+      byte* origin,
+      size_t n,
+      folly::MutableByteRange& range,
+      size_t& distance,
+      size_t alignment) override;
 
-  folly::MutableByteRange write_;
+  folly::MutableByteRange& write_;
 };
 
 struct Holder {
-  virtual ~Holder() {};
+  virtual ~Holder() {}
 };
 
 template <class T>
@@ -689,16 +761,35 @@ struct HolderImpl : public Holder {
 template <class Base>
 class Bundled : public Base {
  public:
+  Bundled() {}
+  Bundled(Bundled&&) = default;
   explicit Bundled(Base&& base) : Base(std::move(base)) {}
   explicit Bundled(const Base& base) : Base(base) {}
+
+  Bundled& operator=(Bundled&&) = default;
 
   template <class T, class Decayed = typename std::decay<T>::type>
   Decayed* hold(T&& t) {
     std::unique_ptr<HolderImpl<Decayed>> holder(
         new HolderImpl<Decayed>(std::forward<T>(t)));
     Decayed* ptr =  &holder->t_;
-    holds_.push_back(std::move(holder));
+    holdImpl(std::move(holder));
     return ptr;
+  }
+
+  template <class T>
+  void holdImpl(std::unique_ptr<HolderImpl<T>>&& holder) {
+    holds_.push_back(std::move(holder));
+  }
+
+  template <typename T, class Decayed = typename std::decay<T>::type>
+  Decayed const* findFirstOfType() const {
+    for (auto const& h : holds_) {
+      if (auto p = dynamic_cast<HolderImpl<Decayed> const*>(h.get())) {
+        return &p->t_;
+      }
+    }
+    return nullptr;
   }
 
  private:
@@ -755,16 +846,25 @@ void thawField(ViewPosition self,
   }
 }
 
+/**
+ * Type alias for a View object which can be treated like a 'const T*', but for
+ * Frozen types. Note that like raw pointers, this does not own the referenced
+ * memory, it only points to it.
+ */
+template<class T>
+using View = typename Layout<T>::View;
+
 }}}
 
-#include <thrift/lib/cpp2/frozen/FrozenTrivial-inl.h>
-#include <thrift/lib/cpp2/frozen/FrozenIntegral-inl.h>
-#include <thrift/lib/cpp2/frozen/FrozenBool-inl.h>
-#include <thrift/lib/cpp2/frozen/FrozenOptional-inl.h>
-#include <thrift/lib/cpp2/frozen/FrozenString-inl.h>
-#include <thrift/lib/cpp2/frozen/FrozenPair-inl.h>
-#include <thrift/lib/cpp2/frozen/FrozenRange-inl.h>
-#include <thrift/lib/cpp2/frozen/FrozenOrderedTable-inl.h>
-#include <thrift/lib/cpp2/frozen/FrozenHashTable-inl.h>
-#include <thrift/lib/cpp2/frozen/FrozenAssociative-inl.h>
-#include <thrift/lib/cpp2/frozen/FrozenEnum-inl.h> // depends on Integral
+#include <thrift/lib/cpp2/frozen/FrozenTrivial-inl.h> // @nolint
+#include <thrift/lib/cpp2/frozen/FrozenIntegral-inl.h> // @nolint
+#include <thrift/lib/cpp2/frozen/FrozenBool-inl.h> // @nolint
+#include <thrift/lib/cpp2/frozen/FrozenOptional-inl.h> // @nolint
+#include <thrift/lib/cpp2/frozen/FrozenString-inl.h> // @nolint
+#include <thrift/lib/cpp2/frozen/FrozenPair-inl.h> // @nolint
+#include <thrift/lib/cpp2/frozen/FrozenRange-inl.h> // @nolint
+#include <thrift/lib/cpp2/frozen/FrozenOrderedTable-inl.h> // @nolint
+#include <thrift/lib/cpp2/frozen/FrozenHashTable-inl.h> // @nolint
+#include <thrift/lib/cpp2/frozen/FrozenAssociative-inl.h> // @nolint
+// depends on Integral
+#include <thrift/lib/cpp2/frozen/FrozenEnum-inl.h> // @nolint

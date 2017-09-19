@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sstream>
 #include <thrift/compiler/generate/t_generator.h>
+#include <thrift/compiler/generate/t_concat_generator.h>
 #include <thrift/compiler/platform.h>
 
 using namespace std;
@@ -36,13 +37,13 @@ using namespace std;
  * Erlang code generator.
  *
  */
-class t_erl_generator : public t_generator {
+class t_erl_generator : public t_concat_generator {
  public:
   t_erl_generator(
       t_program* program,
       const std::map<std::string, std::string>& /*parsed_options*/,
       const std::string& /*option_string*/)
-    : t_generator(program)
+    : t_concat_generator(program)
   {
     program_name_[0] = tolower(program_name_[0]);
     service_name_[0] = tolower(service_name_[0]);
@@ -67,7 +68,7 @@ class t_erl_generator : public t_generator {
   void generate_xception(t_struct* txception) override;
   void generate_service(t_service* tservice) override;
 
-  std::string render_const_value(t_type* type, t_const_value* value);
+  std::string render_const_value(t_type* type, const t_const_value* value);
 
   /**
    * Struct generation code
@@ -167,7 +168,7 @@ class t_erl_generator : public t_generator {
  */
 void t_erl_generator::init_generator() {
   // Make output directory
-  MKDIR(get_out_dir().c_str());
+  make_dir(get_out_dir().c_str());
 
   // setup export lines
   export_lines_first_ = true;
@@ -317,7 +318,9 @@ void t_erl_generator::generate_const(t_const* tconst) {
  * is NOT performed in this function as it is always run beforehand using the
  * validate_types method in main.cc
  */
-string t_erl_generator::render_const_value(t_type* type, t_const_value* value) {
+string t_erl_generator::render_const_value(
+    t_type* type,
+    const t_const_value* value) {
   type = get_true_type(type);
   std::ostringstream out;
 

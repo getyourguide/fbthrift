@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #ifndef THRIFT_TEST_PERF_CLIENTLOADCONFIG_H_
 #define THRIFT_TEST_PERF_CLIENTLOADCONFIG_H_ 1
 
@@ -45,6 +44,8 @@ class ClientLoadConfig : public loadgen::WeightedLoadConfig {
      OP_SENDRECV,
      OP_ECHO,
      OP_ADD,
+     OP_LARGE_CONTAINER,
+     OP_ITER_ALL_FIELDS,
      NUM_OPS
    };
 
@@ -76,6 +77,40 @@ class ClientLoadConfig : public loadgen::WeightedLoadConfig {
    */
   uint32_t pickRecvSize();
 
+  /**
+   * Pick a number of elements for a container request
+   */
+  uint32_t pickContainerSize();
+
+  /**
+   * Pick a number of elements for a field in a big struct
+   */
+  uint32_t pickStructFieldSize();
+
+  /**
+   * Make a big struct with 100 string fields
+   */
+  template<typename T>
+  void makeBigStruct(T& bigstruct) {
+    bigstruct.stringField = std::string(this->pickStructFieldSize(), 'a');
+    for (int i = 0; i < 100; i++) {
+      bigstruct.stringList.push_back(
+          std::string(this->pickStructFieldSize(), 'a'));
+    }
+  }
+
+  /**
+   * Make a large container with several bigstruct objects
+   */
+  template<typename T>
+  void makeBigContainer(std::vector<T>& items) {
+    for (auto i = 0u; i < this->pickContainerSize(); i++) {
+      T item;
+      this->makeBigStruct(item);
+      items.push_back(std::move(item));
+    }
+  }
+
   const folly::SocketAddress* getAddress() const {
     return &address_;
   }
@@ -88,13 +123,17 @@ class ClientLoadConfig : public loadgen::WeightedLoadConfig {
 
   bool useHeaderProtocol() const;
 
-  bool useAsync() const;
+  bool useHTTP1Protocol() const;
 
-  bool useCpp2() const;
+  bool useHTTP2Protocol() const;
+
+  bool useAsync() const;
 
   bool useSSL() const;
 
   bool useSR() const;
+
+  bool useSSLTFO() const;
 
   bool useSingleHost() const;
 
@@ -102,6 +141,8 @@ class ClientLoadConfig : public loadgen::WeightedLoadConfig {
 
   bool zlib() const;
 
+  std::string server() const;
+  uint32_t port() const;
   std::string SASLPolicy() const;
   std::string SASLServiceTier() const;
   std::string key() const;

@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +33,7 @@
 
 namespace folly {
 class SocketAddress;
+class RequestContext;
 }
 
 namespace apache { namespace thrift {
@@ -86,13 +89,29 @@ class TServerEventHandler {
   }
 
   /**
-   * Called when a new client has connected and is about to being processing.
+   * Called when a new client has connected and is about to begin processing.
    *
    * @param ctx A pointer to the connection context.  The context will remain
    *            valid until the corresponding connectionDestroyed() call.
    */
   virtual void newConnection(TConnectionContext* ctx) {
     (void)ctx;
+  }
+
+  /**
+   * Called when a connection started processing a new request.
+   *
+   * @param connCtx A pointer to the connection context. The context will remain
+   *                valid until the corresponding connectionDestroyed() call.
+   * @param reqCtx  A pointer to folly::RequestContext specific to this request.
+   *                The context will remain valid until everything started by
+   *                this request stopped running.
+   */
+  virtual void connectionNewRequest(
+    TConnectionContext* connCtx, folly::RequestContext* reqCtx
+  ) {
+    (void)connCtx;
+    (void)reqCtx;
   }
 
   /**

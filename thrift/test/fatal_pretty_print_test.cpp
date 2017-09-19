@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2016 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 #include <thrift/lib/cpp2/fatal/pretty_print.h>
 
-#include <thrift/test/gen-cpp2/reflection_fatal_enum.h>
-#include <thrift/test/gen-cpp2/reflection_fatal_struct.h>
-#include <thrift/test/gen-cpp2/reflection_fatal_union.h>
+#include <folly/String.h>
+
+#include <thrift/test/gen-cpp2/reflection_fatal_types.h>
 
 #include <sstream>
 #include <type_traits>
@@ -30,10 +30,14 @@ using output_result = std::false_type;
 namespace test_cpp2 {
 namespace cpp_reflection {
 
-#define TEST_IMPL(Input, Expected) \
+std::string adjust(std::string input) {
+  return folly::rtrimWhitespace(folly::stripLeftMargin(std::move(input))).str();
+}
+
+#define TEST_IMPL(Expected, ...) \
   do { \
     std::ostringstream out; \
-    apache::thrift::pretty_print(out, Input); \
+    apache::thrift::pretty_print(out, __VA_ARGS__); \
     auto const actual = out.str(); \
     \
     if (output_result::value) { \
@@ -42,7 +46,7 @@ namespace cpp_reflection {
         << std::endl; \
     } \
     \
-    EXPECT_EQ(actual, Expected); \
+    EXPECT_EQ(Expected, actual); \
   } while (false)
 
 TEST(fatal_pretty_print, pretty_print) {
@@ -139,12 +143,11 @@ TEST(fatal_pretty_print, pretty_print) {
   c1.o3[a4] = b4;
 
   TEST_IMPL(
-    c1,
     "<struct>{\n"
     "  a: 47,\n"
     "  b: \"hello, world\",\n"
     "  c: 132.98,\n"
-    "  d: 1,\n"
+    "  d: true,\n"
     "  e: field1,\n"
     "  f: field0_2,\n"
     "  g: <variant>{\n"
@@ -202,104 +205,104 @@ TEST(fatal_pretty_print, pretty_print) {
     "  k3: <set>{\n"
     "    <struct>{\n"
     "      c: 1.23,\n"
-    "      d: 1\n"
+    "      d: true\n"
     "    },\n"
     "    <struct>{\n"
     "      c: 9.8,\n"
-    "      d: 0\n"
+    "      d: false\n"
     "    },\n"
     "    <struct>{\n"
     "      c: 10.01,\n"
-    "      d: 1\n"
+    "      d: true\n"
     "    },\n"
     "    <struct>{\n"
     "      c: 159.73,\n"
-    "      d: 0\n"
+    "      d: false\n"
     "    }\n"
     "  },\n"
-    "  l: <map>{],\n"
+    "  l: <map>{},\n"
     "  l1: <map>{\n"
     "    2: 3,\n"
     "    4: 5,\n"
     "    6: 7,\n"
     "    8: 9\n"
-    "  ],\n"
+    "  },\n"
     "  l2: <map>{\n"
     "    12: field0,\n"
     "    34: field1,\n"
     "    56: field2\n"
-    "  ],\n"
+    "  },\n"
     "  l3: <map>{\n"
     "    56: <struct>{\n"
     "      c: 159.73,\n"
-    "      d: 0\n"
+    "      d: false\n"
     "    },\n"
     "    67: <struct>{\n"
     "      c: 10.01,\n"
-    "      d: 1\n"
+    "      d: true\n"
     "    },\n"
     "    78: <struct>{\n"
     "      c: 9.8,\n"
-    "      d: 0\n"
+    "      d: false\n"
     "    },\n"
     "    89: <struct>{\n"
     "      c: 1.23,\n"
-    "      d: 1\n"
+    "      d: true\n"
     "    }\n"
-    "  ],\n"
+    "  },\n"
     "  m1: <map>{\n"
     "    field0: 3,\n"
     "    field1: 5,\n"
     "    field2: 7\n"
-    "  ],\n"
+    "  },\n"
     "  m2: <map>{\n"
     "    field0: field0_2,\n"
     "    field1: field1_2,\n"
     "    field2: field2_2\n"
-    "  ],\n"
+    "  },\n"
     "  m3: <map>{\n"
     "    field0: <struct>{\n"
     "      c: 1.23,\n"
-    "      d: 1\n"
+    "      d: true\n"
     "    },\n"
     "    field1: <struct>{\n"
     "      c: 9.8,\n"
-    "      d: 0\n"
+    "      d: false\n"
     "    },\n"
     "    field2: <struct>{\n"
     "      c: 10.01,\n"
-    "      d: 1\n"
+    "      d: true\n"
     "    }\n"
-    "  ],\n"
+    "  },\n"
     "  n1: <map>{\n"
     "    \"abc\": 3,\n"
     "    \"def\": 5,\n"
     "    \"ghi\": 7,\n"
     "    \"jkl\": 9\n"
-    "  ],\n"
+    "  },\n"
     "  n2: <map>{\n"
     "    \"mno\": field0,\n"
     "    \"pqr\": field1,\n"
     "    \"stu\": field2\n"
-    "  ],\n"
+    "  },\n"
     "  n3: <map>{\n"
     "    \"vvv\": <struct>{\n"
     "      c: 1.23,\n"
-    "      d: 1\n"
+    "      d: true\n"
     "    },\n"
     "    \"www\": <struct>{\n"
     "      c: 9.8,\n"
-    "      d: 0\n"
+    "      d: false\n"
     "    },\n"
     "    \"xxx\": <struct>{\n"
     "      c: 10.01,\n"
-    "      d: 1\n"
+    "      d: true\n"
     "    },\n"
     "    \"yyy\": <struct>{\n"
     "      c: 159.73,\n"
-    "      d: 0\n"
+    "      d: false\n"
     "    }\n"
-    "  ],\n"
+    "  },\n"
     "  o1: <map>{\n"
     "    <struct>{\n"
     "      a: 99,\n"
@@ -317,7 +320,7 @@ TEST(fatal_pretty_print, pretty_print) {
     "      a: 9791,\n"
     "      b: \"baz\"\n"
     "    }: 9\n"
-    "  ],\n"
+    "  },\n"
     "  o2: <map>{\n"
     "    <struct>{\n"
     "      a: 99,\n"
@@ -331,39 +334,326 @@ TEST(fatal_pretty_print, pretty_print) {
     "      a: 1001,\n"
     "      b: \"foo\"\n"
     "    }: field1\n"
-    "  ],\n"
+    "  },\n"
     "  o3: <map>{\n"
     "    <struct>{\n"
     "      a: 99,\n"
     "      b: \"abc\"\n"
     "    }: <struct>{\n"
     "      c: 1.23,\n"
-    "      d: 1\n"
+    "      d: true\n"
     "    },\n"
     "    <struct>{\n"
     "      a: 654,\n"
     "      b: \"bar\"\n"
     "    }: <struct>{\n"
     "      c: 10.01,\n"
-    "      d: 1\n"
+    "      d: true\n"
     "    },\n"
     "    <struct>{\n"
     "      a: 1001,\n"
     "      b: \"foo\"\n"
     "    }: <struct>{\n"
     "      c: 9.8,\n"
-    "      d: 0\n"
+    "      d: false\n"
     "    },\n"
     "    <struct>{\n"
     "      a: 9791,\n"
     "      b: \"baz\"\n"
     "    }: <struct>{\n"
     "      c: 159.73,\n"
-    "      d: 0\n"
+    "      d: false\n"
     "    }\n"
-    "  ]\n"
-    "}"
+    "  }\n"
+    "}",
+    c1
   );
+
+  TEST_IMPL(
+    "===><struct>{\n"
+    "===>*-=.|a: 47,\n"
+    "===>*-=.|b: \"hello, world\",\n"
+    "===>*-=.|c: 132.98,\n"
+    "===>*-=.|d: true,\n"
+    "===>*-=.|e: field1,\n"
+    "===>*-=.|f: field0_2,\n"
+    "===>*-=.|g: <variant>{\n"
+    "===>*-=.|*-=.|us: \"this is a test\"\n"
+    "===>*-=.|},\n"
+    "===>*-=.|h: <variant>{},\n"
+    "===>*-=.|i: <variant>{\n"
+    "===>*-=.|*-=.|a: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 99,\n"
+    "===>*-=.|*-=.|*-=.|b: \"abc\"\n"
+    "===>*-=.|*-=.|}\n"
+    "===>*-=.|},\n"
+    "===>*-=.|j: <list>[],\n"
+    "===>*-=.|j1: <list>[\n"
+    "===>*-=.|*-=.|0: 2,\n"
+    "===>*-=.|*-=.|1: 4,\n"
+    "===>*-=.|*-=.|2: 6,\n"
+    "===>*-=.|*-=.|3: 8\n"
+    "===>*-=.|],\n"
+    "===>*-=.|j2: <list>[\n"
+    "===>*-=.|*-=.|0: field0,\n"
+    "===>*-=.|*-=.|1: field1,\n"
+    "===>*-=.|*-=.|2: field2\n"
+    "===>*-=.|],\n"
+    "===>*-=.|j3: <list>[\n"
+    "===>*-=.|*-=.|0: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 99,\n"
+    "===>*-=.|*-=.|*-=.|b: \"abc\"\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|1: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 1001,\n"
+    "===>*-=.|*-=.|*-=.|b: \"foo\"\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|2: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 654,\n"
+    "===>*-=.|*-=.|*-=.|b: \"bar\"\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|3: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 9791,\n"
+    "===>*-=.|*-=.|*-=.|b: \"baz\"\n"
+    "===>*-=.|*-=.|}\n"
+    "===>*-=.|],\n"
+    "===>*-=.|k: <set>{},\n"
+    "===>*-=.|k1: <set>{\n"
+    "===>*-=.|*-=.|3,\n"
+    "===>*-=.|*-=.|5,\n"
+    "===>*-=.|*-=.|7,\n"
+    "===>*-=.|*-=.|9\n"
+    "===>*-=.|},\n"
+    "===>*-=.|k2: <set>{\n"
+    "===>*-=.|*-=.|field0_2,\n"
+    "===>*-=.|*-=.|field1_2,\n"
+    "===>*-=.|*-=.|field2_2\n"
+    "===>*-=.|},\n"
+    "===>*-=.|k3: <set>{\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 1.23,\n"
+    "===>*-=.|*-=.|*-=.|d: true\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 9.8,\n"
+    "===>*-=.|*-=.|*-=.|d: false\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 10.01,\n"
+    "===>*-=.|*-=.|*-=.|d: true\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 159.73,\n"
+    "===>*-=.|*-=.|*-=.|d: false\n"
+    "===>*-=.|*-=.|}\n"
+    "===>*-=.|},\n"
+    "===>*-=.|l: <map>{},\n"
+    "===>*-=.|l1: <map>{\n"
+    "===>*-=.|*-=.|2: 3,\n"
+    "===>*-=.|*-=.|4: 5,\n"
+    "===>*-=.|*-=.|6: 7,\n"
+    "===>*-=.|*-=.|8: 9\n"
+    "===>*-=.|},\n"
+    "===>*-=.|l2: <map>{\n"
+    "===>*-=.|*-=.|12: field0,\n"
+    "===>*-=.|*-=.|34: field1,\n"
+    "===>*-=.|*-=.|56: field2\n"
+    "===>*-=.|},\n"
+    "===>*-=.|l3: <map>{\n"
+    "===>*-=.|*-=.|56: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 159.73,\n"
+    "===>*-=.|*-=.|*-=.|d: false\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|67: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 10.01,\n"
+    "===>*-=.|*-=.|*-=.|d: true\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|78: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 9.8,\n"
+    "===>*-=.|*-=.|*-=.|d: false\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|89: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 1.23,\n"
+    "===>*-=.|*-=.|*-=.|d: true\n"
+    "===>*-=.|*-=.|}\n"
+    "===>*-=.|},\n"
+    "===>*-=.|m1: <map>{\n"
+    "===>*-=.|*-=.|field0: 3,\n"
+    "===>*-=.|*-=.|field1: 5,\n"
+    "===>*-=.|*-=.|field2: 7\n"
+    "===>*-=.|},\n"
+    "===>*-=.|m2: <map>{\n"
+    "===>*-=.|*-=.|field0: field0_2,\n"
+    "===>*-=.|*-=.|field1: field1_2,\n"
+    "===>*-=.|*-=.|field2: field2_2\n"
+    "===>*-=.|},\n"
+    "===>*-=.|m3: <map>{\n"
+    "===>*-=.|*-=.|field0: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 1.23,\n"
+    "===>*-=.|*-=.|*-=.|d: true\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|field1: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 9.8,\n"
+    "===>*-=.|*-=.|*-=.|d: false\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|field2: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 10.01,\n"
+    "===>*-=.|*-=.|*-=.|d: true\n"
+    "===>*-=.|*-=.|}\n"
+    "===>*-=.|},\n"
+    "===>*-=.|n1: <map>{\n"
+    "===>*-=.|*-=.|\"abc\": 3,\n"
+    "===>*-=.|*-=.|\"def\": 5,\n"
+    "===>*-=.|*-=.|\"ghi\": 7,\n"
+    "===>*-=.|*-=.|\"jkl\": 9\n"
+    "===>*-=.|},\n"
+    "===>*-=.|n2: <map>{\n"
+    "===>*-=.|*-=.|\"mno\": field0,\n"
+    "===>*-=.|*-=.|\"pqr\": field1,\n"
+    "===>*-=.|*-=.|\"stu\": field2\n"
+    "===>*-=.|},\n"
+    "===>*-=.|n3: <map>{\n"
+    "===>*-=.|*-=.|\"vvv\": <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 1.23,\n"
+    "===>*-=.|*-=.|*-=.|d: true\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|\"www\": <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 9.8,\n"
+    "===>*-=.|*-=.|*-=.|d: false\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|\"xxx\": <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 10.01,\n"
+    "===>*-=.|*-=.|*-=.|d: true\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|\"yyy\": <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 159.73,\n"
+    "===>*-=.|*-=.|*-=.|d: false\n"
+    "===>*-=.|*-=.|}\n"
+    "===>*-=.|},\n"
+    "===>*-=.|o1: <map>{\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 99,\n"
+    "===>*-=.|*-=.|*-=.|b: \"abc\"\n"
+    "===>*-=.|*-=.|}: 3,\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 654,\n"
+    "===>*-=.|*-=.|*-=.|b: \"bar\"\n"
+    "===>*-=.|*-=.|}: 7,\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 1001,\n"
+    "===>*-=.|*-=.|*-=.|b: \"foo\"\n"
+    "===>*-=.|*-=.|}: 5,\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 9791,\n"
+    "===>*-=.|*-=.|*-=.|b: \"baz\"\n"
+    "===>*-=.|*-=.|}: 9\n"
+    "===>*-=.|},\n"
+    "===>*-=.|o2: <map>{\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 99,\n"
+    "===>*-=.|*-=.|*-=.|b: \"abc\"\n"
+    "===>*-=.|*-=.|}: field0,\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 654,\n"
+    "===>*-=.|*-=.|*-=.|b: \"bar\"\n"
+    "===>*-=.|*-=.|}: field2,\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 1001,\n"
+    "===>*-=.|*-=.|*-=.|b: \"foo\"\n"
+    "===>*-=.|*-=.|}: field1\n"
+    "===>*-=.|},\n"
+    "===>*-=.|o3: <map>{\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 99,\n"
+    "===>*-=.|*-=.|*-=.|b: \"abc\"\n"
+    "===>*-=.|*-=.|}: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 1.23,\n"
+    "===>*-=.|*-=.|*-=.|d: true\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 654,\n"
+    "===>*-=.|*-=.|*-=.|b: \"bar\"\n"
+    "===>*-=.|*-=.|}: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 10.01,\n"
+    "===>*-=.|*-=.|*-=.|d: true\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 1001,\n"
+    "===>*-=.|*-=.|*-=.|b: \"foo\"\n"
+    "===>*-=.|*-=.|}: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 9.8,\n"
+    "===>*-=.|*-=.|*-=.|d: false\n"
+    "===>*-=.|*-=.|},\n"
+    "===>*-=.|*-=.|<struct>{\n"
+    "===>*-=.|*-=.|*-=.|a: 9791,\n"
+    "===>*-=.|*-=.|*-=.|b: \"baz\"\n"
+    "===>*-=.|*-=.|}: <struct>{\n"
+    "===>*-=.|*-=.|*-=.|c: 159.73,\n"
+    "===>*-=.|*-=.|*-=.|d: false\n"
+    "===>*-=.|*-=.|}\n"
+    "===>*-=.|}\n"
+    "===>}",
+    c1,
+    "*-=.|",
+    "===>"
+  );
+}
+
+TEST(fatal_pretty_print, ref_unique) {
+  hasRefUnique v;
+  TEST_IMPL(adjust(R"(
+    <struct>{
+      a: null
+    }
+  )"), v);
+
+  v.a = std::make_unique<structA>();
+  TEST_IMPL(adjust(R"(
+    <struct>{
+      a: <struct>{
+        a: 0,
+        b: ""
+      }
+    }
+  )"), v);
+}
+
+TEST(fatal_pretty_print, ref_shared) {
+  hasRefShared v;
+  TEST_IMPL(adjust(R"(
+    <struct>{
+      a: null
+    }
+  )"), v);
+
+  v.a = std::make_shared<structA>();
+  TEST_IMPL(adjust(R"(
+    <struct>{
+      a: <struct>{
+        a: 0,
+        b: ""
+      }
+    }
+  )"), v);
+}
+
+TEST(fatal_pretty_print, ref_shared_const) {
+  hasRefSharedConst v;
+  TEST_IMPL(adjust(R"(
+    <struct>{
+      a: null
+    }
+  )"), v);
+
+  v.a = std::make_shared<structA const>();
+  TEST_IMPL(adjust(R"(
+    <struct>{
+      a: <struct>{
+        a: 0,
+        b: ""
+      }
+    }
+  )"), v);
 }
 
 } // namespace cpp_reflection {

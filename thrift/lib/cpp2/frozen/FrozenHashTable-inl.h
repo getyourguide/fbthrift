@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ struct BlockLayout : public LayoutBase {
   BlockLayout()
       : LayoutBase(typeid(T)), maskField(1, "mask"), offsetField(2, "offset") {}
 
+  FieldPosition maximize();
   FieldPosition layout(LayoutRoot& root, const T& o, LayoutPosition self);
   void freeze(FreezeRoot& root, const T& o, FreezePosition self) const;
   void print(std::ostream& os, int level) const final;
@@ -86,12 +87,26 @@ struct HashTableLayout : public ArrayLayout<T, Item> {
                          "sparseTable") // continue field ids from ArrayLayout
   {}
 
+  FieldPosition maximize() {
+    FieldPosition pos = ArrayLayout<T, Item>::maximize();
+    FROZEN_MAXIMIZE_FIELD(sparseTable);
+    return pos;
+  }
+
   static size_t blockCount(size_t size) {
     // LF = Load Factor, BPE = bits/entry
     // 1.5 => 66% LF => 3 bpe, 3 probes expected
     // 2.0 => 50% LF => 4 bpe, 2 probes expected
     // 2.5 => 40% LF => 5 bpe, 1.6 probes expected
     return size_t(size * 2.5 + Block::bits - 1) / Block::bits;
+  }
+
+  static void ensureDistinctKeys(
+      const typename KeyExtractor::KeyType& key1,
+      const typename KeyExtractor::KeyType& key2) {
+    if (key1 == key2) {
+      throw std::domain_error("Input collection is not distinct");
+    }
   }
 
   static void buildIndex(const T& coll,
@@ -102,7 +117,9 @@ struct HashTableLayout : public ArrayLayout<T, Item> {
     sparseTable.resize(blocks);
     index.resize(buckets);
     for (auto& item : coll) {
-      size_t h = KeyLayout::hash(KeyExtractor::getKey(item));
+      const typename KeyExtractor::KeyType* itemKey =
+          &KeyExtractor::getKey(item);
+      size_t h = KeyLayout::hash(*itemKey);
       h *= 5; // spread out clumped hash values
       for (size_t p = 0; ; h += ++p) { // quadratic probing
         size_t bucket = h % buckets;
@@ -111,9 +128,12 @@ struct HashTableLayout : public ArrayLayout<T, Item> {
           if (p == buckets) {
             throw std::out_of_range("All buckets full!");
           }
+          if (*itemKey == KeyExtractor::getKey(**slot)) {
+            throw std::domain_error("Input collection is not distinct");
+          }
           continue;
         } else {
-          *slot = &item;
+          *slot = KeyExtractor::getPointer(item);
           break;
         }
       }
@@ -122,7 +142,7 @@ struct HashTableLayout : public ArrayLayout<T, Item> {
     for (size_t blockIndex = 0; blockIndex < blocks; ++blockIndex) {
       Block& block = sparseTable[blockIndex];
       block.offset = count;
-      for (int offset = 0; offset < Block::bits; ++offset) {
+      for (size_t offset = 0; offset < Block::bits; ++offset) {
         if (index[blockIndex * Block::bits + offset]) {
           block.mask |= uint64_t(1) << offset;
           ++count;
@@ -132,11 +152,11 @@ struct HashTableLayout : public ArrayLayout<T, Item> {
   }
 
   FieldPosition layoutItems(LayoutRoot& root,
-                            const T& coll,
-                            LayoutPosition self,
-                            FieldPosition pos,
-                            LayoutPosition write,
-                            FieldPosition writeStep) final {
+      const T& coll,
+      LayoutPosition self,
+      FieldPosition pos,
+      LayoutPosition write,
+      FieldPosition writeStep) final {
     std::vector<const Item*> index;
     std::vector<Block> sparseTable;
     buildIndex(coll, index, sparseTable);
@@ -205,6 +225,7 @@ struct HashTableLayout : public ArrayLayout<T, Item> {
     typedef typename Layout<std::vector<Block>>::View TableView;
 
     TableView table_;
+
    public:
     View() {}
     View(const LayoutSelf* layout, ViewPosition self)
@@ -214,12 +235,15 @@ struct HashTableLayout : public ArrayLayout<T, Item> {
 
     typedef typename Base::View::iterator iterator;
 
+    void operator[](size_t) = delete;
+
     std::pair<iterator, iterator> equal_range(const KeyView& key) const {
       auto found = find(key);
       if (found != this->end()) {
-        return make_pair(found, found + 1);
+        auto next = found;
+        return std::make_pair(found, ++next);
       } else {
-        return make_pair(found, found);
+        return std::make_pair(found, found);
       }
     }
 

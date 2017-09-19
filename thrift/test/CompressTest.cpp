@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +18,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 #include <gflags/gflags.h>
 #include <folly/Benchmark.h>
 
@@ -131,8 +132,8 @@ BENCHMARK(BM_Snappy, iters) {
   testMessage(3, iters, true);
 }
 
-BENCHMARK(BM_Qlz, iters) {
-  testMessage(4, iters, true);
+BENCHMARK(BM_Zstd, iters) {
+  testMessage(5, iters, true);
 }
 
 // Test a 'hard' to compress message, more random.
@@ -153,8 +154,8 @@ BENCHMARK(BM_SnappyHard, iters) {
   testMessage(3, iters, false);
 }
 
-BENCHMARK(BM_QlzHard, iters) {
-  testMessage(4, iters, false);
+BENCHMARK(BM_ZstdHard, iters) {
+  testMessage(5, iters, false);
 }
 
 TEST(chained, none) {
@@ -167,6 +168,10 @@ TEST(chained, zlib) {
 
 TEST(chained, snappy) {
   testChainedCompression(3, 1000);
+}
+
+TEST(chained, zstd) {
+  testChainedCompression(5, 1000);
 }
 
 TEST(sdf, sdfsd) {
@@ -279,7 +284,7 @@ TEST(sdf, sdfsd) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
-  google::ParseCommandLineFlags(&argc, &argv, true);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   srand(time(0));
 

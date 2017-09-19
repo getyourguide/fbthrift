@@ -4,21 +4,20 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "MyNode.h"
+#include "src/gen-cpp2/MyNode.h"
+#include "src/gen-cpp2/MyNode.tcc"
 
-#include "MyNode.tcc"
-
-#include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
-namespace cpp2 {
+#include <thrift/lib/cpp2/protocol/Protocol.h>
 
+namespace cpp2 {
 std::unique_ptr<apache::thrift::AsyncProcessor> MyNodeSvIf::getProcessor() {
-  return folly::make_unique<MyNodeAsyncProcessor>(this);
+  return std::make_unique<MyNodeAsyncProcessor>(this);
 }
 
 void MyNodeSvIf::do_mid() {
-  throw apache::thrift::TApplicationException("Function do_mid is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("do_mid");
 }
 
 folly::Future<folly::Unit> MyNodeSvIf::future_do_mid() {
@@ -53,15 +52,16 @@ const MyNodeAsyncProcessor::BinaryProtocolProcessMap& MyNodeAsyncProcessor::getB
   return binaryProcessMap_;
 }
 
-MyNodeAsyncProcessor::BinaryProtocolProcessMap MyNodeAsyncProcessor::binaryProcessMap_ {
-  {"do_mid", &MyNodeAsyncProcessor::_processInThread_do_mid<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>}
+const MyNodeAsyncProcessor::BinaryProtocolProcessMap MyNodeAsyncProcessor::binaryProcessMap_ {
+  {"do_mid", &MyNodeAsyncProcessor::_processInThread_do_mid<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
 };
+
 const MyNodeAsyncProcessor::CompactProtocolProcessMap& MyNodeAsyncProcessor::getCompactProtocolProcessMap() {
   return compactProcessMap_;
 }
 
-MyNodeAsyncProcessor::CompactProtocolProcessMap MyNodeAsyncProcessor::compactProcessMap_ {
-  {"do_mid", &MyNodeAsyncProcessor::_processInThread_do_mid<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>}
+const MyNodeAsyncProcessor::CompactProtocolProcessMap MyNodeAsyncProcessor::compactProcessMap_ {
+  {"do_mid", &MyNodeAsyncProcessor::_processInThread_do_mid<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
 };
 
 } // cpp2

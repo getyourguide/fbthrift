@@ -29,10 +29,14 @@ except:
 all_structs = []
 UTF8STRINGS = bool(0) or sys.version_info.major >= 3
 
+__all__ = ['UTF8STRINGS', 'MyStruct']
+
 class MyStruct:
   """
   Attributes:
    - MyIncludedField
+   - MyOtherIncludedField
+   - MyIncludedInt
   """
 
   thrift_spec = None
@@ -44,11 +48,13 @@ class MyStruct:
     return False
 
   def read(self, iprot):
-    if (isinstance(iprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocol) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(iprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocolAccelerate) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
       fastproto.decode(self, iprot.trans, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=0)
+      self.checkRequired()
       return
-    if (isinstance(iprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocol) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(iprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocolAccelerate) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
       fastproto.decode(self, iprot.trans, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=2)
+      self.checkRequired()
       return
     iprot.readStructBegin()
     while True:
@@ -61,16 +67,31 @@ class MyStruct:
           self.MyIncludedField.read(iprot)
         else:
           iprot.skip(ftype)
+      elif fid == 2:
+        if ftype == TType.STRUCT:
+          self.MyOtherIncludedField = includes.ttypes.Included()
+          self.MyOtherIncludedField.read(iprot)
+        else:
+          iprot.skip(ftype)
+      elif fid == 3:
+        if ftype == TType.I64:
+          self.MyIncludedInt = iprot.readI64()
+        else:
+          iprot.skip(ftype)
       else:
         iprot.skip(ftype)
       iprot.readFieldEnd()
     iprot.readStructEnd()
+    self.checkRequired()
+
+  def checkRequired(self):
+    return
 
   def write(self, oprot):
-    if (isinstance(oprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocol) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(oprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocolAccelerate) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
       oprot.trans.write(fastproto.encode(self, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=0))
       return
-    if (isinstance(oprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocol) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
+    if (isinstance(oprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocolAccelerate) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
       oprot.trans.write(fastproto.encode(self, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=2))
       return
     oprot.writeStructBegin('MyStruct')
@@ -78,16 +99,29 @@ class MyStruct:
       oprot.writeFieldBegin('MyIncludedField', TType.STRUCT, 1)
       self.MyIncludedField.write(oprot)
       oprot.writeFieldEnd()
+    if self.MyOtherIncludedField != None:
+      oprot.writeFieldBegin('MyOtherIncludedField', TType.STRUCT, 2)
+      self.MyOtherIncludedField.write(oprot)
+      oprot.writeFieldEnd()
+    if self.MyIncludedInt != None:
+      oprot.writeFieldBegin('MyIncludedInt', TType.I64, 3)
+      oprot.writeI64(self.MyIncludedInt)
+      oprot.writeFieldEnd()
     oprot.writeFieldStop()
     oprot.writeStructEnd()
 
   def __repr__(self):
     L = []
-    for key, value in six.iteritems(self.__dict__):
-      padding = ' ' * 4
-      value = pprint.pformat(value, indent=0)
-      value = padding.join(value.splitlines(True))
-      L.append('    %s=%s' % (key, value))
+    padding = ' ' * 4
+    value = pprint.pformat(self.MyIncludedField, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    MyIncludedField=%s' % (value))
+    value = pprint.pformat(self.MyOtherIncludedField, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    MyOtherIncludedField=%s' % (value))
+    value = pprint.pformat(self.MyIncludedInt, indent=0)
+    value = padding.join(value.splitlines(True))
+    L.append('    MyIncludedInt=%s' % (value))
     return "%s(\n%s)" % (self.__class__.__name__, ",\n".join(L))
 
   def __eq__(self, other):
@@ -99,12 +133,21 @@ class MyStruct:
   def __ne__(self, other):
     return not (self == other)
 
+  # Override the __hash__ function for Python3 - t10434117
+  if not six.PY2:
+    __hash__ = object.__hash__
+
 all_structs.append(MyStruct)
 MyStruct.thrift_spec = (
   None, # 0
   (1, TType.STRUCT, 'MyIncludedField', [includes.ttypes.Included, includes.ttypes.Included.thrift_spec, False], includes.ttypes.Included(**{
-    "MyIntField" : 5,
+    "MyIntField" : 2,
+    "MyTransitiveField" : transitive.ttypes.Foo(**{
+      "a" : 2,
+    }),
   }), 2, ), # 1
+  (2, TType.STRUCT, 'MyOtherIncludedField', [includes.ttypes.Included, includes.ttypes.Included.thrift_spec, False], None, 2, ), # 2
+  (3, TType.I64, 'MyIncludedInt', None, 42, 2, ), # 3
 )
 
 MyStruct.thrift_struct_annotations = {
@@ -112,12 +155,19 @@ MyStruct.thrift_struct_annotations = {
 MyStruct.thrift_field_annotations = {
 }
 
-def MyStruct__init__(self, MyIncludedField=MyStruct.thrift_spec[1][4],):
+def MyStruct__init__(self, MyIncludedField=MyStruct.thrift_spec[1][4], MyOtherIncludedField=None, MyIncludedInt=MyStruct.thrift_spec[3][4],):
   if MyIncludedField is self.thrift_spec[1][4]:
     MyIncludedField = includes.ttypes.Included(**{
-    "MyIntField" : 5,
+    "MyIntField" : 2,
+    "MyTransitiveField" : transitive.ttypes.Foo(**{
+      "a" : 2,
+    }),
   })
   self.MyIncludedField = MyIncludedField
+  self.MyOtherIncludedField = MyOtherIncludedField
+  if MyIncludedInt is self.thrift_spec[3][4]:
+    MyIncludedInt = 42
+  self.MyIncludedInt = MyIncludedInt
 
 MyStruct.__init__ = MyStruct__init__
 

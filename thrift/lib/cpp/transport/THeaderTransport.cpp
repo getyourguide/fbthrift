@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <bitset>
-#include <cassert>
 #include <string>
 
 using std::map;
@@ -62,6 +61,7 @@ void THeaderTransport::setSupportedClients(
     std::bitset<CLIENT_TYPES_LEN> clients;
 
     clients[THRIFT_UNFRAMED_DEPRECATED] = true;
+    clients[THRIFT_UNFRAMED_COMPACT_DEPRECATED] = true;
     clients[THRIFT_FRAMED_DEPRECATED] = true;
     clients[THRIFT_HTTP_SERVER_TYPE] = true;
     clients[THRIFT_HTTP_CLIENT_TYPE] = true;

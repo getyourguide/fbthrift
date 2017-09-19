@@ -4,21 +4,20 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "MyRoot.h"
+#include "src/gen-cpp2/MyRoot.h"
+#include "src/gen-cpp2/MyRoot.tcc"
 
-#include "MyRoot.tcc"
-
-#include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
-namespace cpp2 {
+#include <thrift/lib/cpp2/protocol/Protocol.h>
 
+namespace cpp2 {
 std::unique_ptr<apache::thrift::AsyncProcessor> MyRootSvIf::getProcessor() {
-  return folly::make_unique<MyRootAsyncProcessor>(this);
+  return std::make_unique<MyRootAsyncProcessor>(this);
 }
 
 void MyRootSvIf::do_root() {
-  throw apache::thrift::TApplicationException("Function do_root is unimplemented");
+  apache::thrift::detail::si::throw_app_exn_unimplemented("do_root");
 }
 
 folly::Future<folly::Unit> MyRootSvIf::future_do_root() {
@@ -53,15 +52,16 @@ const MyRootAsyncProcessor::BinaryProtocolProcessMap& MyRootAsyncProcessor::getB
   return binaryProcessMap_;
 }
 
-MyRootAsyncProcessor::BinaryProtocolProcessMap MyRootAsyncProcessor::binaryProcessMap_ {
-  {"do_root", &MyRootAsyncProcessor::_processInThread_do_root<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>}
+const MyRootAsyncProcessor::BinaryProtocolProcessMap MyRootAsyncProcessor::binaryProcessMap_ {
+  {"do_root", &MyRootAsyncProcessor::_processInThread_do_root<apache::thrift::BinaryProtocolReader, apache::thrift::BinaryProtocolWriter>},
 };
+
 const MyRootAsyncProcessor::CompactProtocolProcessMap& MyRootAsyncProcessor::getCompactProtocolProcessMap() {
   return compactProcessMap_;
 }
 
-MyRootAsyncProcessor::CompactProtocolProcessMap MyRootAsyncProcessor::compactProcessMap_ {
-  {"do_root", &MyRootAsyncProcessor::_processInThread_do_root<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>}
+const MyRootAsyncProcessor::CompactProtocolProcessMap MyRootAsyncProcessor::compactProcessMap_ {
+  {"do_root", &MyRootAsyncProcessor::_processInThread_do_root<apache::thrift::CompactProtocolReader, apache::thrift::CompactProtocolWriter>},
 };
 
 } // cpp2

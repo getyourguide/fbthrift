@@ -39,13 +39,13 @@ from optparse import OptionParser
 from ThriftTest import ThriftTest, SecondService
 from ThriftTest.ttypes import *
 from thrift import TMultiplexedProcessor
+from thrift.Thrift import TProcessorEventHandler
 from thrift.transport import TTransport
 from thrift.transport import TSocket, TSSLSocket
-from thrift.transport.THeaderTransport import THeaderTransport
+from thrift.transport.THeaderTransport import CLIENT_TYPE
 from thrift.protocol import TBinaryProtocol
 from thrift.protocol import THeaderProtocol
-from thrift.server import TServer, TNonblockingServer, \
-    TProcessPoolServer, THttpServer, TCppServer
+from thrift.server import TServer, TCppServer
 
 class SecondHandler(SecondService.Iface):
     def blahBlah(self):
@@ -129,18 +129,6 @@ class TestHandler(ThriftTest.Iface):
     def testTypedef(self, thing):
         return thing
 
-    def testRequestCount(self):
-        return event_handler.request_count
-
-    def testNewConnection(self):
-        return event_handler.num_new_conns
-
-    def testPreServe(self):
-        return event_handler.num_pre_serve
-
-    def testConnectionDestroyed(self):
-        return event_handler.num_conns_destroyed
-
 
 class TestContextHandler(ThriftTest.ContextIface):
 
@@ -206,18 +194,6 @@ class TestContextHandler(ThriftTest.ContextIface):
 
     def testTypedef(self, handler_ctx, thing):
         return self.th.testTypedef(thing)
-
-    def testRequestCount(self, handler_ctx):
-        return self.th.testRequestCount()
-
-    def testNewConnection(self, handler_ctx):
-        return self.th.testNewConnection()
-
-    def testPreServe(self, handler_ctx):
-        return self.th.testPreServe()
-
-    def testConnectionDestroyed(self, handler_ctx):
-        return self.th.testConnectionDestroyed()
 
 
 class ContextEventHandler(TProcessorEventHandler):
@@ -300,11 +276,13 @@ if __name__ == "__main__":
     event_handler = TestServerEventHandler()
 
     if options.header:
-        pfactory = THeaderProtocol.THeaderProtocolFactory(True,
-                [THeaderTransport.HEADERS_CLIENT_TYPE,
-                 THeaderTransport.FRAMED_DEPRECATED,
-                 THeaderTransport.UNFRAMED_DEPRECATED,
-                 THeaderTransport.HTTP_CLIENT_TYPE])
+        pfactory = THeaderProtocol.THeaderProtocolFactory(
+            True,
+            [CLIENT_TYPE.HEADER,
+             CLIENT_TYPE.FRAMED_DEPRECATED,
+             CLIENT_TYPE.UNFRAMED_DEPRECATED,
+             CLIENT_TYPE.HTTP_SERVER]
+        )
     else:
         pfactory = TBinaryProtocol.TBinaryProtocolFactory()
 
@@ -328,37 +306,8 @@ if __name__ == "__main__":
             processor.registerProcessor("SecondService",
                     SecondService.Processor(SecondHandler()))
 
-    if args[0] == "THttpServer":
-        try:
-            server = THttpServer.THttpServer(
-                    processor, ('', options.port), pfactory)
-        except:
-            print("Could not load THttpServer")
-            raise
-    elif args[0] == "TCppServer":
-        server = TCppServer.TCppServer(processor)
-        server.setPort(options.port)
-    else:
-        if options.ssl:
-            cert_path = 'thrift/test/py/test_cert.pem'
-            transport = TSSLSocket.TSSLServerSocket(options.port,
-                    certfile=cert_path)
-        else:
-            transport = TSocket.TServerSocket(options.port)
-        tfactory = TTransport.TBufferedTransportFactory()
-
-        server_class_name = args[0]
-
-        if args[0] == "TNonblockingServer":
-            server = TNonblockingServer.TNonblockingServer(
-                    processor, transport, pfactory,
-                    readTimeout=options.timeout)
-        elif args[0] == "TProcessPoolServer":
-            server = TProcessPoolServer.TProcessPoolServer(
-                    processor, transport, tfactory, pfactory)
-        else:
-            ServerClass = getattr(TServer, server_class_name)
-            server = ServerClass(processor, transport, tfactory, pfactory)
+    server = TCppServer.TCppServer(processor)
+    server.setPort(options.port)
 
     if options.header:
         server.processor.setEventHandler(HeaderEventHandler())

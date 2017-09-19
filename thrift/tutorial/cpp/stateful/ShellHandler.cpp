@@ -19,8 +19,6 @@
 
 #include <thrift/tutorial/cpp/stateful/ShellHandler.h>
 
-#include <limits.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -217,7 +215,7 @@ ShellHandler::validateState() {
   }
 }
 
-void
+[[noreturn]] void
 ShellHandler::throwErrno(const char* msg) {
   OSError error;
   error.code = errno;

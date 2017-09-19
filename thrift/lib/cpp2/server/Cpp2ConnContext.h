@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #ifndef THRIFT_ASYNC_CPP2CONNCONTEXT_H_
 #define THRIFT_ASYNC_CPP2CONNCONTEXT_H_ 1
 
@@ -33,29 +32,42 @@ using apache::thrift::concurrency::PriorityThreadManager;
 
 namespace apache { namespace thrift {
 
+using ClientIdentityHook = std::function<std::unique_ptr<void, void (*)(void*)>(
+    X509* cert,
+    const apache::thrift::SaslServer* sasl,
+    const folly::SocketAddress& peerAddress)>;
+
 class RequestChannel;
 class TClientBase;
 
 class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
  public:
   explicit Cpp2ConnContext(
-    const folly::SocketAddress* address = nullptr,
-    const apache::thrift::async::TAsyncSocket* socket = nullptr,
-    const apache::thrift::SaslServer* sasl_server = nullptr,
-    folly::EventBaseManager* manager = nullptr,
-    const std::shared_ptr<RequestChannel>& duplexChannel = nullptr)
-    : saslServer_(sasl_server),
-      manager_(manager),
-      requestHeader_(nullptr),
-      duplexChannel_(duplexChannel) {
+      const folly::SocketAddress* address = nullptr,
+      const apache::thrift::async::TAsyncTransport* transport = nullptr,
+      const apache::thrift::SaslServer* sasl_server = nullptr,
+      folly::EventBaseManager* manager = nullptr,
+      const std::shared_ptr<RequestChannel>& duplexChannel = nullptr,
+      const std::shared_ptr<X509> peerCert = nullptr /*overridden from socket*/,
+      apache::thrift::ClientIdentityHook clientIdentityHook = nullptr)
+      : saslServer_(sasl_server),
+        manager_(manager),
+        requestHeader_(nullptr),
+        duplexChannel_(duplexChannel),
+        peerCert_(peerCert),
+        peerIdentities_(nullptr, [](void*) {}) {
     if (address) {
       peerAddress_ = *address;
     }
-    if (socket) {
-      socket->getLocalAddress(&localAddress_);
-      if (auto sslSocket = dynamic_cast<const async::TAsyncSSLSocket*>(socket)) {
-        peerCert_ = sslSocket->getPeerCert();
-      }
+    if (transport) {
+      transport->getLocalAddress(&localAddress_);
+      peerCert_ = transport->getPeerCert();
+      securityProtocol_ = transport->getSecurityProtocol();
+    }
+
+    if (clientIdentityHook) {
+      peerIdentities_ = clientIdentityHook(
+          peerCert_.get(), sasl_server, peerAddress_);
     }
   }
 
@@ -79,7 +91,7 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
     return saslServer_;
   }
 
-  virtual folly::EventBaseManager* getEventBaseManager() override {
+  folly::EventBaseManager* getEventBaseManager() override {
     return manager_;
   }
 
@@ -92,6 +104,10 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
     return std::string();
   }
 
+  std::shared_ptr<X509> getPeerCertificate() const {
+    return peerCert_;
+  }
+
   template <typename Client>
   std::shared_ptr<Client> getDuplexClient() {
     DCHECK(duplexChannel_);
@@ -102,25 +118,40 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
     }
     return client;
   }
+
+  const std::string& getSecurityProtocol() const {
+    return securityProtocol_;
+  }
+
+  bool isTls() const {
+    return securityProtocol_ == "TLS";
+  }
+
+  virtual void* getPeerIdentities() const {
+    return peerIdentities_.get();
+  }
+
  private:
   const apache::thrift::SaslServer* saslServer_;
   folly::EventBaseManager* manager_;
   transport::THeader* requestHeader_;
   std::shared_ptr<RequestChannel> duplexChannel_;
   std::shared_ptr<TClientBase> duplexClient_;
-  std::unique_ptr<X509, folly::AsyncSSLSocket::X509_deleter> peerCert_;
+  std::shared_ptr<X509> peerCert_;
+  std::unique_ptr<void, void (*)(void*)> peerIdentities_;
+  std::string securityProtocol_;
 };
 
 // Request-specific context
 class Cpp2RequestContext : public apache::thrift::server::TConnectionContext {
-
  public:
-  explicit Cpp2RequestContext(Cpp2ConnContext* ctx,
-                              apache::thrift::transport::THeader* header = nullptr)
-      : ctx_(ctx)
-      , requestData_(nullptr, no_op_destructor)
-      , header_(header)
-      , startedProcessing_(false) {}
+  explicit Cpp2RequestContext(
+      Cpp2ConnContext* ctx,
+      apache::thrift::transport::THeader* header = nullptr)
+      : ctx_(ctx),
+        requestData_(nullptr, no_op_destructor),
+        header_(header),
+        startedProcessing_(false) {}
 
   void setConnectionContext(Cpp2ConnContext* ctx) {
     ctx_= ctx;
@@ -204,6 +235,44 @@ class Cpp2RequestContext : public apache::thrift::server::TConnectionContext {
     requestTimeout_ = requestTimeout;
   }
 
+  bool isProcessingStartTimeSet() const {
+    return processingStartTime_.hasValue();
+  }
+
+  void setProcessingStartTime(
+      std::chrono::time_point<std::chrono::steady_clock> processingStartTime) {
+    processingStartTime_ = processingStartTime;
+  }
+
+  std::chrono::time_point<std::chrono::steady_clock> getProcessingStartTime()
+      const {
+    return processingStartTime_.value();
+  }
+
+  void setMethodName(std::string methodName) {
+    methodName_ = std::move(methodName);
+  }
+
+  const std::string& getMethodName() {
+    return methodName_;
+  }
+
+  void setProtoSeqId(int32_t protoSeqId) {
+    protoSeqId_ = protoSeqId;
+  }
+
+  int32_t getProtoSeqId() {
+    return protoSeqId_;
+  }
+
+  void setMessageBeginSize(uint32_t messageBeginSize) {
+    messageBeginSize_ = messageBeginSize;
+  }
+
+  uint32_t getMessageBeginSize() {
+    return messageBeginSize_;
+  }
+
  protected:
   static void no_op_destructor(void* /*ptr*/) {}
 
@@ -213,6 +282,10 @@ class Cpp2RequestContext : public apache::thrift::server::TConnectionContext {
   apache::thrift::transport::THeader* header_;
   bool startedProcessing_ = false;
   std::chrono::milliseconds requestTimeout_{0};
+  folly::Optional<std::chrono::steady_clock::time_point> processingStartTime_;
+  std::string methodName_;
+  int32_t protoSeqId_{0};
+  uint32_t messageBeginSize_{0};
 };
 
 } }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2016 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,19 @@
  * limitations under the License.
  */
 
-#include <cctype>
-#include <string>
-#include <fstream>
-#include <iostream>
-#include <vector>
-
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <cctype>
+#include <fstream>
+#include <iostream>
 #include <sstream>
+#include <string>
+#include <vector>
 
-#include <folly/Format.h>
-#include <folly/gen/Base.h>
-#include <folly/gen/String.h>
-
-#include <thrift/compiler/generate/t_oop_generator.h>
 #include <thrift/compiler/platform.h>
+#include <thrift/compiler/generate/common.h>
+#include <thrift/compiler/generate/t_oop_generator.h>
 
 using std::map;
 using std::ofstream;
@@ -94,7 +90,7 @@ class t_hs_generator : public t_oop_generator {
   void generate_xception(t_struct* txception) override;
   void generate_service(t_service* tservice) override;
 
-  string render_const_value(t_type* type, t_const_value* value);
+  string render_const_value(t_type* type, const t_const_value* value);
 
   /**
    * Struct generation code
@@ -252,19 +248,18 @@ class t_hs_generator : public t_oop_generator {
 void t_hs_generator::init_generator() {
   // Make output directory
   package_dir_ = get_out_dir();
-  MKDIR(package_dir_.c_str());
+  make_dir(package_dir_.c_str());
 
   string hs_namespace = program_->get_namespace("hs");
   if (!hs_namespace.empty()) {
-    vector<string> components;
-    folly::split(".", hs_namespace, components, false /* ignoreEmpty */);
+    vector<string> components = split_namespace(hs_namespace);
     for (const auto& component : components) {
       if (component.empty() || !std::isupper(component[0])) {
         throw "compiler error: Invalid Haskell Module " + hs_namespace;
       }
       package_dir_ += component;
       package_dir_.push_back('/');
-      MKDIR(package_dir_.c_str());
+      make_dir(package_dir_.c_str());
     }
   }
 
@@ -332,7 +327,8 @@ string t_hs_generator::hs_imports() {
       "                 Eq, Show, Ord,\n"
       "                 concat, error, fromIntegral, fromEnum, length, map,\n"
       "                 maybe, not, null, otherwise, return, show, toEnum,\n"
-      "                 enumFromTo, Bounded, minBound, maxBound, seq,\n"
+      "                 enumFromTo, Bounded, minBound, maxBound, seq, succ,\n"
+      "                 pred, enumFrom, enumFromThen, enumFromThenTo,\n"
       "                 (.), (&&), (||), (==), (++), ($), (-), (>>=), (>>))\n"
       "\n"
       "import qualified Control.Applicative as Applicative (ZipList(..))\n"
@@ -344,6 +340,7 @@ string t_hs_generator::hs_imports() {
       "import Data.Functor ( (<$>) )\n"
       "import qualified Data.Hashable as Hashable\n"
       "import qualified Data.Int as Int\n"
+      "import Data.List\n"
       "import qualified Data.Maybe as Maybe (catMaybes)\n"
       "import qualified Data.Text.Lazy.Encoding as "
         "Encoding ( decodeUtf8, encodeUtf8 )\n"
@@ -368,8 +365,8 @@ string t_hs_generator::hs_imports() {
   for (const auto& program_include : includes) {
     auto module_prefix = get_module_prefix(program_include);
     auto base_name = capitalize(program_include->get_name()) + "_Types";
-    result += folly::to<string>(
-      "import qualified ", module_prefix, base_name, " as ", base_name, "\n");
+    result += "import qualified " + module_prefix + base_name;
+    result += " as " + base_name + "\n";
   }
 
   if (includes.size() > 0)
@@ -444,6 +441,40 @@ void t_hs_generator::generate_enum(t_enum* tenum) {
   indent(f_types_)
     << "_ -> Exception.throw Thrift.ThriftException" << nl;
   indent_down();
+  indent(f_types_) << "succ t = case t of" << nl;
+  indent_up();
+  for(c_iter = constants.begin(); c_iter != constants.end(); ++c_iter) {
+    string name = capitalize((*c_iter)->get_name());
+    auto succ = c_iter + 1;
+    string succ_value = succ == constants.end()
+      ? string("Exception.throw Thrift.ThriftException")
+      : capitalize((*succ)->get_name());
+    indent(f_types_) << name << " -> " << succ_value << nl;
+  }
+  indent_down();
+  indent(f_types_) << "pred t = case t of" << nl;
+  indent_up();
+  for(c_iter = constants.begin(); c_iter != constants.end(); ++c_iter) {
+    string name = capitalize((*c_iter)->get_name());
+    string succ_value = c_iter == constants.begin()
+      ? string("Exception.throw Thrift.ThriftException")
+      : capitalize((*(c_iter - 1))->get_name());
+    indent(f_types_) << name << " -> " << succ_value << nl;
+  }
+  indent_down();
+  indent(f_types_) << "enumFrom x = enumFromTo x maxBound" << nl;
+  indent(f_types_) << "enumFromTo x y = takeUpToInc y $ iterate succ x" << nl;
+  indent_up();
+  indent(f_types_) << "where" << nl;
+  indent(f_types_) << "takeUpToInc _ [] = []" << nl;
+  indent(f_types_) << "takeUpToInc m (x:_) | m == x = [x]" << nl;
+  indent(f_types_) << "takeUpToInc m (x:xs) | otherwise = "
+                   << "x : takeUpToInc m xs" << nl;
+  indent_down();
+  indent(f_types_) << "enumFromThen _ _ = "
+                   << "Exception.throw Thrift.ThriftException" << nl;
+  indent(f_types_) << "enumFromThenTo _ _ _ = "
+                   << "Exception.throw Thrift.ThriftException" << nl;
   indent_down();
 
   indent(f_types_) << "instance Hashable.Hashable " << ename
@@ -488,7 +519,9 @@ void t_hs_generator::generate_const(t_const* tconst) {
  * is NOT performed in this function as it is always run beforehand using the
  * validate_types method in main.cc
  */
-string t_hs_generator::render_const_value(t_type* type, t_const_value* value) {
+string t_hs_generator::render_const_value(
+    t_type* type,
+    const t_const_value* value) {
   if (value == nullptr)
     return type_to_default(type);
 
@@ -534,7 +567,7 @@ string t_hs_generator::render_const_value(t_type* type, t_const_value* value) {
     for (auto& c_iter : constants) {
       int val = c_iter->get_value();
       if (val == value->get_integer()) {
-        t_program* prog = type->get_program();
+        const t_program* prog = type->get_program();
         if (prog != nullptr)
           out << capitalize(prog->get_name()) << "_Types.";
         out << capitalize(c_iter->get_name());
@@ -1152,7 +1185,7 @@ void t_hs_generator::generate_hs_default(ofstream& out,
     }
 
     t_type* type = get_true_type(f_iter->get_type());
-    t_const_value* value = f_iter->get_value();
+    const t_const_value* value = f_iter->get_value();
     indent(out) << field_name(name, mname) << " = ";
     if (f_iter->get_req() == t_field::T_OPTIONAL ||
         ((t_type*)f_iter->get_type())->is_xception()) {
@@ -1248,12 +1281,12 @@ void t_hs_generator::generate_service_client(t_service* tservice) {
   string extends = "";
   string exports = "";
 
-  bool first = true;
+  bool first_fn = true;
   for (f_iter = functions.begin(); f_iter != functions.end(); ++f_iter) {
-    exports += (first ? "" : ",");
-    string funname = (*f_iter)->get_name();
-    exports += decapitalize(funname);
-    first = false;
+    exports += (first_fn ? "" : ",");
+    string fn_name = (*f_iter)->get_name();
+    exports += decapitalize(fn_name);
+    first_fn = false;
   }
 
   string sname = capitalize(service_name_);
@@ -1342,11 +1375,12 @@ void t_hs_generator::generate_service_client(t_service* tservice) {
       string resultname = capitalize((*f_iter)->get_name() + "_result");
       t_struct noargs(program_);
 
-      string funname = string("recv_") + (*f_iter)->get_name();
-      t_function recv_function((*f_iter)->get_returntype(), funname, &noargs);
+      string recv_fn_name = string("recv_") + (*f_iter)->get_name();
+      t_function recv_function((*f_iter)->get_returntype(), recv_fn_name,
+                               &noargs);
 
       // Open function
-      indent(f_client_) << funname << " ip =" << nl;
+      indent(f_client_) << recv_fn_name << " ip =" << nl;
       indent_up();
 
       indent(f_client_) << "Thrift.readMessage ip "
@@ -1481,8 +1515,6 @@ string t_hs_generator::render_hs_type_for_function_name(t_type* type) {
  * @param tservice The service to generate a fuzzer for.
  */
 void t_hs_generator::generate_service_fuzzer(t_service *tservice) {
-    using namespace folly;
-
     string f_service_name =
       get_package_dir() + capitalize(service_name_) + "_Fuzzer.hs";
     f_service_fuzzer_.open(f_service_name.c_str());
@@ -1657,23 +1689,35 @@ void t_hs_generator::generate_service_fuzzer(t_service *tservice) {
        // fuzzer invocation
        indent(f_service_fuzzer_) << "_ <- ";
        int argCount = fields.size();
-       auto argList =
-           gen::seq(1, argCount)
-           | gen::map([](int n) { return sformat("a{}", n); });
 
-       auto spaceSeparatedArgList = argList | gen::unsplit<string>(" ");
-       auto showArgList =
-           argList
-           | gen::map([](const string& s) { return sformat("Show {}", s); })
-           | gen::unsplit<string>(", ");
-       auto showElemList =
-           argList
-           | gen::map([](const string& s) { return sformat("show {}", s); })
-           | gen::unsplit<string>(" ++ ");
-       auto paramString =
-           sformat("({})", argList | gen::unsplit<string>(", "));
+       std::vector<std::string> argList;
+       for (int i = 1; i < argCount + 1; ++i) {
+         argList.push_back("a" + std::to_string(i));
+       }
 
-//       assert (1 <= argCount);
+       std::string spaceSeparatedArgList;
+       std::string showArgList;
+       std::string showElemList;
+       std::string fuzzString;
+       std::string paramString("(");
+
+       // iterate through every arg and format it
+       for (const auto& arg : argList) {
+         spaceSeparatedArgList += arg + " ";
+         showArgList += "Show " + arg + ", ";
+         showElemList += "show " + arg + " ++ ";
+         paramString += arg + ", ";
+         fuzzString += arg + " <*> ";
+       }
+
+       // erase extra elements at the end of the string and finish formatting
+       spaceSeparatedArgList.erase(spaceSeparatedArgList.length() - 1);
+       showArgList.erase(showArgList.length() - 2);
+       showElemList.erase(showElemList.length() - 4);
+       fuzzString.erase(fuzzString.length() - 5);
+       paramString.erase(paramString.length() - 2);
+       paramString += ")";
+
        if (argCount == 1) {
            f_service_fuzzer_
                << "forM (Applicative.getZipList a1) "
@@ -1682,7 +1726,7 @@ void t_hs_generator::generate_service_fuzzer(t_service *tservice) {
            f_service_fuzzer_
                << "P.sequence . Applicative.getZipList $ "
                << funname << "_fuzzFunc <$> "
-               << (argList | gen::unsplit<string>(" <*> "));
+               << fuzzString;
        }
        f_service_fuzzer_
            << nl << indent()
@@ -1692,7 +1736,7 @@ void t_hs_generator::generate_service_fuzzer(t_service *tservice) {
            << "where" << nl << indent()
            << funname << "_fuzzFunc ";
        f_service_fuzzer_ << spaceSeparatedArgList;
-       f_service_fuzzer_ << sformat(" = let param = {} in", paramString);
+       f_service_fuzzer_ << " = let param = " + paramString + " in";
        f_service_fuzzer_ << nl << indent() << indent()
            << "if opt_framed opts"
            << nl << indent() << indent()
@@ -2082,7 +2126,7 @@ string t_hs_generator::unqualified_type_name(t_type* ttype,
 }
 
 string t_hs_generator::type_name_qualifier(t_type* ttype) {
-  t_program* program = ttype->get_program();
+  const t_program* program = ttype->get_program();
 
   if (ttype->is_service()) {
     return capitalize(program->get_name()) + "_Iface.";

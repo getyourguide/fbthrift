@@ -4,40 +4,44 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "MyLeaf.h"
 
-#include "MyLeaf.tcc"
+#include "src/gen-cpp2/MyLeaf.h"
+#include "src/gen-cpp2/MyLeaf.tcc"
 
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
-namespace cpp2 {
 
+namespace cpp2 {
 const char* MyLeafAsyncClient::getServiceName() {
   return "MyLeaf";
 }
 
 void MyLeafAsyncClient::do_leaf(std::unique_ptr<apache::thrift::RequestCallback> callback) {
   ::apache::thrift::RpcOptions rpcOptions;
-  do_leaf(rpcOptions, std::move(callback));
+  do_leafImpl(false, rpcOptions, std::move(callback));
 }
 
 void MyLeafAsyncClient::do_leaf(apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
+  do_leafImpl(false, rpcOptions, std::move(callback));
+}
+
+void MyLeafAsyncClient::do_leafImpl(bool useSync, apache::thrift::RpcOptions& rpcOptions, std::unique_ptr<apache::thrift::RequestCallback> callback) {
   switch(getChannel()->getProtocolId()) {
     case apache::thrift::protocol::T_BINARY_PROTOCOL:
     {
       apache::thrift::BinaryProtocolWriter writer;
-      do_leafT(&writer, rpcOptions, std::move(callback));
+      do_leafT(&writer, useSync, rpcOptions, std::move(callback));
       break;
     }
     case apache::thrift::protocol::T_COMPACT_PROTOCOL:
     {
       apache::thrift::CompactProtocolWriter writer;
-      do_leafT(&writer, rpcOptions, std::move(callback));
+      do_leafT(&writer, useSync, rpcOptions, std::move(callback));
       break;
     }
     default:
     {
-      throw apache::thrift::TApplicationException("Could not find Protocol");
+      apache::thrift::detail::ac::throw_app_exn("Could not find Protocol");
     }
   }
 }
@@ -49,9 +53,8 @@ void MyLeafAsyncClient::sync_do_leaf() {
 
 void MyLeafAsyncClient::sync_do_leaf(apache::thrift::RpcOptions& rpcOptions) {
   apache::thrift::ClientReceiveState _returnState;
-  auto callback14 = folly::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, getChannel()->getEventBase(), false);
-  do_leaf(rpcOptions, std::move(callback14));
-  getChannel()->getEventBase()->loopForever();
+  auto callback = std::make_unique<apache::thrift::ClientSyncCallback>(&_returnState, false);
+  do_leafImpl(true, rpcOptions, std::move(callback));
   SCOPE_EXIT {
     if (_returnState.header() && !_returnState.header()->getHeaders().empty()) {
       rpcOptions.setReadHeaders(_returnState.header()->releaseHeaders());
@@ -59,7 +62,7 @@ void MyLeafAsyncClient::sync_do_leaf(apache::thrift::RpcOptions& rpcOptions) {
   };
   if (!_returnState.buf()) {
     assert(_returnState.exception());
-    std::rethrow_exception(_returnState.exception());
+    _returnState.exception().throw_exception();
   }
   recv_do_leaf(_returnState);
 }
@@ -70,29 +73,28 @@ folly::Future<folly::Unit> MyLeafAsyncClient::future_do_leaf() {
 }
 
 folly::Future<folly::Unit> MyLeafAsyncClient::future_do_leaf(apache::thrift::RpcOptions& rpcOptions) {
-  folly::Promise<folly::Unit> promise15;
-  auto future16 = promise15.getFuture();
-  auto callback17 = folly::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(promise15), recv_wrapped_do_leaf, channel_);
-  do_leaf(rpcOptions, std::move(callback17));
-  return future16;
+  folly::Promise<folly::Unit> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::FutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_do_leaf, channel_);
+  do_leaf(rpcOptions, std::move(callback));
+  return _future;
 }
 
 folly::Future<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> MyLeafAsyncClient::header_future_do_leaf(apache::thrift::RpcOptions& rpcOptions) {
-  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> promise18;
-  auto future19 = promise18.getFuture();
-  auto callback20 = folly::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(promise18), recv_wrapped_do_leaf, channel_);
-  do_leaf(rpcOptions, std::move(callback20));
-  return future19;
+  folly::Promise<std::pair<folly::Unit, std::unique_ptr<apache::thrift::transport::THeader>>> _promise;
+  auto _future = _promise.getFuture();
+  auto callback = std::make_unique<apache::thrift::HeaderFutureCallback<folly::Unit>>(std::move(_promise), recv_wrapped_do_leaf, channel_);
+  do_leaf(rpcOptions, std::move(callback));
+  return _future;
 }
 
-void MyLeafAsyncClient::do_leaf(std::function<void (::apache::thrift::ClientReceiveState&&)> callback) {
-  do_leaf(folly::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)));
+void MyLeafAsyncClient::do_leaf(folly::Function<void (::apache::thrift::ClientReceiveState&&)> callback) {
+  do_leaf(std::make_unique<apache::thrift::FunctionReplyCallback>(std::move(callback)));
 }
 
 folly::exception_wrapper MyLeafAsyncClient::recv_wrapped_do_leaf(::apache::thrift::ClientReceiveState& state) {
-  auto ew = state.exceptionWrapper();
-  if (ew) {
-    return ew;
+  if (state.isException()) {
+    return std::move(state.exception());
   }
   if (!state.buf()) {
     return folly::make_exception_wrapper<apache::thrift::TApplicationException>("recv_ called without result");
@@ -118,7 +120,7 @@ folly::exception_wrapper MyLeafAsyncClient::recv_wrapped_do_leaf(::apache::thrif
 void MyLeafAsyncClient::recv_do_leaf(::apache::thrift::ClientReceiveState& state) {
   auto ew = recv_wrapped_do_leaf(state);
   if (ew) {
-    ew.throwException();
+    ew.throw_exception();
   }
 }
 

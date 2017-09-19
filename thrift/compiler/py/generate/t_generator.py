@@ -40,6 +40,14 @@ class Generator(object):
         self._flags = flags
         self._tmp = 0
 
+        if self.flag_lean_mean_meta_machine:
+            if 'fatal' not in self._flags:
+                self._flags['fatal'] = ''
+            self.flag_fatal = True
+            if 'reflection' not in self._flags:
+                self._flags['reflection'] = ''
+            self.flag_reflection = True
+
     def _flag(self, flag):
         ret = self._flags.get(flag)
         return ret if ret != '' else True
@@ -76,16 +84,22 @@ class Generator(object):
         self.init_generator()
         # Generate them all by passing each object to self._generate
         program = self.program
+        if self._flag('only_reflection'):
+          self._generate_fatal(program)
+          return
         for item in program.objects:
             self._gen_forward_declaration(item)
         for item in chain(program.enums, program.typedefs, \
                 program.objects, program.services):
             self._generate(item)
+        self._generate_data()
         self._generate_consts(program.consts)
         if self._flag('frozen2'):
             self._generate_layouts(program.objects)
-        if self.flag_fatal:
+        if self.flag_fatal or self.flag_reflection:
             self._generate_fatal(program)
+        if self._flag('modulemap'):
+            self._generate_modulemap()
         self.close_generator()
 
     def init_generator(self):
@@ -98,10 +112,16 @@ class Generator(object):
     def program(self):
         return self._program
 
+    def _generate_data(self):
+        raise NotImplementedError
+
     def _generate_consts(self, constants):
         raise NotImplementedError
 
     def _generate_layouts(self):
+        raise NotImplementedError
+
+    def _generate_modulemap(self):
         raise NotImplementedError
 
     def _generate_fatal(self, program):

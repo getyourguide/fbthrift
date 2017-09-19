@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -51,7 +50,7 @@ void IOBufPtrTestService::async_tm_combine(
   queue.append(req->three.clone());
   queue.append(")");
   callback.release()->resultInThread(
-      folly::make_unique<IOBufPtr>(queue.move()));
+      std::make_unique<IOBufPtr>(queue.move()));
 }
 
 class IOBufPtrTest : public ::testing::Test {
@@ -94,7 +93,7 @@ IOBufPtrTest::IOBufPtrTest() : serverEventBase_(nullptr) {
       getServerAddress());
 
   auto channel = apache::thrift::HeaderClientChannel::newChannel(socket);
-  client_ = folly::make_unique<IOBufPtrTestServiceAsyncClient>(
+  client_ = std::make_unique<IOBufPtrTestServiceAsyncClient>(
       std::move(channel));
 }
 
@@ -105,7 +104,7 @@ IOBufPtrTest::~IOBufPtrTest() {
 
 void IOBufPtrTest::serverThreadLoop() {
   server_.setPort(0);  // pick one
-  server_.setInterface(folly::make_unique<IOBufPtrTestService>());
+  server_.setInterface(std::make_unique<IOBufPtrTestService>());
   server_.setup();
   SCOPE_EXIT { server_.cleanUp(); };
   {
@@ -141,9 +140,3 @@ TEST_F(IOBufPtrTest, Simple) {
 }
 
 }}}  // namespaces
-
-int main(int argc, char *argv[]) {
-  testing::InitGoogleTest(&argc, argv);
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  return RUN_ALL_TESTS();
-}

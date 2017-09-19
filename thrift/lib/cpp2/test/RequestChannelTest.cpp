@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,10 @@
 #include <thrift/lib/cpp2/async/RequestChannel.h>
 
 #include <memory>
+#include <thread>
 #include <folly/Memory.h>
 #include <folly/io/async/EventBase.h>
-#include <folly/io/async/AsyncServerSocket.h>
+#include <folly/io/async/test/ScopedBoundPort.h>
 #include <thrift/lib/cpp/async/TAsyncSocket.h>
 #include <thrift/lib/cpp2/async/HeaderClientChannel.h>
 #include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
@@ -29,6 +30,7 @@
 #include <gmock/gmock.h>
 
 using namespace std;
+using namespace std::chrono;
 using namespace folly;
 using namespace apache::thrift;
 using namespace apache::thrift::async;
@@ -38,36 +40,95 @@ using namespace testing;
 
 using CSR = ClientReceiveState;
 
-//  This binds to an ephemeral port but does not listen.
-//  We therefore know at least one port which is guaranteed not to be listening.
-//  Useful for testing server-down cases.
-class PortHolder {
- public:
-  PortHolder() {
-    th_ = thread([&]{ eb_.loopForever(); });
-    eb_.waitUntilRunning();
-    sock_ = AsyncServerSocket::newSocket(&eb_);
-    sock_->bind(0);
-  }
-  ~PortHolder() {
-    eb_.terminateLoopSoon();
-    th_.join();
-  }
-  folly::SocketAddress getAddress() {
-    folly::SocketAddress ret;
-    sock_->getAddress(&ret);
-    return ret;
-  }
- private:
-  EventBase eb_;
-  thread th_;
-  shared_ptr<AsyncServerSocket> sock_;
-};
-
 class TestServiceServerMock : public TestServiceSvIf {
  public:
   MOCK_METHOD1(noResponse, void(int64_t));
+  MOCK_METHOD0(voidResponse, void());
 };
+
+class FunctionSendRecvRequestCallbackTest : public Test {
+ public:
+  EventBase* eb{EventBaseManager::get()->getEventBase()};
+  ScopedBoundPort bound;
+  shared_ptr<TestServiceServerMock> handler{
+    make_shared<TestServiceServerMock>()};
+  ScopedServerInterfaceThread runner{handler};
+
+  unique_ptr<TestServiceAsyncClient> newClient(
+      SocketAddress const& addr) {
+    return make_unique<TestServiceAsyncClient>(
+      HeaderClientChannel::newChannel(TAsyncSocket::newSocket(eb, addr)));
+  }
+
+  exception_wrapper ew;
+  ClientReceiveState state;
+
+  unique_ptr<FunctionSendRecvRequestCallback> newCallback() {
+    return make_unique<FunctionSendRecvRequestCallback>(
+        [&](auto&& _) { ew = std::move(_); },
+        [&](auto&& _) { state = std::move(_); });
+  }
+};
+
+TEST_F(FunctionSendRecvRequestCallbackTest, 1w_send_failure) {
+  auto client = newClient(bound.getAddress());
+  client->noResponse(newCallback(), 68 /* a random number */);
+  eb->loop();
+  EXPECT_TRUE(ew.with_exception([](TTransportException const& ex) {
+    EXPECT_EQ(TTransportException::UNKNOWN, ex.getType());
+    EXPECT_STREQ("transport is closed in write()", ex.what());
+  }));
+  EXPECT_EQ(nullptr, state.buf());
+}
+
+TEST_F(FunctionSendRecvRequestCallbackTest, 1w_send_success) {
+  auto client = newClient(runner.getAddress());
+  client->noResponse(newCallback(), 68 /* a random number */);
+  eb->loop();
+  EXPECT_FALSE(bool(ew));
+  EXPECT_EQ(nullptr, state.buf());
+}
+
+TEST_F(FunctionSendRecvRequestCallbackTest, 2w_send_failure) {
+  auto client = newClient(bound.getAddress());
+  client->voidResponse(newCallback());
+  eb->loop();
+  EXPECT_TRUE(ew.with_exception([](TTransportException const& ex) {
+    EXPECT_EQ(TTransportException::NOT_OPEN, ex.getType());
+  }));
+  EXPECT_EQ(nullptr, state.buf());
+}
+
+TEST_F(FunctionSendRecvRequestCallbackTest, 2w_recv_failure) {
+  auto client = newClient(runner.getAddress());
+  RpcOptions opts;
+  opts.setTimeout(milliseconds(1));
+  auto done = make_shared<Baton<>>();
+  SCOPE_EXIT { done->post(); };
+  EXPECT_CALL(*handler, voidResponse())
+    .WillOnce(Invoke([done] { EXPECT_TRUE(done->timed_wait(seconds(1))); }));
+  client->voidResponse(opts, newCallback());
+  eb->loop();
+  EXPECT_FALSE(bool(ew));
+  ew = std::move(state.exception());
+  EXPECT_TRUE(ew.with_exception([](TTransportException const& ex) {
+    EXPECT_EQ(TTransportException::TIMED_OUT, ex.getType());
+  }));
+  EXPECT_EQ(nullptr, state.buf());
+}
+
+TEST_F(FunctionSendRecvRequestCallbackTest, 2w_recv_success) {
+  auto client = newClient(runner.getAddress());
+  RpcOptions opts;
+  opts.setTimeout(milliseconds(1));
+  EXPECT_CALL(*handler, voidResponse());
+  client->voidResponse(opts, newCallback());
+  eb->loop();
+  EXPECT_FALSE(bool(ew));
+  ew = std::move(state.exception());
+  EXPECT_FALSE(bool(ew));
+  EXPECT_NE(nullptr, state.buf());
+}
 
 class FunctionSendCallbackTest : public Test {
  public:
@@ -88,10 +149,10 @@ class FunctionSendCallbackTest : public Test {
 };
 
 TEST_F(FunctionSendCallbackTest, with_missing_server_fails) {
-  PortHolder ph;
+  ScopedBoundPort bound;
   exception_wrapper exn;
-  sendOnewayMessage(ph.getAddress(), [&](CSR&& state) {
-      exn = state.exceptionWrapper();
+  sendOnewayMessage(bound.getAddress(), [&](CSR&& state) {
+    exn = std::move(state.exception());
   });
   EXPECT_TRUE(bool(exn));
   auto err = "transport is closed in write()";
@@ -102,12 +163,12 @@ TEST_F(FunctionSendCallbackTest, with_throwing_server_passes) {
   auto si = make_shared<TestServiceServerMock>();
   ScopedServerInterfaceThread ssit(si);
   Baton<> done;
-  EXPECT_CALL(*si, noResponse(_)).WillOnce(DoAll(
-        Invoke([&](int64_t _) { done.post(); }),
-        Throw(runtime_error("hi"))));
+  EXPECT_CALL(*si, noResponse(_))
+      .WillOnce(DoAll(
+          Invoke([&](int64_t) { done.post(); }), Throw(runtime_error("hi"))));
   exception_wrapper exn = make_exception_wrapper<runtime_error>("lo");
   sendOnewayMessage(ssit.getAddress(), [&](CSR&& state) {
-      exn = state.exceptionWrapper();
+    exn = std::move(state.exception());
   });
   done.timed_wait(chrono::steady_clock::now() + chrono::milliseconds(50));
   EXPECT_FALSE(exn);

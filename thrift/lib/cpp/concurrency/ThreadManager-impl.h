@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2014-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #ifndef THREADMANAGERIMPL_H
 #define THREADMANAGERIMPL_H
 
@@ -21,7 +20,7 @@
 #include <memory>
 
 #include <folly/LifoSem.h>
-#include <folly/MPMCQueue.h>
+#include <folly/PriorityMPMCQueue.h>
 #include <folly/SmallLocks.h>
 #include <folly/io/async/Request.h>
 #include <thrift/lib/cpp/concurrency/Monitor.h>
@@ -54,10 +53,8 @@ class ThreadManager::Task {
   ~Task() {}
 
   void run() {
-    auto old_ctx =
-      folly::RequestContext::setContext(context_);
+    folly::RequestContextScopeGuard rctx(context_);
     runnable_->run();
-    folly::RequestContext::setContext(old_ctx);
   }
 
   const shared_ptr<Runnable>& getRunnable() const {
@@ -80,6 +77,10 @@ class ThreadManager::Task {
     return queueBeginTime_ != SystemClockTimePoint();
   }
 
+  const std::shared_ptr<folly::RequestContext>& getContext() const {
+    return context_;
+  }
+
  private:
   shared_ptr<Runnable> runnable_;
   SystemClockTimePoint queueBeginTime_;
@@ -94,9 +95,10 @@ class ThreadManager::ImplT : public ThreadManager  {
   class Worker;
 
  public:
-  ImplT(size_t pendingTaskCountMaxArg = 0,
-       bool enableTaskStats = false,
-       size_t maxQueueLen = 0) :
+  explicit ImplT(size_t pendingTaskCountMaxArg = 0,
+                 bool enableTaskStats = false,
+                 size_t maxQueueLen = 0,
+                 size_t numPriorities = 1) :
     workerCount_(0),
     intendedWorkerCount_(0),
     idleCount_(0),
@@ -110,7 +112,7 @@ class ThreadManager::ImplT : public ThreadManager  {
     executingTimeUs_(0),
     numTasks_(0),
     state_(ThreadManager::UNINITIALIZED),
-    tasks_(maxQueueLen == 0
+    tasks_(numPriorities, maxQueueLen == 0
              ? (pendingTaskCountMax_ > 0
                   // TODO(philipp): Fix synchronization issues between "pending"
                   // and queuing logic.  For now, if pendingTaskCountMax_ > 0,
@@ -219,21 +221,39 @@ class ThreadManager::ImplT : public ThreadManager  {
     initCallback_ = initCallback;
   }
 
-  void getStats(int64_t& waitTimeUs, int64_t& runTimeUs, int64_t maxItems)
-    override;
+  void getStats(std::chrono::microseconds& waitTime,
+                std::chrono::microseconds& runTime,
+                int64_t maxItems) override;
   void enableCodel(bool) override;
   Codel* getCodel() override;
 
   // Methods to be invoked by workers
   void workerStarted(Worker<SemType>* worker);
   void workerExiting(Worker<SemType>* worker);
-  void reportTaskStats(const SystemClockTimePoint& queueBegin,
+  void reportTaskStats(const Task& task,
                        const SystemClockTimePoint& workBegin,
                        const SystemClockTimePoint& workEnd);
   std::unique_ptr<Task> waitOnTask();
   void onTaskExpired(const Task& task);
 
   Codel codel_;
+
+ protected:
+  bool tryAdd(size_t priority, std::shared_ptr<Runnable> task);
+  void add(
+    size_t priority,
+    shared_ptr<Runnable> value,
+    int64_t timeout,
+    int64_t expiration,
+    bool cancellable,
+    bool numa
+  );
+
+  // returns a string to attach to namePrefix when recording
+  // stats
+  virtual std::string statContext(const Task&) {
+    return "";
+  }
 
  private:
   void stopImpl(bool joinArg);
@@ -255,8 +275,8 @@ class ThreadManager::ImplT : public ThreadManager  {
 
   const bool enableTaskStats_;
   folly::MicroSpinLock statsLock_;
-  int64_t waitingTimeUs_;
-  int64_t executingTimeUs_;
+  std::chrono::microseconds waitingTimeUs_;
+  std::chrono::microseconds executingTimeUs_;
   int64_t numTasks_;
 
   ExpireCallback expireCallback_;
@@ -266,7 +286,7 @@ class ThreadManager::ImplT : public ThreadManager  {
   ThreadManager::STATE state_;
   shared_ptr<ThreadFactory> threadFactory_;
 
-  folly::MPMCQueue<std::unique_ptr<Task>> tasks_;
+  folly::PriorityMPMCQueue<std::unique_ptr<Task>> tasks_;
 
   Mutex mutex_;
   // monitor_ is signaled on any of the following events:

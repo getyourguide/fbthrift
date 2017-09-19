@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2016 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #define THRIFT_FATAL_PRETTY_PRINT_H_ 1
 
 #include <thrift/lib/cpp2/fatal/indenter.h>
-#include <thrift/lib/cpp2/fatal/reflect_category.h>
 #include <thrift/lib/cpp2/fatal/reflection.h>
 
 #include <sstream>
@@ -25,10 +24,25 @@
 #include <type_traits>
 #include <utility>
 
-namespace apache { namespace thrift { namespace detail {
-template <typename OutputStream, typename T>
-OutputStream &pretty_print(OutputStream &&, T &&);
-} // namespace detail {
+/**
+ * READ ME FIRST: this header provides pretty printers for Thrift types.
+ *
+ * Please refer to the top of `thrift/lib/cpp2/fatal/reflection.h` on how to
+ * enable compile-time reflection for Thrift types. The present header relies on
+ * it for its functionality.
+ *
+ * TROUBLESHOOTING:
+ *  - make sure you've followed the instructions on `reflection.h` to enable
+ *    generation of compile-time reflection;
+ *  - make sure you've included the metadata for your Thrift types, as specified
+ *    in `reflection.h`.
+ *
+ * @author: Marcelo Juchem <marcelo@fb.com>
+ */
+
+#include <thrift/lib/cpp2/fatal/internal/pretty_print-inl-pre.h>
+
+namespace apache { namespace thrift {
 
 /**
  * Pretty-prints an object to the given output stream using Thrift's reflection
@@ -43,12 +57,15 @@ template <typename OutputStream, typename T>
 void pretty_print(
   OutputStream &&out,
   T &&what,
-  std::string indentation = "  "
+  std::string indentation = "  ",
+  std::string margin = std::string()
 ) {
-  detail::pretty_print(
-    make_indenter(out, std::move(indentation)),
-    std::forward<T>(what)
-  );
+  using impl = detail::pretty_print_impl<
+    reflect_type_class<typename std::decay<T>::type>
+  >;
+
+  auto indenter = make_indenter(out, std::move(indentation), std::move(margin));
+  impl::print(indenter, std::forward<T>(what));
 }
 
 /**
@@ -59,15 +76,15 @@ void pretty_print(
  *
  * @author: Marcelo Juchem <marcelo@fb.com>
  */
-template <typename T>
-std::string pretty_string(T &&what) {
+template <typename... Args>
+std::string pretty_string(Args &&...args) {
   std::ostringstream out;
-  pretty_print(out, std::forward<T>(what));
+  pretty_print(out, std::forward<Args>(args)...);
   return out.str();
 }
 
 }} // apache::thrift
 
-#include <thrift/lib/cpp2/fatal/pretty_print-inl.h>
+#include <thrift/lib/cpp2/fatal/internal/pretty_print-inl-post.h>
 
 #endif // THRIFT_FATAL_PRETTY_PRINT_H_

@@ -19,6 +19,40 @@
 
 package thrift
 
+import (
+	"errors"
+)
+
+type ProtocolID int16
+
+const (
+	BinaryProtocol     ProtocolID = 0
+	JSONProtocol       ProtocolID = 1
+	CompactProtocol    ProtocolID = 2
+	DebugProtocol      ProtocolID = 3
+	VirtualProtocol    ProtocolID = 4
+	SimpleJSONProtocol ProtocolID = 5
+)
+
+func (p ProtocolID) String() string {
+	switch p {
+	case BinaryProtocol:
+		return "binary"
+	case JSONProtocol:
+		return "json"
+	case CompactProtocol:
+		return "compact"
+	case DebugProtocol:
+		return "debug"
+	case VirtualProtocol:
+		return "virtual"
+	case SimpleJSONProtocol:
+		return "simplejson"
+	default:
+		return "unknown"
+	}
+}
+
 const (
 	VERSION_MASK = 0xffff0000
 	VERSION_1    = 0x80010000
@@ -44,6 +78,7 @@ type TProtocol interface {
 	WriteI32(value int32) error
 	WriteI64(value int64) error
 	WriteDouble(value float64) error
+	WriteFloat(value float32) error
 	WriteString(value string) error
 	WriteBinary(value []byte) error
 
@@ -65,6 +100,7 @@ type TProtocol interface {
 	ReadI32() (value int32, err error)
 	ReadI64() (value int64, err error)
 	ReadDouble() (value float64, err error)
+	ReadFloat() (value float32, err error)
 	ReadString() (value string, err error)
 	ReadBinary() (value []byte, err error)
 
@@ -75,15 +111,20 @@ type TProtocol interface {
 }
 
 // The maximum recursive depth the skip() function will traverse
-var MaxSkipDepth = 1<<31 - 1
+const DEFAULT_RECURSION_DEPTH = 64
 
 // Skips over the next data element from the provided input TProtocol object.
 func SkipDefaultDepth(prot TProtocol, typeId TType) (err error) {
-	return Skip(prot, typeId, MaxSkipDepth)
+	return Skip(prot, typeId, DEFAULT_RECURSION_DEPTH)
 }
 
 // Skips over the next data element from the provided input TProtocol object.
 func Skip(self TProtocol, fieldType TType, maxDepth int) (err error) {
+
+	if maxDepth <= 0 {
+		return NewTProtocolExceptionWithType(DEPTH_LIMIT, errors.New("Depth limit exceeded"))
+	}
+
 	switch fieldType {
 	case STOP:
 		return
@@ -105,6 +146,9 @@ func Skip(self TProtocol, fieldType TType, maxDepth int) (err error) {
 	case DOUBLE:
 		_, err = self.ReadDouble()
 		return
+	case FLOAT:
+		_, err = self.ReadFloat()
+		return
 	case STRING:
 		_, err = self.ReadString()
 		return
@@ -117,7 +161,10 @@ func Skip(self TProtocol, fieldType TType, maxDepth int) (err error) {
 			if typeId == STOP {
 				break
 			}
-			Skip(self, typeId, maxDepth-1)
+			err := Skip(self, typeId, maxDepth-1)
+			if err != nil {
+				return err
+			}
 			self.ReadFieldEnd()
 		}
 		return self.ReadStructEnd()
@@ -127,7 +174,10 @@ func Skip(self TProtocol, fieldType TType, maxDepth int) (err error) {
 			return err
 		}
 		for i := 0; i < size; i++ {
-			Skip(self, keyType, maxDepth-1)
+			err := Skip(self, keyType, maxDepth-1)
+			if err != nil {
+				return err
+			}
 			self.Skip(valueType)
 		}
 		return self.ReadMapEnd()
@@ -137,7 +187,10 @@ func Skip(self TProtocol, fieldType TType, maxDepth int) (err error) {
 			return err
 		}
 		for i := 0; i < size; i++ {
-			Skip(self, elemType, maxDepth-1)
+			err := Skip(self, elemType, maxDepth-1)
+			if err != nil {
+				return err
+			}
 		}
 		return self.ReadSetEnd()
 	case LIST:
@@ -146,7 +199,10 @@ func Skip(self TProtocol, fieldType TType, maxDepth int) (err error) {
 			return err
 		}
 		for i := 0; i < size; i++ {
-			Skip(self, elemType, maxDepth-1)
+			err := Skip(self, elemType, maxDepth-1)
+			if err != nil {
+				return err
+			}
 		}
 		return self.ReadListEnd()
 	}

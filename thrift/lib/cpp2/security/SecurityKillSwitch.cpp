@@ -34,13 +34,17 @@ static const time_t thriftKillSwitchExpired = 86400;
 
 namespace apache { namespace thrift {
 
-bool isSecurityKillSwitchEnabled() {
+static bool isKillSwitchEnabled(const std::string& file) {
   struct stat info;
-  int ret = stat(FLAGS_thrift_security_kill_switch_file.c_str(), &info);
+  int ret = stat(file.c_str(), &info);
   if (ret == 0 && time(nullptr) - info.st_mtime < thriftKillSwitchExpired) {
     return true;
   }
   return false;
+}
+
+bool isSecurityKillSwitchEnabled() {
+  return isKillSwitchEnabled(FLAGS_thrift_security_kill_switch_file);
 }
 
 }} // apache::thrift

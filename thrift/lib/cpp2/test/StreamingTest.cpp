@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,19 +16,16 @@
 
 #include <thrift/lib/cpp2/test/gen-cpp2/StreamingService.h>
 #include <gtest/gtest.h>
-#include <thrift/lib/cpp2/server/ThriftServer.h>
-#include <thrift/lib/cpp/util/ScopedServerThread.h>
-#include <thrift/lib/cpp2/async/HeaderClientChannel.h>
-#include <thrift/lib/cpp2/test/util/TestThriftServerFactory.h>
+#include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
 
 using namespace apache::thrift;
 using namespace apache::thrift::test::cpp2;
-using namespace apache::thrift::util;
-using namespace apache::thrift::async;
 using apache::thrift::transport::TTransportException;
 using wangle::Observer;
 using wangle::ObservablePtr;
 using wangle::Error;
+
+namespace {
 
 class StreamingServiceInterface : public StreamingServiceSvIf {
  public:
@@ -53,23 +50,26 @@ class StreamingServiceInterface : public StreamingServiceSvIf {
   }
 };
 
-apache::thrift::TestThriftServerFactory<StreamingServiceInterface> factory;
-ScopedServerThread sst(factory.create());
-
-std::shared_ptr<StreamingServiceAsyncClient> getClient(folly::EventBase& eb) {
-  auto socket = TAsyncSocket::newSocket(&eb, *sst.getAddress());
-  auto channel = HeaderClientChannel::newChannel(socket);
-  auto client = std::make_shared<StreamingServiceAsyncClient>(std::move(channel));
-  return client;
-}
-
 static constexpr size_t kCount = 5;
 
-TEST(Streaming, Callback) {
+class StreamingTest : public testing::Test {
+ public:
+  std::shared_ptr<StreamingServiceInterface> handler {
+    std::make_shared<StreamingServiceInterface>() };
+  apache::thrift::ScopedServerInterfaceThread runner { handler };
   folly::EventBase eb;
-  auto client = getClient(eb);
 
-  int n = 0;
+  std::unique_ptr<StreamingServiceAsyncClient> newClient() {
+    return runner.newClient<StreamingServiceAsyncClient>(&eb);
+  }
+};
+
+}
+
+TEST_F(StreamingTest, Callback) {
+  auto client = newClient();
+
+  size_t n = 0;
   client->streamingMethod([&n](ClientReceiveState&& state) mutable {
       if (n < kCount) {
         EXPECT_FALSE(state.isStreamEnd());
@@ -90,9 +90,8 @@ TEST(Streaming, Callback) {
   EXPECT_EQ(n, kCount);
 }
 
-TEST(Streaming, Observable) {
-  folly::EventBase eb;
-  auto client = getClient(eb);
+TEST_F(StreamingTest, Observable) {
+  auto client = newClient();
 
   int n = 0;
   ObservablePtr<int> s = client->observable_streamingMethod(kCount);
@@ -103,23 +102,21 @@ TEST(Streaming, Observable) {
         EXPECT_EQ(x, n);
         n++;
       },
-      [&n](Error e) {
+      [](Error) {
         // onError
         FAIL();
       },
       [&n]() {
         // onCompleted
         EXPECT_EQ(n, kCount);
-      }
-  ));
+      }));
 
   eb.loop();
   EXPECT_EQ(n, kCount);
 }
 
-TEST(Streaming, Exception) {
-  folly::EventBase eb;
-  auto client = getClient(eb);
+TEST_F(StreamingTest, Exception) {
+  auto client = newClient();
 
   int n = 0;
   bool error = false;
@@ -136,7 +133,7 @@ TEST(Streaming, Exception) {
         EXPECT_TRUE(e.is_compatible_with<StreamingException>());
         error = true;
       },
-      [&n]() {
+      []() {
         // onCompleted
         FAIL();
       }
@@ -147,9 +144,8 @@ TEST(Streaming, Exception) {
   EXPECT_TRUE(error);
 }
 
-TEST(Streaming, GlobalTimeout) {
-  folly::EventBase eb;
-  auto client = getClient(eb);
+TEST_F(StreamingTest, GlobalTimeout) {
+  auto client = newClient();
 
   int n = 0;
   bool error = false;
@@ -170,7 +166,7 @@ TEST(Streaming, GlobalTimeout) {
         }));
         error = true;
       },
-      [&n]() {
+      []() {
         // onCompleted
         FAIL();
       }
@@ -181,9 +177,8 @@ TEST(Streaming, GlobalTimeout) {
   EXPECT_TRUE(error);
 }
 
-TEST(Streaming, ChunkTimeout) {
-  folly::EventBase eb;
-  auto client = getClient(eb);
+TEST_F(StreamingTest, ChunkTimeout) {
+  auto client = newClient();
 
   int n = 0;
   bool error = false;
@@ -204,7 +199,7 @@ TEST(Streaming, ChunkTimeout) {
         }));
         error = true;
       },
-      [&n]() {
+      []() {
         // onCompleted
         FAIL();
       }

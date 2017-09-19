@@ -18,7 +18,8 @@ import Prelude ( Bool(..), Enum, Float, IO, Double, String, Maybe(..),
                  Eq, Show, Ord,
                  concat, error, fromIntegral, fromEnum, length, map,
                  maybe, not, null, otherwise, return, show, toEnum,
-                 enumFromTo, Bounded, minBound, maxBound, seq,
+                 enumFromTo, Bounded, minBound, maxBound, seq, succ,
+                 pred, enumFrom, enumFromThen, enumFromThenTo,
                  (.), (&&), (||), (==), (++), ($), (-), (>>=), (>>))
 
 import qualified Control.Applicative as Applicative (ZipList(..))
@@ -30,6 +31,7 @@ import qualified Data.ByteString.Lazy as BS
 import Data.Functor ( (<$>) )
 import qualified Data.Hashable as Hashable
 import qualified Data.Int as Int
+import Data.List
 import qualified Data.Maybe as Maybe (catMaybes)
 import qualified Data.Text.Lazy.Encoding as Encoding ( decodeUtf8, encodeUtf8 )
 import qualified Data.Text.Lazy as LT
@@ -50,3 +52,6 @@ import qualified Module1_Types as Module1_Types
 
 
 import qualified Module2_Types
+c2 :: Module2_Types.Struct
+c2 = Module2_Types.default_Struct{Module2_Types.struct_first = Module0_Types.default_Struct{Module0_Types.struct_first = 101, Module0_Types.struct_second = "module0_str"}, Module2_Types.struct_second = Module1_Types.default_Struct{Module1_Types.struct_first = 201, Module1_Types.struct_second = "module1_str"}}
+

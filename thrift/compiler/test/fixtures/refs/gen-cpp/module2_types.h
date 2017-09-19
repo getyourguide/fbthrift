@@ -20,12 +20,10 @@
 #include <math.h>
 
 #include <thrift/lib/cpp/Thrift.h>
-
-using namespace folly::json;
 namespace apache { namespace thrift { namespace reflection {
 class Schema;
 }}}
-#include "includes_types.h"
+#include "thrift/compiler/test/fixtures/refs/gen-cpp/includes_types.h"
 
 
 
@@ -41,6 +39,18 @@ class StructUsingOtherNamespace : public apache::thrift::TStructType<StructUsing
   static void _reflection_register(::apache::thrift::reflection::Schema&);
   StructUsingOtherNamespace() {
   }
+  template <
+    typename T__ThriftWrappedArgument__Ctor,
+    typename... Args__ThriftWrappedArgument__Ctor
+  >
+  explicit StructUsingOtherNamespace(
+    ::apache::thrift::detail::argument_wrapper<1, T__ThriftWrappedArgument__Ctor> arg,
+    Args__ThriftWrappedArgument__Ctor&&... args
+  ):
+    StructUsingOtherNamespace(std::forward<Args__ThriftWrappedArgument__Ctor>(args)...)
+  {
+    other = std::make_unique<folly::_t<std::decay<T__ThriftWrappedArgument__Ctor>>>(arg.move());
+  }
 
   StructUsingOtherNamespace(const StructUsingOtherNamespace&);
   StructUsingOtherNamespace& operator=(const StructUsingOtherNamespace& src) {
@@ -53,7 +63,7 @@ class StructUsingOtherNamespace : public apache::thrift::TStructType<StructUsing
 
   void __clear();
 
-  virtual ~StructUsingOtherNamespace() throw() {}
+  virtual ~StructUsingOtherNamespace() noexcept {}
 
   std::unique_ptr< ::cpp1::Included> other;
 
@@ -70,11 +80,15 @@ class StructUsingOtherNamespace : public apache::thrift::TStructType<StructUsing
 
   bool operator < (const StructUsingOtherNamespace & ) const;
 
-  void readFromJson(const char* jsonText, size_t len);
-  void readFromJson(const char* jsonText);
+  void readFromJson(const char* jsonText, size_t len, const folly::json::serialization_opts& opts = folly::json::serialization_opts());
+  void readFromJson(const char* jsonText, const folly::json::serialization_opts& opts = folly::json::serialization_opts());
   uint32_t read(apache::thrift::protocol::TProtocol* iprot);
   uint32_t write(apache::thrift::protocol::TProtocol* oprot) const;
 
+  static void translateFieldName(
+      folly::StringPiece _fname,
+      int16_t& fid,
+      apache::thrift::protocol::TType& _ftype);
 };
 
 class StructUsingOtherNamespace;

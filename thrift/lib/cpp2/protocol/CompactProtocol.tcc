@@ -1,4 +1,6 @@
 /*
+ * Copyright 2004-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +26,6 @@
 #include <thrift/lib/cpp/util/VarintUtils.h>
 
 #include <limits>
-#include <boost/static_assert.hpp>
 
 namespace apache { namespace thrift {
 
@@ -90,9 +91,10 @@ const TType CTypeToTType[14] = {
 }} // end detail::compact namespace
 
 
-uint32_t CompactProtocolWriter::writeMessageBegin(const std::string& name,
-                                                 MessageType messageType,
-                                                 int32_t seqid) {
+uint32_t CompactProtocolWriter::writeMessageBegin(
+    const std::string& name,
+    MessageType messageType,
+    int32_t seqid) {
   uint32_t wsize = 0;
   wsize += writeByte(detail::compact::PROTOCOL_ID);
   wsize += writeByte(detail::compact::COMPACT_PROTOCOL_VERSION |
@@ -107,7 +109,8 @@ uint32_t CompactProtocolWriter::writeMessageEnd() {
   return 0;
 }
 
-uint32_t CompactProtocolWriter::writeStructBegin(const char* /*name*/) {
+uint32_t CompactProtocolWriter::writeStructBegin(
+    const char* /* name */) {
   lastField_.push(lastFieldId_);
   lastFieldId_ = 0;
   return 0;
@@ -150,9 +153,10 @@ uint32_t CompactProtocolWriter::writeFieldBeginInternal(
   return wsize;
 }
 
-uint32_t CompactProtocolWriter::writeFieldBegin(const char* name,
-                                               TType fieldType,
-                                               int16_t fieldId) {
+uint32_t CompactProtocolWriter::writeFieldBegin(
+    const char* name,
+    TType fieldType,
+    int16_t fieldId) {
   if (fieldType == TType::T_BOOL) {
     booleanField_.name = name;
     booleanField_.fieldType = fieldType;
@@ -171,9 +175,10 @@ uint32_t CompactProtocolWriter::writeFieldStop() {
   return writeByte((int8_t)TType::T_STOP);
 }
 
-uint32_t CompactProtocolWriter::writeMapBegin(const TType keyType,
-                                             TType valType,
-                                             uint32_t size) {
+uint32_t CompactProtocolWriter::writeMapBegin(
+    const TType keyType,
+    TType valType,
+    uint32_t size) {
   uint32_t wsize = 0;
 
   if (size == 0) {
@@ -190,8 +195,9 @@ uint32_t CompactProtocolWriter::writeMapEnd() {
   return 0;
 }
 
-uint32_t CompactProtocolWriter::writeCollectionBegin(int8_t elemType,
-                                                     int32_t size) {
+uint32_t CompactProtocolWriter::writeCollectionBegin(
+    int8_t elemType,
+    int32_t size) {
   uint32_t wsize = 0;
   if (size <= 14) {
     wsize += writeByte(size << 4 | detail::compact::TTypeToCType[elemType]);
@@ -202,8 +208,9 @@ uint32_t CompactProtocolWriter::writeCollectionBegin(int8_t elemType,
   return wsize;
 }
 
-uint32_t CompactProtocolWriter::writeListBegin(TType elemType,
-                                              uint32_t size) {
+uint32_t CompactProtocolWriter::writeListBegin(
+    TType elemType,
+    uint32_t size) {
   return writeCollectionBegin(elemType, size);
 }
 
@@ -211,8 +218,9 @@ uint32_t CompactProtocolWriter::writeListEnd() {
   return 0;
 }
 
-uint32_t CompactProtocolWriter::writeSetBegin(TType elemType,
-                                             uint32_t size) {
+uint32_t CompactProtocolWriter::writeSetBegin(
+    TType elemType,
+    uint32_t size) {
   return writeCollectionBegin(elemType, size);
 }
 
@@ -259,8 +267,8 @@ uint32_t CompactProtocolWriter::writeI64(int64_t i64) {
 }
 
 uint32_t CompactProtocolWriter::writeDouble(double dub) {
-  BOOST_STATIC_ASSERT(sizeof(double) == sizeof(uint64_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<double>::is_iec559);
+  static_assert(sizeof(double) == sizeof(uint64_t), "");
+  static_assert(std::numeric_limits<double>::is_iec559, "");
 
   uint64_t bits = bitwise_cast<uint64_t>(dub);
   out_.writeBE(bits);
@@ -268,25 +276,30 @@ uint32_t CompactProtocolWriter::writeDouble(double dub) {
 }
 
 uint32_t CompactProtocolWriter::writeFloat(float flt) {
-  BOOST_STATIC_ASSERT(sizeof(float) == sizeof(uint32_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<float>::is_iec559);
+  static_assert(sizeof(float) == sizeof(uint32_t), "");
+  static_assert(std::numeric_limits<float>::is_iec559, "");
 
   uint32_t bits = bitwise_cast<uint32_t>(flt);
   out_.writeBE(bits);
   return sizeof(bits);
 }
 
-template<typename StrType>
-uint32_t CompactProtocolWriter::writeString(const StrType& str) {
-  uint32_t size = str.size();
-  uint32_t result = apache::thrift::util::writeVarint(out_, (int32_t)size);
-  out_.push((const uint8_t*)str.data(), size);
-  return result + size;
+uint32_t CompactProtocolWriter::writeString(
+    folly::StringPiece str) {
+  return writeBinary(str);
 }
 
-template <typename StrType>
-uint32_t CompactProtocolWriter::writeBinary(const StrType& str) {
-  return writeString(str);
+uint32_t CompactProtocolWriter::writeBinary(
+    folly::StringPiece str) {
+  return writeBinary(folly::ByteRange(str));
+}
+
+uint32_t CompactProtocolWriter::writeBinary(
+    folly::ByteRange str) {
+  uint32_t size = str.size();
+  uint32_t result = apache::thrift::util::writeVarint(out_, (int32_t)size);
+  out_.push(str.data(), size);
+  return result + size;
 }
 
 uint32_t CompactProtocolWriter::writeBinary(
@@ -302,14 +315,16 @@ uint32_t CompactProtocolWriter::writeBinary(
   size_t size = str.computeChainDataLength();
   // leave room for varint size
   if (size > std::numeric_limits<uint32_t>::max() - serializedSizeI32()) {
-    throw TProtocolException(TProtocolException::SIZE_LIMIT);
+    TProtocolException::throwExceededSizeLimit();
   }
   uint32_t result = apache::thrift::util::writeVarint(out_, (int32_t)size);
-  auto clone = str.clone();
   if (sharing_ != SHARE_EXTERNAL_BUFFER) {
+    auto clone = str.clone();
     clone->makeManaged();
+    out_.insert(std::move(clone));
+  } else {
+    out_.insert(str);
   }
-  out_.insert(std::move(clone));
   return result + size;
 }
 
@@ -318,102 +333,150 @@ uint32_t CompactProtocolWriter::writeBinary(
  */
 
 uint32_t CompactProtocolWriter::serializedMessageSize(
-  const std::string& name) {
+    const std::string& name) const {
   // I32{version} + String{name} + I32{seqid}
   return 2*serializedSizeI32() + serializedSizeString(name);
 }
 
-uint32_t CompactProtocolWriter::serializedFieldSize(const char* /*name*/,
-                                                   TType /*fieldType*/,
-                                                   int16_t /*fieldId*/) {
+uint32_t CompactProtocolWriter::serializedFieldSize(
+    const char* /*name*/,
+    TType /*fieldType*/,
+    int16_t /*fieldId*/) const {
   // byte + I16
   return serializedSizeByte() + serializedSizeI16();
 }
 
-uint32_t CompactProtocolWriter::serializedStructSize(const char* /*name*/) {
+uint32_t CompactProtocolWriter::serializedStructSize(
+    const char* /*name*/) const {
   return 0;
 }
 
-uint32_t CompactProtocolWriter::serializedSizeMapBegin(TType /*keyType*/,
-                                                      TType /*valType*/,
-                                                      uint32_t /*size*/) {
+uint32_t CompactProtocolWriter::serializedSizeMapBegin(
+    TType /*keyType*/,
+    TType /*valType*/,
+    uint32_t /*size*/) const {
   return serializedSizeByte() + serializedSizeByte() +
          serializedSizeI32();
 }
 
-uint32_t CompactProtocolWriter::serializedSizeMapEnd() {
+uint32_t CompactProtocolWriter::serializedSizeMapEnd()
+const {
   return 0;
 }
 
-uint32_t CompactProtocolWriter::serializedSizeListBegin(TType /*elemType*/,
-                                                       uint32_t /*size*/) {
+uint32_t CompactProtocolWriter::serializedSizeListBegin(
+    TType /*elemType*/,
+    uint32_t /*size*/) const {
   return serializedSizeByte() + serializedSizeI32();
 }
 
-uint32_t CompactProtocolWriter::serializedSizeListEnd() {
+uint32_t CompactProtocolWriter::serializedSizeListEnd()
+const {
   return 0;
 }
 
-uint32_t CompactProtocolWriter::serializedSizeSetBegin(TType /*elemType*/,
-                                                      uint32_t /*size*/) {
+uint32_t CompactProtocolWriter::serializedSizeSetBegin(
+    TType /*elemType*/,
+    uint32_t /*size*/) const {
   return serializedSizeByte() + serializedSizeI32();
 }
 
-uint32_t CompactProtocolWriter::serializedSizeSetEnd() {
+uint32_t CompactProtocolWriter::serializedSizeSetEnd()
+const {
   return 0;
 }
 
-uint32_t CompactProtocolWriter::serializedSizeStop() {
+uint32_t CompactProtocolWriter::serializedSizeStop()
+const {
   return 1;
 }
 
-uint32_t CompactProtocolWriter::serializedSizeBool(bool /*val*/) {
+uint32_t CompactProtocolWriter::serializedSizeBool(
+    bool /* val */) const {
   return 1;
 }
 
-uint32_t CompactProtocolWriter::serializedSizeByte(int8_t /*val*/) {
+uint32_t CompactProtocolWriter::serializedSizeByte(
+    int8_t /* val */) const {
   return 1;
 }
 
 // Varint writes can be up to one additional byte
-uint32_t CompactProtocolWriter::serializedSizeI16(int16_t /*val*/) {
+uint32_t CompactProtocolWriter::serializedSizeI16(
+    int16_t /*val*/) const {
   return 3;
 }
 
-uint32_t CompactProtocolWriter::serializedSizeI32(int32_t /*val*/) {
+uint32_t CompactProtocolWriter::serializedSizeI32(
+    int32_t /*val*/) const {
   return 5;
 }
 
-uint32_t CompactProtocolWriter::serializedSizeI64(int64_t /*val*/) {
+uint32_t CompactProtocolWriter::serializedSizeI64(
+    int64_t /*val*/) const {
   return 10;
 }
 
-uint32_t CompactProtocolWriter::serializedSizeDouble(double /*val*/) {
+uint32_t CompactProtocolWriter::serializedSizeDouble(
+    double /*val*/) const {
   return 8;
 }
 
-uint32_t CompactProtocolWriter::serializedSizeFloat(float /*val*/) {
+uint32_t CompactProtocolWriter::serializedSizeFloat(
+    float /*val*/) const {
   return 4;
 }
 
-template<typename StrType>
-uint32_t CompactProtocolWriter::serializedSizeString(const StrType& str) {
-  // I32{length of string} + binary{string contents}
-  return serializedSizeI32() + str.size();
+uint32_t CompactProtocolWriter::serializedSizeString(
+    folly::StringPiece str) const {
+  return serializedSizeBinary(str);
 }
 
 uint32_t CompactProtocolWriter::serializedSizeBinary(
-    const std::unique_ptr<folly::IOBuf>& v) {
+    folly::StringPiece str) const {
+  return serializedSizeBinary(folly::ByteRange(str));
+}
+
+uint32_t CompactProtocolWriter::serializedSizeBinary(
+    folly::ByteRange v) const {
+  // I32{length of string} + binary{string contents}
+  return serializedSizeI32() + v.size();
+}
+
+uint32_t CompactProtocolWriter::serializedSizeBinary(
+    std::unique_ptr<folly::IOBuf> const& v) const {
   return v ? serializedSizeBinary(*v) : 0;
 }
 
 uint32_t CompactProtocolWriter::serializedSizeBinary(
-    const folly::IOBuf& v) {
+    folly::IOBuf const& v) const {
   size_t size = v.computeChainDataLength();
   if (size > std::numeric_limits<uint32_t>::max() - serializedSizeI32()) {
-    throw TProtocolException(TProtocolException::SIZE_LIMIT);
+    TProtocolException::throwExceededSizeLimit();
   }
   return serializedSizeI32() + size;
+}
+
+uint32_t CompactProtocolWriter::serializedSizeZCBinary(
+    folly::StringPiece str) const {
+  return serializedSizeZCBinary(folly::ByteRange(str));
+}
+
+uint32_t CompactProtocolWriter::serializedSizeZCBinary(
+    folly::ByteRange v) const {
+  return serializedSizeBinary(v);
+}
+
+uint32_t CompactProtocolWriter::serializedSizeZCBinary(
+    std::unique_ptr<IOBuf> const& /*v*/) const {
+  // size only
+  return serializedSizeI32();
+}
+
+uint32_t CompactProtocolWriter::serializedSizeZCBinary(
+    IOBuf const& /*v*/) const {
+  // size only
+  return serializedSizeI32();
 }
 
 /**
@@ -429,15 +492,13 @@ uint32_t CompactProtocolReader::readMessageBegin(std::string& name,
 
   rsize += readByte(protocolId);
   if (protocolId != detail::compact::PROTOCOL_ID) {
-    throw TProtocolException(TProtocolException::BAD_VERSION,
-                             "Bad protocol identifier");
+    throwBadProtocolIdentifier();
   }
 
   rsize += readByte(versionAndType);
   if ((int8_t)(versionAndType & VERSION_MASK) !=
       detail::compact::COMPACT_PROTOCOL_VERSION) {
-    throw TProtocolException(TProtocolException::BAD_VERSION,
-                             "Bad protocol version");
+    throwBadProtocolVersion();
   }
 
   messageType = (MessageType)
@@ -445,7 +506,6 @@ uint32_t CompactProtocolReader::readMessageBegin(std::string& name,
      detail::compact::TYPE_SHIFT_AMOUNT);
   rsize += apache::thrift::util::readVarint(in_, seqid);
   rsize += readString(name);
-  seqid_ = seqid;
 
   return rsize;
 }
@@ -526,9 +586,9 @@ uint32_t CompactProtocolReader::readMapBegin(TType& keyType,
     rsize += readByte(kvType);
 
   if (msize < 0) {
-    throw TProtocolException(TProtocolException::NEGATIVE_SIZE);
+    TProtocolException::throwNegativeSize();
   } else if (container_limit_ && msize > container_limit_) {
-    throw TProtocolException(TProtocolException::SIZE_LIMIT);
+    TProtocolException::throwExceededSizeLimit();
   }
 
   keyType = getType((int8_t)((uint8_t)kvType >> 4));
@@ -556,9 +616,9 @@ uint32_t CompactProtocolReader::readListBegin(TType& elemType,
   }
 
   if (lsize < 0) {
-    throw TProtocolException(TProtocolException::NEGATIVE_SIZE);
+    TProtocolException::throwNegativeSize();
   } else if (container_limit_ && lsize > container_limit_) {
-    throw TProtocolException(TProtocolException::SIZE_LIMIT);
+    TProtocolException::throwExceededSizeLimit();
   }
 
   elemType = getType((int8_t)(size_and_type & 0x0f));
@@ -627,8 +687,8 @@ uint32_t CompactProtocolReader::readI64(int64_t& i64) {
 }
 
 uint32_t CompactProtocolReader::readDouble(double& dub) {
-  BOOST_STATIC_ASSERT(sizeof(double) == sizeof(uint64_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<double>::is_iec559);
+  static_assert(sizeof(double) == sizeof(uint64_t), "");
+  static_assert(std::numeric_limits<double>::is_iec559, "");
 
   uint64_t bits = in_.readBE<int64_t>();
   dub = bitwise_cast<double>(bits);
@@ -636,8 +696,8 @@ uint32_t CompactProtocolReader::readDouble(double& dub) {
 }
 
 uint32_t CompactProtocolReader::readFloat(float& flt) {
-  BOOST_STATIC_ASSERT(sizeof(float) == sizeof(uint32_t));
-  BOOST_STATIC_ASSERT(std::numeric_limits<float>::is_iec559);
+  static_assert(sizeof(float) == sizeof(uint32_t), "");
+  static_assert(std::numeric_limits<float>::is_iec559, "");
 
   uint32_t bits = in_.readBE<int32_t>();
   flt = bitwise_cast<float>(bits);
@@ -649,10 +709,10 @@ uint32_t CompactProtocolReader::readStringSize(int32_t& size) {
 
   // Catch error cases
   if (size < 0) {
-    throw TProtocolException(TProtocolException::NEGATIVE_SIZE);
+    TProtocolException::throwNegativeSize();
   }
   if (string_limit_ > 0 && size > string_limit_) {
-    throw TProtocolException(TProtocolException::SIZE_LIMIT);
+    TProtocolException::throwExceededSizeLimit();
   }
 
   return rsize;
@@ -664,13 +724,13 @@ uint32_t CompactProtocolReader::readStringBody(StrType& str, int32_t size) {
   str.clear();
   size_t size_left = size;
   while (size_left > 0) {
-    std::pair<const uint8_t*, size_t> data = in_.peek();
-    int32_t data_avail = std::min(data.second, size_left);
-    if (data.second <= 0) {
-      throw TProtocolException(TProtocolException::SIZE_LIMIT);
+    auto data = in_.peekBytes();
+    auto data_avail = std::min(data.size(), size_left);
+    if (data.empty()) {
+      TProtocolException::throwExceededSizeLimit();
     }
 
-    str.append((const char*)data.first, data_avail);
+    str.append((const char*)data.data(), data_avail);
     size_left -= data_avail;
     in_.skip(data_avail);
   }
@@ -692,7 +752,7 @@ uint32_t CompactProtocolReader::readBinary(StrType& str) {
 
 uint32_t CompactProtocolReader::readBinary(std::unique_ptr<folly::IOBuf>& str) {
   if (!str) {
-    str = folly::make_unique<folly::IOBuf>();
+    str = std::make_unique<folly::IOBuf>();
   }
   return readBinary(*str);
 }
@@ -714,7 +774,7 @@ TType CompactProtocolReader::getType(int8_t type) {
              sizeof(CTypeToTType)/sizeof(*CTypeToTType))) {
     return CTypeToTType[type];
   }
-  throw TProtocolException("don't know what type: " + std::to_string(type));
+  throwBadType(type);
 }
 
 }} // apache2::thrift

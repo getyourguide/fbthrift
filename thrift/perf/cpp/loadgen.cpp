@@ -1,4 +1,6 @@
 /*
+ * Copyright 2017-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +18,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#include <folly/init/Init.h>
 #include <thrift/lib/cpp/test/loadgen/loadgen.h>
 #include <thrift/lib/cpp/test/loadgen/QpsMonitor.h>
 #include <thrift/lib/cpp/test/loadgen/RNG.h>
 #include <thrift/perf/cpp/ClientLoadConfig.h>
-#include <thrift/perf/cpp/ClientWorker.h>
 #include <thrift/perf/cpp/ClientWorker2.h>
-#include <thrift/perf/cpp/AsyncClientWorker.h>
 #include <thrift/perf/cpp/AsyncClientWorker2.h>
 #include "common/services/cpp/ServiceFramework.h"
 
@@ -39,7 +40,7 @@ using namespace apache::thrift;
 using namespace apache::thrift::test;
 
 int main(int argc, char* argv[]) {
-  facebook::config::Flags::initFlags(&argc, &argv, true);
+  folly::init(&argc, &argv, true);
 
   signal(SIGINT, exit);
 
@@ -67,18 +68,10 @@ int main(int argc, char* argv[]) {
 
   std::shared_ptr<ClientLoadConfig> config(new ClientLoadConfig);
   if (config->useAsync()) {
-    if (config->useCpp2()) {
-      loadgen::runLoadGen<apache::thrift::AsyncClientWorker2>(
-        config, FLAGS_interval);
-    } else {
-      loadgen::runLoadGen<AsyncClientWorker>(config, FLAGS_interval);
-    }
+    loadgen::runLoadGen<apache::thrift::AsyncClientWorker2>(
+      config, FLAGS_interval);
   } else {
-    if (config->useCpp2()) {
-      loadgen::runLoadGen<ClientWorker2>(config, FLAGS_interval);
-    } else {
-      loadgen::runLoadGen<ClientWorker>(config, FLAGS_interval);
-    }
+    loadgen::runLoadGen<ClientWorker2>(config, FLAGS_interval);
   }
 
   fwk->stop();

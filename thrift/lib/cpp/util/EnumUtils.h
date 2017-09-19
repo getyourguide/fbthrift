@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+// Note: Below methods don't work for class scoped enums
 
 #ifndef THRIFT_UTIL_ENUMUTILS_H_
 #define THRIFT_UTIL_ENUMUTILS_H_ 1
@@ -40,6 +42,7 @@ bool tryParseEnum(const char* name, EnumType* out) {
 
 /**
  * Returns the human-readable name for an Enum type.
+ * WARNING! By default it returns nullptr if the value is not in enum.
  */
 template<typename EnumType>
 const char* enumName(EnumType value,
@@ -50,28 +53,12 @@ const char* enumName(EnumType value,
 }
 
 /**
- * Returns the human-readable name for an Enum type in short form.
- * (That is, always returns VALUE instead of Foo::VALUE, even for
- * "strict" enums)
- * WARNING! By default it returns nullptr if the value is not in enum.
- */
-template <typename EnumType>
-const char* shortEnumName(EnumType value,
-                          const char* defaultName = nullptr) {
-  const char* name = TEnumTraits<EnumType>::findName(value);
-  if (!name) return defaultName;
-  const char* p = strrchr(name, ':');
-  if (p) name = p + 1;
-  return name;
-}
-
-/**
- * Same as shortEnumName but returns the integer value converted to string
+ * Same as enumName but returns the integer value converted to string
  * if it is not in enum, to avoid returning nullptr.
  */
 template <typename EnumType>
-std::string shortEnumNameSafe(EnumType value) {
-  const char* name = shortEnumName(value);
+std::string enumNameSafe(EnumType value) {
+  const char* name = enumName(value);
   return name ? name : std::to_string(static_cast<int32_t>(value));
 }
 

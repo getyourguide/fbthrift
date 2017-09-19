@@ -1,30 +1,28 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements. See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership. The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * Copyright 2016 Facebook, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied. See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
+#include <ctime>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <string>
 #include <fstream>
 #include <iostream>
 #include <vector>
 
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <sstream>
 
 #include <thrift/compiler/platform.h>
@@ -40,8 +38,8 @@ class t_st_generator : public t_oop_generator {
  public:
   t_st_generator(
       t_program* program,
-      const std::map<std::string, std::string>& parsed_options,
-      const std::string& option_string)
+      const std::map<std::string, std::string>& /* parsed_options */,
+      const std::string& /* option_string */)
     : t_oop_generator(program)
   {
     out_dir_base_ = "gen-st";
@@ -151,7 +149,7 @@ class t_st_generator : public t_oop_generator {
  */
 void t_st_generator::init_generator() {
   // Make output directory
-  MKDIR(get_out_dir().c_str());
+  make_dir(get_out_dir().c_str());
 
   temporary_var = 0;
 
@@ -232,7 +230,7 @@ string t_st_generator::generated_category() {
  *
  * @param ttypedef The type definition
  */
-void t_st_generator::generate_typedef(t_typedef* ttypedef) {}
+void t_st_generator::generate_typedef(t_typedef* /* ttypedef */) {}
 
 void t_st_generator::st_class_def(std::ofstream &out, string name) {
   out << "Object subclass: #" << prefix(name) << endl;
@@ -781,7 +779,6 @@ string t_st_generator::write_val(t_type *t, string fname) {
     switch(tbase) {
     case t_base_type::TYPE_DOUBLE:
       return "iprot writeDouble: " + fname + " asFloat";
-      break;
     case t_base_type::TYPE_BYTE:
     case t_base_type::TYPE_I16:
     case t_base_type::TYPE_I32:
@@ -1008,7 +1005,7 @@ string t_st_generator::argument_list(t_struct* tstruct) {
 
 string t_st_generator::type_name(t_type* ttype) {
   string prefix = "";
-  t_program* program = ttype->get_program();
+  const t_program* program = ttype->get_program();
   if (program != nullptr && program != program_) {
     if (!ttype->is_service()) {
       prefix = program->get_name() + "_types.";

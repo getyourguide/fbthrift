@@ -1,12 +1,18 @@
+namespace java.swift test.fixtures.basic
+
 enum MyEnum {
-  MyValue1,
-  MyValue2,
+  MyValue1 = 0,
+  MyValue2 = 1,
 }
 
 struct MyStruct {
   1: i64 MyIntField,
   2: string MyStringField,
+  # use the type before it is defined. Thrift should be able to handle this
+  3: MyDataItem MyDataField,
 }
+
+struct MyDataItem {}
 
 service MyService {
   void ping()
@@ -24,4 +30,16 @@ service MyServiceFast {
   string getDataById(1: i64 id) (thread='eb')
   void putDataById(1: i64 id, 2: string data) (thread='eb')
   oneway void lobDataById(1: i64 id, 2: string data) (thread='eb')
+}
+
+service MyServiceEmpty {
+}
+
+service MyServicePrioParent {
+  void ping() (priority = 'IMPORTANT')
+  void pong() (priority = 'HIGH_IMPORTANT')
+} (priority = 'HIGH')
+
+service MyServicePrioChild extends MyServicePrioParent {
+  void pang() (priority = 'BEST_EFFORT')
 }

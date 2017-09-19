@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2004-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <thrift/lib/cpp2/GeneratedCodeHelper.h>
-#include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
+#include <thrift/lib/cpp2/protocol/Frozen2Protocol.h>
+#include <thrift/lib/cpp2/protocol/Protocol.h>
 
 using namespace std;
 using namespace folly;
@@ -27,6 +27,15 @@ using namespace apache::thrift::protocol;
 using namespace apache::thrift::transport;
 
 namespace apache { namespace thrift {
+
+namespace detail {
+namespace ac {
+
+[[noreturn]] void throw_app_exn(char const* const msg) {
+  throw TApplicationException(msg);
+}
+} // namespace ac
+} // namespace detail
 
 namespace detail { namespace ap {
 
@@ -38,14 +47,14 @@ IOBufQueue helper<ProtocolReader, ProtocolWriter>::write_exn(
     ContextStack* ctx,
     const TApplicationException& x) {
   IOBufQueue queue(IOBufQueue::cacheChainLength());
-  size_t bufSize = x.serializedSizeZC(prot);
+  size_t bufSize = detail::serializedExceptionBodySizeZC(prot, &x);
   bufSize += prot->serializedMessageSize(method);
   prot->setOutput(&queue, bufSize);
   if (ctx) {
     ctx->handlerErrorWrapped(exception_wrapper(x));
   }
   prot->writeMessageBegin(method, T_EXCEPTION, protoSeqId);
-  x.write(prot);
+  detail::serializeExceptionBody(prot, &x);
   prot->writeMessageEnd();
   return queue;
 }
@@ -53,6 +62,7 @@ IOBufQueue helper<ProtocolReader, ProtocolWriter>::write_exn(
 template <typename ProtocolReader, typename ProtocolWriter>
 void helper<ProtocolReader, ProtocolWriter>::process_exn(
     const char* func,
+    const TApplicationException::TApplicationExceptionType type,
     const string& msg,
     unique_ptr<ResponseChannel::Request> req,
     Cpp2RequestContext* ctx,
@@ -61,18 +71,17 @@ void helper<ProtocolReader, ProtocolWriter>::process_exn(
   ProtocolWriter oprot;
   if (req) {
     LOG(ERROR) << msg << " in function " << func;
-    TApplicationException x(msg);
+    TApplicationException x(type, msg);
     IOBufQueue queue = helper_w<ProtocolWriter>::write_exn(
         func, &oprot, protoSeqId, nullptr, x);
     queue.append(THeader::transform(
           queue.move(),
           ctx->getHeader()->getWriteTransforms(),
           ctx->getHeader()->getMinCompressBytes()));
-    auto queue_mw = makeMoveWrapper(move(queue));
-    auto req_mw = makeMoveWrapper(move(req));
-    eb->runInEventBaseThread([=]() mutable {
-      (*req_mw)->sendReply(queue_mw->move());
-    });
+    eb->runInEventBaseThread(
+        [ queue = move(queue), req = move(req) ]() mutable {
+          req->sendReply(queue.move());
+        });
   } else {
     LOG(ERROR) << msg << " in oneway function " << func;
   }
@@ -80,6 +89,67 @@ void helper<ProtocolReader, ProtocolWriter>::process_exn(
 
 template struct helper<BinaryProtocolReader, BinaryProtocolWriter>;
 template struct helper<CompactProtocolReader, CompactProtocolWriter>;
+template struct helper<Frozen2ProtocolReader, Frozen2ProtocolWriter>;
+
+template <class ProtocolReader>
+static
+bool deserializeMessageBegin(
+    std::unique_ptr<ResponseChannel::Request>& req,
+    folly::IOBuf* buf,
+    Cpp2RequestContext* ctx,
+    folly::EventBase* eb) {
+  using h = helper_r<ProtocolReader>;
+  const char* fn = "process";
+  std::string fname;
+  MessageType mtype;
+  int32_t protoSeqId = 0;
+  ProtocolReader iprot;
+  iprot.setInput(buf);
+  try {
+    auto bytes = iprot.readMessageBegin(fname, mtype, protoSeqId);
+    ctx->setMessageBeginSize(bytes);
+  } catch (const TException& ex) {
+    LOG(ERROR) << "received invalid message from client: " << ex.what();
+    auto type =
+        TApplicationException::TApplicationExceptionType::UNKNOWN;
+    const char* msg = "invalid message from client";
+    h::process_exn(fn, type, msg, std::move(req), ctx, eb, protoSeqId);
+    return false;
+  }
+  if (mtype != T_CALL && mtype != T_ONEWAY) {
+    LOG(ERROR) << "received invalid message of type " << mtype;
+    auto type =
+        TApplicationException::TApplicationExceptionType::INVALID_MESSAGE_TYPE;
+    const char* msg = "invalid message arguments";
+    h::process_exn(fn, type, msg, std::move(req), ctx, eb, protoSeqId);
+    return false;
+  }
+
+  ctx->setMethodName(fname);
+  ctx->setProtoSeqId(protoSeqId);
+  return true;
+}
+
+bool deserializeMessageBegin(
+    protocol::PROTOCOL_TYPES protType,
+    std::unique_ptr<ResponseChannel::Request>& req,
+    folly::IOBuf* buf,
+    Cpp2RequestContext* ctx,
+    folly::EventBase* eb) {
+  switch (protType) {
+    case protocol::T_BINARY_PROTOCOL:
+      return deserializeMessageBegin<BinaryProtocolReader>(
+          req, buf, ctx, eb);
+    case protocol::T_COMPACT_PROTOCOL:
+      return deserializeMessageBegin<CompactProtocolReader>(
+          req, buf, ctx, eb);
+    case protocol::T_FROZEN2_PROTOCOL:
+      return deserializeMessageBegin<Frozen2ProtocolReader>(req, buf, ctx, eb);
+    default:
+      LOG(ERROR) << "invalid protType: " << protType;
+      return false;
+  }
+}
 
 template <class ProtocolReader>
 static
@@ -167,6 +237,8 @@ bool is_oneway_method(
       return is_oneway_method<BinaryProtocolReader>(buf, oneways);
     case T_COMPACT_PROTOCOL:
       return is_oneway_method<CompactProtocolReader>(buf, oneways);
+    case T_FROZEN2_PROTOCOL:
+      return is_oneway_method<Frozen2ProtocolReader>(buf, oneways);
     default:
       LOG(ERROR) << "invalid protType: " << protType;
       return false;
@@ -174,5 +246,14 @@ bool is_oneway_method(
 }
 
 }}
+
+namespace detail {
+namespace si {
+[[noreturn]] void throw_app_exn_unimplemented(char const* const name) {
+  throw TApplicationException(
+      folly::sformat("Function {} is unimplemented", name));
+}
+}
+}
 
 }}

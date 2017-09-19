@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Facebook, Inc.
+ * Copyright 2015-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <thrift/lib/cpp/EventHandlerBase.h>
 
 #include <gtest/gtest.h>
@@ -55,32 +54,20 @@ class TProcessorEventHandlerTest : public testing::Test {};
 }
 
 TEST_F(TProcessorEventHandlerTest, with_full_wrapped_eptr) {
-  auto e = lulz("hello");
-  auto wrap = exception_wrapper(to_eptr(e), e);
+  auto wrap = exception_wrapper(lulz("hello"));
+  auto eptr = wrap.to_exception_ptr();
+  EXPECT_TRUE(wrap.has_exception_ptr());
   EXPECT_EQ("lulz", wrap.class_name().toStdString());
   EXPECT_EQ("lulz: hello", wrap.what().toStdString());
 
   EventHandler eh;
   eh.userExceptionWrapped(nullptr, nullptr, false, wrap);
   EXPECT_EQ("lulz", eh.ex_type);
-  EXPECT_EQ("hello", eh.ex_what);
-}
-
-TEST_F(TProcessorEventHandlerTest, with_half_wrapped_eptr) {
-  auto e = lulz("hello");
-  auto wrap = exception_wrapper(to_eptr(e));
-  EXPECT_EQ("", wrap.class_name().toStdString());
-  EXPECT_EQ("", wrap.what().toStdString());
-
-  EventHandler eh;
-  eh.userExceptionWrapped(nullptr, nullptr, false, wrap);
-  EXPECT_EQ("lulz", eh.ex_type);
-  EXPECT_EQ("hello", eh.ex_what);
+  EXPECT_EQ("lulz: hello", eh.ex_what);
 }
 
 TEST_F(TProcessorEventHandlerTest, with_wrap_surprise) {
-  auto e = lulz("hello");
-  auto wrap = exception_wrapper(e);
+  auto wrap = exception_wrapper(lulz("hello"));
   EXPECT_EQ("lulz", wrap.class_name().toStdString());
   EXPECT_EQ("lulz: hello", wrap.what().toStdString());
 
@@ -91,8 +78,7 @@ TEST_F(TProcessorEventHandlerTest, with_wrap_surprise) {
 }
 
 TEST_F(TProcessorEventHandlerTest, with_wrap_declared) {
-  auto e = lulz("hello");
-  auto wrap = exception_wrapper(e);
+  auto wrap = exception_wrapper(lulz("hello"));
   EXPECT_EQ("lulz", wrap.class_name().toStdString());
   EXPECT_EQ("lulz: hello", wrap.what().toStdString());
 

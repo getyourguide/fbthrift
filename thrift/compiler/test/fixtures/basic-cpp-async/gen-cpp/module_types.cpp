@@ -4,39 +4,38 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include "module_types.h"
+#include "thrift/compiler/test/fixtures/basic-cpp-async/gen-cpp/module_types.h"
+#include "thrift/compiler/test/fixtures/basic-cpp-async/gen-cpp/module_data.h"
 
 #include <algorithm>
 #include <string.h>
 
+#include <folly/Indestructible.h>
 
 
-const int _kMyEnumValues[] = {
-  MyValue1,
-  MyValue2
-};
 
-const char* const _kMyEnumNames[] = {
-  "MyValue1",
-  "MyValue2"
-};
+const typename _MyEnum_EnumMapFactory::ValuesToNamesMapType _MyEnum_VALUES_TO_NAMES = _MyEnum_EnumMapFactory::makeValuesToNamesMap();
 
-const std::map<int, const char*> _MyEnum_VALUES_TO_NAMES(apache::thrift::TEnumIterator<int>(2, _kMyEnumValues, _kMyEnumNames), apache::thrift::TEnumIterator<int>(-1, NULL, NULL));
-
-const std::map<const char*, int, apache::thrift::ltstr> _MyEnum_NAMES_TO_VALUES(apache::thrift::TEnumInverseIterator<int>(2, _kMyEnumValues, _kMyEnumNames), apache::thrift::TEnumInverseIterator<int>(-1, NULL, NULL));
+const typename _MyEnum_EnumMapFactory::NamesToValuesMapType _MyEnum_NAMES_TO_VALUES = _MyEnum_EnumMapFactory::makeNamesToValuesMap();
 
 
 namespace apache { namespace thrift {
-template<>
-const char* TEnumTraitsBase< ::MyEnum>::findName( ::MyEnum value) {
-return findName( ::_MyEnum_VALUES_TO_NAMES, value);
-} 
+template <>const std::size_t TEnumTraits< ::MyEnum>::size = 2;
+template <>const folly::Range<const  ::MyEnum*> TEnumTraits< ::MyEnum>::values = folly::range( ::_MyEnumEnumDataStorage::values);
+template <>const folly::Range<const folly::StringPiece*> TEnumTraits< ::MyEnum>::names = folly::range( ::_MyEnumEnumDataStorage::names);
 
 template<>
-bool TEnumTraitsBase< ::MyEnum>::findValue(const char* name,  ::MyEnum* out) {
-return findValue( ::_MyEnum_NAMES_TO_VALUES, name, out);
-} 
-}} // apache::thrift 
+const char* TEnumTraits< ::MyEnum>::findName( ::MyEnum value) {
+  static const auto map = folly::Indestructible< ::_MyEnum_EnumMapFactory::ValuesToNamesMapType>{ ::_MyEnum_EnumMapFactory::makeValuesToNamesMap()};
+  return findName(*map, value);
+}
+
+template<>
+bool TEnumTraits< ::MyEnum>::findValue(const char* name,  ::MyEnum* out) {
+  static const auto map = folly::Indestructible< ::_MyEnum_EnumMapFactory::NamesToValuesMapType>{ ::_MyEnum_EnumMapFactory::makeNamesToValuesMap()};
+  return findValue(*map, name, out);
+}
+}} // apache::thrift
 
 
 const uint64_t MyStruct::_reflection_id;
@@ -51,6 +50,21 @@ bool MyStruct::operator == (const MyStruct & rhs) const {
     return false;
   return true;
 }
+
+void MyStruct::translateFieldName(
+    FOLLY_MAYBE_UNUSED folly::StringPiece _fname,
+    FOLLY_MAYBE_UNUSED int16_t& fid,
+    FOLLY_MAYBE_UNUSED apache::thrift::protocol::TType& _ftype) {
+  if (false) {}
+  else if (_fname == "MyIntField") {
+    fid = 1;
+    _ftype = apache::thrift::protocol::T_I64;
+  }
+  else if (_fname == "MyStringField") {
+    fid = 2;
+    _ftype = apache::thrift::protocol::T_STRING;
+  }
+};
 
 void MyStruct::__clear() {
   MyIntField = 0;
@@ -68,26 +82,18 @@ void swap(MyStruct &a, MyStruct &b) {
 
 void merge(const MyStruct& from, MyStruct& to) {
   using apache::thrift::merge;
-  if (from.__isset.MyIntField) {
-    merge(from.MyIntField, to.MyIntField);
-    to.__isset.MyIntField = true;
-  }
-  if (from.__isset.MyStringField) {
-    merge(from.MyStringField, to.MyStringField);
-    to.__isset.MyStringField = true;
-  }
+  merge(from.MyIntField, to.MyIntField);
+  to.__isset.MyIntField = to.__isset.MyIntField || from.__isset.MyIntField;
+  merge(from.MyStringField, to.MyStringField);
+  to.__isset.MyStringField = to.__isset.MyStringField || from.__isset.MyStringField;
 }
 
 void merge(MyStruct&& from, MyStruct& to) {
   using apache::thrift::merge;
-  if (from.__isset.MyIntField) {
-    merge(std::move(from.MyIntField), to.MyIntField);
-    to.__isset.MyIntField = true;
-  }
-  if (from.__isset.MyStringField) {
-    merge(std::move(from.MyStringField), to.MyStringField);
-    to.__isset.MyStringField = true;
-  }
+  merge(std::move(from.MyIntField), to.MyIntField);
+  to.__isset.MyIntField = to.__isset.MyIntField || from.__isset.MyIntField;
+  merge(std::move(from.MyStringField), to.MyStringField);
+  to.__isset.MyStringField = to.__isset.MyStringField || from.__isset.MyStringField;
 }
 
 

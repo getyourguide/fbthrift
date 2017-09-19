@@ -17,10 +17,13 @@
 #include <thrift/lib/cpp/util/THttpParser.h>
 
 #include <thrift/lib/cpp/transport/TTransportException.h>
+
+#include <folly/Format.h>
+#include <folly/String.h>
+
 #include <cstdlib>
 #include <sstream>
 #include <cassert>
-#include <boost/algorithm/string.hpp>
 
 namespace apache { namespace thrift { namespace util {
 
@@ -202,13 +205,16 @@ THttpParser::HttpParseResult THttpParser::parseStart() {
 THttpParser::HttpParseResult THttpParser::parseHeader() {
   // Loop until headers are finished
   while (true) {
-    char* line = readLine();
-    // no line is found, need wait for more data.
-    if (line == nullptr) {
+    auto const lineStr = readLine();
+
+    // No line is found, need wait for more data.
+    if (lineStr == nullptr) {
       return HTTP_PARSE_RESULT_BLOCK;
     }
 
-    if (strlen(line) == 0) {
+    const folly::StringPiece line = lineStr;
+
+    if (line.empty()) {
       if (finished_) {
         // go to the next state
         if (chunked_) {
@@ -302,59 +308,65 @@ THttpParser::HttpParseResult THttpParser::parseTrailing() {
   return THttpParser::HTTP_PARSE_RESULT_CONTINUE;
 }
 
-void THttpClientParser::parseHeaderLine(const char* header) {
-  const char* colon = strchr(header, ':');
-  if (colon == nullptr) {
+void THttpClientParser::parseHeaderLine(folly::StringPiece header) {
+  auto const colonPos = header.find(':');
+  if (colonPos == std::string::npos) {
     return;
   }
-  const char* value = colon + 1;
-  while (*value && *value == ' ') {
-    value++;
-  }
 
-  readHeaders_.insert(std::make_pair(
-    std::string(header, colon - header),
-    std::string(value)
-  ));
+  auto const value = folly::ltrimWhitespace(header.subpiece(colonPos + 1));
 
-  if (boost::istarts_with(header, "Transfer-Encoding")) {
-    if (boost::iends_with(value, "chunked")) {
+  readHeaders_.emplace(header.subpiece(0, colonPos).str(), value.str());
+
+  const folly::AsciiCaseInsensitive i{};
+
+  if (header.startsWith("Transfer-Encoding", i)) {
+    if (value.endsWith("chunked", i)) {
       chunked_ = true;
     }
-  } else if (boost::istarts_with(header, "Content-Length")) {
+  } else if (header.startsWith("Content-Length", i)) {
     chunked_ = false;
-    contentLength_ = atoi(value);
-  } else if (boost::istarts_with(header, "Connection")) {
-    if (boost::iends_with(header, "close")) {
+    contentLength_ = atoi(value.begin());
+  } else if (header.startsWith("Connection", i)) {
+    if (header.endsWith("close", i)) {
       connectionClosedByServer_ = true;
     }
   }
 }
 
-bool THttpClientParser::parseStatusLine(const char* status) {
-  const char* http = status;
+bool THttpClientParser::parseStatusLine(folly::StringPiece status) {
+  auto const badStatus = [&] {
+    return TTransportException(folly::sformat("Bad Status: {}", status));
+  };
 
   // Skip over the "HTTP/<version>" string.
   // TODO: we should probably check that the version is 1.0 or 1.1
-  const char* code = strchr(http, ' ');
-  if (code == nullptr) {
-    throw TTransportException(string("Bad Status: ") + status);
+  auto const spacePos = status.find(' ');
+  if (spacePos == std::string::npos) {
+    throw badStatus();
   }
 
   // RFC 2616 requires exactly 1 space between the HTTP version and the status
   // code.  Skip over it.
-  ++code;
+  auto const codeStart = status.subpiece(spacePos + 1);
 
-  // Check the status code.  It must be followed by a space.
-  if (strncmp(code, "200 ", 4) == 0) {
-    // HTTP 200 = OK, we got the response
-    return true;
-  } else if (strncmp(code, "100 ", 4) == 0) {
-    // HTTP 100 = continue, just keep reading
-    return false;
-  } else {
-    throw TTransportException(string("Bad Status: ") + status);
+  // Find the status code.  It must be followed by a space.
+  auto const nextSpacePos = codeStart.find(' ');
+  if (nextSpacePos == std::string::npos) {
+    throw badStatus();
   }
+  auto const code = codeStart.subpiece(0, nextSpacePos);
+
+  if (code == "200") {
+    // HTTP 200 = OK, we got the response.
+    return true;
+  }
+  if (code == "100") {
+    // HTTP 100 = continue, just keep reading.
+    return false;
+  }
+
+  throw badStatus();
 }
 
 void THttpClientParser::resetConnectClosedByServer() {

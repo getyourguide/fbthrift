@@ -21,21 +21,13 @@
 module Thrift.Types where
 
 import Data.ByteString.Lazy (ByteString)
-import Data.Foldable (foldl')
-import Data.Hashable ( Hashable, hashWithSalt )
+import Data.Hashable (Hashable, hashWithSalt)
 import Data.Int
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen (elements)
 import Data.Text.Lazy (Text)
 import qualified Data.HashMap.Strict as Map
-import qualified Data.HashSet as Set
 import qualified Data.Vector as Vector
-
-instance (Hashable k, Hashable v) => Hashable (Map.HashMap k v) where
-  hashWithSalt salt = foldl' hashWithSalt salt . Map.toList
-
-instance (Hashable a) => Hashable (Set.HashSet a) where
-  hashWithSalt = foldl' hashWithSalt
 
 instance (Hashable a) => Hashable (Vector.Vector a) where
   hashWithSalt = Vector.foldl' hashWithSalt

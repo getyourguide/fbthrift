@@ -31,7 +31,7 @@
  */
 
 #ifdef THRIFT_HAVE_CLOCK_GETTIME
-#include <sys/time.h>
+#include <folly/portability/SysTime.h>
 #endif
 #include <time.h>
 
@@ -116,23 +116,6 @@
     fprintf(stderr,"[%s,%d] [%s, %d ms] ERROR: " format_string " \n", \
             __FILE__, __LINE__,dbgtime, ms,                             \
             ##__VA_ARGS__);         \
-  }
-
-
-/**
- * Analogous to T_ERROR, additionally aborting the process.
- * WARNING: macro calls abort(), ending program execution
- *
- * @param string  format_string input: printf style format string
- */
-#define T_ERROR_ABORT(format_string,...)                                \
-  {                                                                     \
-    COMPUTE_TIME                                                        \
-    fprintf(stderr,"[%s,%d] [%s, %d ms] ERROR: Going to abort " \
-            format_string " \n",                                        \
-            __FILE__, __LINE__,dbgtime, ms,                             \
-            ##__VA_ARGS__);                                             \
-    exit(1);                                                            \
   }
 
 

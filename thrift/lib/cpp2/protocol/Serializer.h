@@ -1,4 +1,6 @@
 /*
+ * Copyright 2012-present Facebook, Inc.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements. See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +25,7 @@
 #include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
 #include <thrift/lib/cpp2/protocol/BinaryProtocol.h>
+#include <thrift/lib/cpp2/protocol/JSONProtocol.h>
 #include <thrift/lib/cpp2/protocol/SimpleJSONProtocol.h>
 #include <thrift/lib/cpp/TApplicationException.h>
 #include <folly/io/IOBuf.h>
@@ -59,6 +62,28 @@ struct Serializer {
   }
 
   template <class T>
+  static T deserialize(
+      const folly::IOBuf* buf, uint32_t* size = nullptr) {
+    return returning<T>([&](T& obj) { set(size, deserialize(buf, obj)); });
+  }
+
+  template <class T>
+  static T deserialize(
+      folly::ByteRange range, uint32_t* size = nullptr,
+      ExternalBufferSharing sharing = COPY_EXTERNAL_BUFFER) {
+    return returning<T>([&](T& obj) {
+        set(size, deserialize(range, obj, sharing));
+    });
+  }
+
+  template <class T>
+  static T deserialize(
+      folly::StringPiece range, uint32_t* size = nullptr,
+      ExternalBufferSharing sharing = COPY_EXTERNAL_BUFFER) {
+    return deserialize<T>(folly::ByteRange(range), size, sharing);
+  }
+
+  template <class T>
   static void serialize(
       const T& obj, folly::IOBufQueue* out,
       ExternalBufferSharing sharing = COPY_EXTERNAL_BUFFER) {
@@ -79,13 +104,48 @@ struct Serializer {
     queue.appendToString(*out);
   }
 
+  template <class T>
+  static void serialize(const T& obj, folly::fbstring* out) {
+    folly::IOBufQueue queue(folly::IOBufQueue::cacheChainLength());
+    // Okay to share any external buffers, as we'll copy them to *out
+    // immediately afterwards.
+    if (!out->empty()) {
+      queue.append(out->data(), out->size());
+    }
+    serialize(obj, &queue, SHARE_EXTERNAL_BUFFER);
+    *out = queue.move()->moveToFbString();
+  }
+
+  template <class R, class T, typename... Args>
+  static R serialize(const T& obj, Args&&... args) {
+    R _return;
+    serialize(obj, &_return, std::forward<Args>(args)...);
+    return _return;
+  }
+
  private:
+
+  template <typename T>
+  static void set(T* t, T&& v) {
+    if (t != nullptr) {
+      *t = std::forward<T>(v);
+    }
+  }
+
+  template <typename R, typename F>
+  static R returning(F&& f) {
+    R _return;
+    f(_return);
+    return _return;
+  }
 };
 
 typedef Serializer<CompactProtocolReader, CompactProtocolWriter>
   CompactSerializer;
 typedef Serializer<BinaryProtocolReader, BinaryProtocolWriter>
   BinarySerializer;
+typedef Serializer<JSONProtocolReader, JSONProtocolWriter>
+  JSONSerializer;
 typedef Serializer<SimpleJSONProtocolReader, SimpleJSONProtocolWriter>
   SimpleJSONSerializer;
 
@@ -112,8 +172,28 @@ std::unique_ptr<folly::IOBuf> serializeErrorProtocol(
   return queue.move();
 }
 
+template<typename ProtOut>
+std::unique_ptr<folly::IOBuf> serializeErrorProtocol(
+    TApplicationException obj, const std::string& fname, int32_t protoSeqId) {
+  ProtOut prot;
+  size_t bufSize = obj.serializedSizeZC(&prot);
+  bufSize += prot.serializedMessageSize(fname);
+  folly::IOBufQueue queue;
+  prot.setOutput(&queue, bufSize);
+  prot.writeMessageBegin(fname,
+                         apache::thrift::T_EXCEPTION, protoSeqId);
+  obj.write(&prot);
+  prot.writeMessageEnd();
+  return queue.move();
+}
+
 std::unique_ptr<folly::IOBuf> serializeError(
   int protId, TApplicationException obj, folly::IOBuf* buf);
+
+std::unique_ptr<folly::IOBuf> serializeError(int protId,
+                                             TApplicationException obj,
+                                             const std::string& fname,
+                                             int32_t protoSeqId);
 
 }} // namespace apache::thrift
 #endif
