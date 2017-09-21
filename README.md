@@ -69,7 +69,6 @@ Docs
 Some docs on the new cpp2 server are at:
 https://github.com/facebook/fbthrift/blob/master/thrift/doc/Cpp2.md
 
-<<<<<<< HEAD
 
 ## Notes
 
@@ -80,9 +79,3 @@ The changes that were made was implementing `writeFloat` and marking `readFloat`
 Commit that we extracted from: https://github.com/apache/thrift/tree/84d6af4cf903571319e0ebddd7beb12bc93fb752
 
 This is only in the PHP implementation.
-=======
-C++ Static Reflection
----------------------
-
-Information regarding C++ Static Reflection support can be found under the [static reflection library directory](thrift/lib/cpp2/fatal/), in the corresponding [`README` file](thrift/lib/cpp2/fatal/README.md).
->>>>>>> master
